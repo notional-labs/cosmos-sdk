@@ -58,3 +58,7 @@ var (
 	ErrNoHistoricalInfo                = sdkerrors.Register(ModuleName, 46, "no historical info found")
 	ErrEmptyValidatorPubKey            = sdkerrors.Register(ModuleName, 47, "empty validator public key")
 )
+
+var (
+	ErrCommissionLTMinRate = sdkerrors.Register(ModuleName, 1001,"commission cannot be less than the min rate")
+)

@@ -8,6 +8,10 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
+var (
+	MinCommissionRate = sdk.NewDecWithPrec(25, 4)
+)
+
 // NewCommissionRates returns an initialized validator commission rates.
 func NewCommissionRates(rate, maxRate, maxChangeRate sdk.Dec) CommissionRates {
 	return CommissionRates{
@@ -62,6 +66,10 @@ func (cr CommissionRates) Validate() error {
 		// rate cannot be negative
 		return ErrCommissionNegative
 
+	case cr.Rate.LT(MinCommissionRate):
+		// rate cannot be less than the min rate
+		return ErrCommissionLTMinRate
+
 	case cr.Rate.GT(cr.MaxRate):
 		// rate cannot be greater than the max rate
 		return ErrCommissionGTMaxRate
@@ -89,6 +97,10 @@ func (c Commission) ValidateNewRate(newRate sdk.Dec, blockTime time.Time) error 
 	case newRate.IsNegative():
 		// new rate cannot be negative
 		return ErrCommissionNegative
+
+	case newRate.LT(MinCommissionRate):
+		// new rate cannot be less than the min rate
+		return ErrCommissionGTMaxRate
 
 	case newRate.GT(c.MaxRate):
 		// new rate cannot be greater than the max rate

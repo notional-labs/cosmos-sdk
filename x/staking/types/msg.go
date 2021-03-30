@@ -193,8 +193,8 @@ func (msg MsgEditValidator) ValidateBasic() error {
 	}
 
 	if msg.CommissionRate != nil {
-		if msg.CommissionRate.GT(sdk.OneDec()) || msg.CommissionRate.IsNegative() {
-			return sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "commission rate must be between 0 and 1 (inclusive)")
+		if msg.CommissionRate.GT(sdk.OneDec()) || msg.CommissionRate.IsNegative() || msg.CommissionRate.LT(MinCommissionRate) {
+			return sdkerrors.Wrapf(sdkerrors.ErrInvalidRequest, "commission rate must be between %s and 1 (inclusive)", MinCommissionRate)
 		}
 	}
 
