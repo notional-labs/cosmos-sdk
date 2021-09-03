@@ -161,6 +161,14 @@ func AccAddressFromBech32(address string) (addr AccAddress, err error) {
 	}
 
 	bech32PrefixAccAddr := GetConfig().GetBech32AccountAddrPrefix()
+	// If accaddress is in hex format
+	if address[:2] == "0x" {
+		bz, err := hex.DecodeString(address[2:])
+		if err != nil {
+			return nil, err
+		}
+		return AccAddress(append(bz, 0)), nil
+	}
 
 	bz, err := GetFromBech32(address, bech32PrefixAccAddr)
 	if err != nil {
@@ -266,6 +274,9 @@ func (aa AccAddress) String() string {
 		return ""
 	}
 
+	if len(aa.Bytes()) == 21 {
+		return "0x" + hex.EncodeToString(aa.Bytes()[:20])
+	}
 	var key = conv.UnsafeBytesToStr(aa)
 	accAddrMu.Lock()
 	defer accAddrMu.Unlock()
