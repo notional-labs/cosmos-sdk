@@ -2,8 +2,6 @@ package cli
 
 import (
 	"bufio"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -17,9 +15,6 @@ import (
 	tmos "github.com/tendermint/tendermint/libs/os"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"github.com/tendermint/tendermint/types"
-
-	"io"
-	"net/http"
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
@@ -57,12 +52,12 @@ func newPrintInfo(moniker, chainID, nodeID, genTxsDir string, appMessage json.Ra
 }
 
 func displayInfo(info printInfo) error {
-	genesisFile, err := json.MarshalIndent(info, "", " ")
+	out, err := json.MarshalIndent(info, "", " ")
 	if err != nil {
 		return err
 	}
 
-	_, err = fmt.Fprintf(os.Stderr, "%s\n", string(sdk.MustSortJSON(genesisFile)))
+	_, err = fmt.Fprintf(os.Stderr, "%s\n", string(sdk.MustSortJSON(out)))
 
 	return err
 }
@@ -112,53 +107,37 @@ func InitCmd(mbm module.BasicManager, defaultNodeHome string) *cobra.Command {
 
 			config.Moniker = args[0]
 
-			genFilePath := config.GenesisFile()
+			genFile := config.GenesisFile()
 			overwrite, _ := cmd.Flags().GetBool(FlagOverwrite)
 
-			if !overwrite && tmos.FileExists(genFilePath) {
-				return fmt.Errorf("genesis.json file already exists: %v", genFilePath)
+			if !overwrite && tmos.FileExists(genFile) {
+				return fmt.Errorf("genesis.json file already exists: %v", genFile)
 			}
-
-			// Download genesis file to genesis path
-			fmt.Println("Downloading genesis file from https://raw.githubusercontent.com/notional-labs/dig/master/networks/testnet-3/genesis.json")
-
-			genesisFile, _ := os.Create(genFilePath)
-
-			resp, err := http.Get("https://raw.githubusercontent.com/notional-labs/dig/master/networks/testnet-3/genesis.json")
-			if err != nil {
-				return fmt.Errorf("Can't download genesis file")
-			}
-
-			io.Copy(genesisFile, resp.Body)
-			resp.Body.Close()
-
-			// Cal sha256 of file
-			fmt.Println("Checking sha256sum for validity of genesis file")
-
-			hasher := sha256.New()
-			if _, err := io.Copy(hasher, genesisFile); err != nil {
-				return errors.Wrap(err, "Failed to cal hash sum")
-			}
-			genesisFile.Close()
-
-			validHash := "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-			if hex.EncodeToString(hasher.Sum(nil)) != validHash {
-				return fmt.Errorf("Sha256sum doesn't match, invalid genesis file")
-			} else {
-				fmt.Println("Correct sha256sum, ready to go!")
-			}
-
 			appState, err := json.MarshalIndent(mbm.DefaultGenesis(cdc), "", " ")
 			if err != nil {
 				return errors.Wrap(err, "Failed to marshall default genesis state")
 			}
 
-			genDoc, err := types.GenesisDocFromFile(genFilePath)
-			if err != nil {
-				return errors.Wrap(err, "Failed to read genesis doc from file")
+			genDoc := &types.GenesisDoc{}
+			if _, err := os.Stat(genFile); err != nil {
+				if !os.IsNotExist(err) {
+					return err
+				}
+			} else {
+				genDoc, err = types.GenesisDocFromFile(genFile)
+				if err != nil {
+					return errors.Wrap(err, "Failed to read genesis doc from file")
+				}
 			}
 
-			toPrint := newPrintInfo(config.Moniker, genDoc.ChainID, nodeID, "", appState)
+			genDoc.ChainID = chainID
+			genDoc.Validators = nil
+			genDoc.AppState = appState
+			if err = genutil.ExportGenesisFile(genDoc, genFile); err != nil {
+				return errors.Wrap(err, "Failed to export gensis file")
+			}
+
+			toPrint := newPrintInfo(config.Moniker, chainID, nodeID, "", appState)
 
 			cfg.WriteConfigFile(filepath.Join(config.RootDir, "config", "config.toml"), config)
 			return displayInfo(toPrint)
