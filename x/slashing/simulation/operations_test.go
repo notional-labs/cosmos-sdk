@@ -7,11 +7,13 @@ import (
 
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
 	"github.com/cosmos/cosmos-sdk/simapp"
 	simappparams "github.com/cosmos/cosmos-sdk/simapp/params"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
+	"github.com/cosmos/cosmos-sdk/x/bank/testutil"
 	distrtypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
 	"github.com/cosmos/cosmos-sdk/x/slashing/simulation"
@@ -21,10 +23,10 @@ import (
 
 // TestWeightedOperations tests the weights of the operations.
 func TestWeightedOperations(t *testing.T) {
-	app, ctx := createTestApp(false)
+	app, ctx := createTestApp(t, false)
 	ctx.WithChainID("test-chain")
 
-	cdc := app.LegacyAmino()
+	cdc := app.AppCodec()
 	appParams := make(simtypes.AppParams)
 
 	s := rand.NewSource(1)
@@ -52,7 +54,7 @@ func TestWeightedOperations(t *testing.T) {
 // TestSimulateMsgUnjail tests the normal scenario of a valid message of type types.MsgUnjail.
 // Abonormal scenarios, where the message is created by an errors, are not tested here.
 func TestSimulateMsgUnjail(t *testing.T) {
-	app, ctx := createTestApp(false)
+	app, ctx := createTestApp(t, false)
 	blockTime := time.Now().UTC()
 	ctx = ctx.WithBlockTime(blockTime)
 
@@ -66,7 +68,8 @@ func TestSimulateMsgUnjail(t *testing.T) {
 
 	// setup validator0 by consensus address
 	app.StakingKeeper.SetValidatorByConsAddr(ctx, validator0)
-	val0ConsAddress := sdk.ConsAddress(validator0.GetConsPubKey().Address())
+	val0ConsAddress, err := validator0.GetConsAddr()
+	require.NoError(t, err)
 	info := types.NewValidatorSigningInfo(val0ConsAddress, int64(4), int64(3),
 		time.Unix(2, 0), false, int64(10))
 	app.SlashingKeeper.SetValidatorSigningInfo(ctx, val0ConsAddress, info)
@@ -75,15 +78,16 @@ func TestSimulateMsgUnjail(t *testing.T) {
 	app.StakingKeeper.Jail(ctx, val0ConsAddress)
 
 	// setup self delegation
-	delTokens := sdk.TokensFromConsensusPower(2)
+	delTokens := app.StakingKeeper.TokensFromConsensusPower(ctx, 2)
 	validator0, issuedShares := validator0.AddTokensFromDel(delTokens)
-	val0AccAddress := sdk.AccAddress(validator0.OperatorAddress.Bytes())
-	selfDelegation := stakingtypes.NewDelegation(val0AccAddress, validator0.OperatorAddress, issuedShares)
+	val0AccAddress, err := sdk.ValAddressFromBech32(validator0.OperatorAddress)
+	require.NoError(t, err)
+	selfDelegation := stakingtypes.NewDelegation(val0AccAddress.Bytes(), validator0.GetOperator(), issuedShares)
 	app.StakingKeeper.SetDelegation(ctx, selfDelegation)
-	app.DistrKeeper.SetDelegatorStartingInfo(ctx, validator0.OperatorAddress, val0AccAddress, distrtypes.NewDelegatorStartingInfo(2, sdk.OneDec(), 200))
+	app.DistrKeeper.SetDelegatorStartingInfo(ctx, validator0.GetOperator(), val0AccAddress.Bytes(), distrtypes.NewDelegatorStartingInfo(2, sdk.OneDec(), 200))
 
 	// begin a new block
-	app.BeginBlock(abci.RequestBeginBlock{Header: abci.Header{Height: app.LastBlockHeight() + 1, AppHash: app.LastCommitID().Hash, Time: blockTime}})
+	app.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{Height: app.LastBlockHeight() + 1, AppHash: app.LastCommitID().Hash, Time: blockTime}})
 
 	// execute operation
 	op := simulation.SimulateMsgUnjail(app.AccountKeeper, app.BankKeeper, app.SlashingKeeper, app.StakingKeeper)
@@ -95,15 +99,15 @@ func TestSimulateMsgUnjail(t *testing.T) {
 
 	require.True(t, operationMsg.OK)
 	require.Equal(t, types.TypeMsgUnjail, msg.Type())
-	require.Equal(t, "cosmosvaloper1tnh2q55v8wyygtt9srz5safamzdengsn9dsd7z", msg.GetValidatorAddr().String())
+	require.Equal(t, "cosmosvaloper1tnh2q55v8wyygtt9srz5safamzdengsn9dsd7z", msg.ValidatorAddr)
 	require.Len(t, futureOperations, 0)
 }
 
 // returns context and an app with updated mint keeper
-func createTestApp(isCheckTx bool) (*simapp.SimApp, sdk.Context) {
-	app := simapp.Setup(isCheckTx)
+func createTestApp(t *testing.T, isCheckTx bool) (*simapp.SimApp, sdk.Context) {
+	app := simapp.Setup(t, isCheckTx)
 
-	ctx := app.BaseApp.NewContext(isCheckTx, abci.Header{})
+	ctx := app.BaseApp.NewContext(isCheckTx, tmproto.Header{})
 	app.MintKeeper.SetParams(ctx, minttypes.DefaultParams())
 	app.MintKeeper.SetMinter(ctx, minttypes.DefaultInitialMinter())
 
@@ -113,15 +117,14 @@ func createTestApp(isCheckTx bool) (*simapp.SimApp, sdk.Context) {
 func getTestingAccounts(t *testing.T, r *rand.Rand, app *simapp.SimApp, ctx sdk.Context, n int) []simtypes.Account {
 	accounts := simtypes.RandomAccounts(r, n)
 
-	initAmt := sdk.TokensFromConsensusPower(200)
+	initAmt := app.StakingKeeper.TokensFromConsensusPower(ctx, 200)
 	initCoins := sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, initAmt))
 
 	// add coins to the accounts
 	for _, account := range accounts {
 		acc := app.AccountKeeper.NewAccountWithAddress(ctx, account.Address)
 		app.AccountKeeper.SetAccount(ctx, acc)
-		err := app.BankKeeper.SetBalances(ctx, account.Address, initCoins)
-		require.NoError(t, err)
+		require.NoError(t, testutil.FundAccount(app.BankKeeper, ctx, account.Address, initCoins))
 	}
 
 	return accounts
@@ -134,10 +137,11 @@ func getTestingValidator0(t *testing.T, app *simapp.SimApp, ctx sdk.Context, acc
 
 func getTestingValidator(t *testing.T, app *simapp.SimApp, ctx sdk.Context, accounts []simtypes.Account, commission stakingtypes.Commission, n int) stakingtypes.Validator {
 	account := accounts[n]
-	valPubKey := account.PubKey
+	valPubKey := account.ConsKey.PubKey()
 	valAddr := sdk.ValAddress(account.PubKey.Address().Bytes())
-	validator := stakingtypes.NewValidator(valAddr, valPubKey, stakingtypes.Description{})
-	validator, err := validator.SetInitialCommission(commission)
+	validator, err := stakingtypes.NewValidator(valAddr, valPubKey, stakingtypes.Description{})
+	require.NoError(t, err)
+	validator, err = validator.SetInitialCommission(commission)
 	require.NoError(t, err)
 
 	validator.DelegatorShares = sdk.NewDec(100)

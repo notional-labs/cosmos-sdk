@@ -11,8 +11,8 @@ import (
 )
 
 func TestParseProposal(t *testing.T) {
-	cdc := codec.New()
-	okJSON, cleanup := testutil.WriteToNewTempFile(t, `
+	cdc := codec.NewLegacyAmino()
+	okJSON := testutil.WriteToNewTempFile(t, `
 {
   "title": "Staking Param Change",
   "description": "Update max validators",
@@ -26,8 +26,6 @@ func TestParseProposal(t *testing.T) {
   "deposit": "1000stake"
 }
 `)
-	t.Cleanup(cleanup)
-
 	proposal, err := utils.ParseParamChangeProposalJSON(cdc, okJSON.Name())
 	require.NoError(t, err)
 

@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"github.com/cosmos/cosmos-sdk/codec"
-
-	"github.com/cosmos/cosmos-sdk/crypto/types"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
+	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 )
@@ -32,7 +32,7 @@ func SignatureDataToModeInfoAndSig(data signing.SignatureData) (*tx.ModeInfo, []
 			modeInfos[i], sigs[i] = SignatureDataToModeInfoAndSig(d)
 		}
 
-		multisig := types.MultiSignature{
+		multisig := cryptotypes.MultiSignature{
 			Signatures: sigs,
 		}
 		sig, err := multisig.Marshal()
@@ -91,7 +91,7 @@ func ModeInfoAndSigToSignatureData(modeInfo *tx.ModeInfo, sig []byte) (signing.S
 
 // decodeMultisignatures safely decodes the the raw bytes as a MultiSignature protobuf message
 func decodeMultisignatures(bz []byte) ([][]byte, error) {
-	multisig := types.MultiSignature{}
+	multisig := cryptotypes.MultiSignature{}
 	err := multisig.Unmarshal(bz)
 	if err != nil {
 		return nil, err
@@ -109,22 +109,22 @@ func (g config) MarshalSignatureJSON(sigs []signing.SignatureV2) ([]byte, error)
 	descs := make([]*signing.SignatureDescriptor, len(sigs))
 
 	for i, sig := range sigs {
-		publicKey, err := g.pubkeyCodec.Encode(sig.PubKey)
+		descData := signing.SignatureDataToProto(sig.Data)
+		any, err := codectypes.NewAnyWithValue(sig.PubKey)
 		if err != nil {
 			return nil, err
 		}
 
-		descData := signing.SignatureDataToProto(sig.Data)
-
 		descs[i] = &signing.SignatureDescriptor{
-			PublicKey: publicKey,
+			PublicKey: any,
 			Data:      descData,
+			Sequence:  sig.Sequence,
 		}
 	}
 
 	toJSON := &signing.SignatureDescriptors{Signatures: descs}
 
-	return codec.ProtoMarshalJSON(toJSON)
+	return codec.ProtoMarshalJSON(toJSON, nil)
 }
 
 func (g config) UnmarshalSignatureJSON(bz []byte) ([]signing.SignatureV2, error) {
@@ -136,16 +136,14 @@ func (g config) UnmarshalSignatureJSON(bz []byte) ([]signing.SignatureV2, error)
 
 	sigs := make([]signing.SignatureV2, len(sigDescs.Signatures))
 	for i, desc := range sigDescs.Signatures {
-		pubKey, err := g.pubkeyCodec.Decode(desc.PublicKey)
-		if err != nil {
-			return nil, err
-		}
+		pubKey, _ := desc.PublicKey.GetCachedValue().(cryptotypes.PubKey)
 
 		data := signing.SignatureDataFromProto(desc.Data)
 
 		sigs[i] = signing.SignatureV2{
-			PubKey: pubKey,
-			Data:   data,
+			PubKey:   pubKey,
+			Data:     data,
+			Sequence: desc.Sequence,
 		}
 	}
 

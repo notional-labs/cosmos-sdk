@@ -11,6 +11,7 @@ import (
 
 const flagLong = "long"
 
+// NewVersionCommand returns a CLI command to interactively print the application binary version information.
 func NewVersionCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "version",
@@ -23,8 +24,10 @@ func NewVersionCommand() *cobra.Command {
 				return nil
 			}
 
-			var bz []byte
-			var err error
+			var (
+				bz  []byte
+				err error
+			)
 
 			output, _ := cmd.Flags().GetString(cli.OutputFlag)
 			switch strings.ToLower(output) {

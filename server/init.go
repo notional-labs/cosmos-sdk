@@ -3,26 +3,30 @@ package server
 import (
 	"fmt"
 
-	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 
+	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 // GenerateCoinKey returns the address of a public key, along with the secret
 // phrase to recover the private key.
-func GenerateCoinKey() (sdk.AccAddress, string, error) {
+func GenerateCoinKey(algo keyring.SignatureAlgo, cdc codec.Codec) (sdk.AccAddress, string, error) {
 	// generate a private key, with recovery phrase
-	info, secret, err := keyring.NewInMemory().NewMnemonic("name", keyring.English, sdk.FullFundraiserPath, hd.Secp256k1)
+	k, secret, err := keyring.NewInMemory(cdc).NewMnemonic("name", keyring.English, sdk.FullFundraiserPath, keyring.DefaultBIP39Passphrase, algo)
 	if err != nil {
 		return sdk.AccAddress([]byte{}), "", err
 	}
-	return sdk.AccAddress(info.GetPubKey().Address()), secret, nil
+	addr, err := k.GetAddress()
+	if err != nil {
+		return nil, "", err
+	}
+	return addr, secret, nil
 }
 
 // GenerateSaveCoinKey returns the address of a public key, along with the secret
 // phrase to recover the private key.
-func GenerateSaveCoinKey(keybase keyring.Keyring, keyName, keyPass string, overwrite bool) (sdk.AccAddress, string, error) {
+func GenerateSaveCoinKey(keybase keyring.Keyring, keyName string, overwrite bool, algo keyring.SignatureAlgo) (sdk.AccAddress, string, error) {
 	exists := false
 	_, err := keybase.Key(keyName)
 	if err == nil {
@@ -44,10 +48,15 @@ func GenerateSaveCoinKey(keybase keyring.Keyring, keyName, keyPass string, overw
 		}
 	}
 
-	info, secret, err := keybase.NewMnemonic(keyName, keyring.English, sdk.FullFundraiserPath, hd.Secp256k1)
+	k, secret, err := keybase.NewMnemonic(keyName, keyring.English, sdk.FullFundraiserPath, keyring.DefaultBIP39Passphrase, algo)
 	if err != nil {
 		return sdk.AccAddress([]byte{}), "", err
 	}
 
-	return sdk.AccAddress(info.GetPubKey().Address()), secret, nil
+	addr, err := k.GetAddress()
+	if err != nil {
+		return nil, "", err
+	}
+
+	return addr, secret, nil
 }

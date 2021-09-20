@@ -4,11 +4,16 @@ package server
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"runtime/pprof"
 	"time"
 
+	"github.com/cosmos/cosmos-sdk/codec"
+
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
+
 	"github.com/tendermint/tendermint/abci/server"
 	tcmd "github.com/tendermint/tendermint/cmd/tendermint/commands"
 	tmos "github.com/tendermint/tendermint/libs/os"
@@ -17,11 +22,12 @@ import (
 	pvm "github.com/tendermint/tendermint/privval"
 	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/rpc/client/local"
-	"google.golang.org/grpc"
+
+	"github.com/cosmos/cosmos-sdk/server/rosetta"
+	crgserver "github.com/cosmos/cosmos-sdk/server/rosetta/lib/server"
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
-	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/server/api"
 	"github.com/cosmos/cosmos-sdk/server/config"
 	servergrpc "github.com/cosmos/cosmos-sdk/server/grpc"
@@ -48,12 +54,22 @@ const (
 	FlagPruningKeepRecent = "pruning-keep-recent"
 	FlagPruningKeepEvery  = "pruning-keep-every"
 	FlagPruningInterval   = "pruning-interval"
+	FlagIndexEvents       = "index-events"
+	FlagMinRetainBlocks   = "min-retain-blocks"
 )
 
 // GRPC-related flags.
 const (
-	flagGRPCEnable  = "grpc.enable"
-	flagGRPCAddress = "grpc.address"
+	flagGRPCEnable     = "grpc.enable"
+	flagGRPCAddress    = "grpc.address"
+	flagGRPCWebEnable  = "grpc-web.enable"
+	flagGRPCWebAddress = "grpc-web.address"
+)
+
+// State sync-related flags.
+const (
+	FlagStateSyncSnapshotInterval   = "state-sync.snapshot-interval"
+	FlagStateSyncSnapshotKeepRecent = "state-sync.snapshot-keep-recent"
 )
 
 // StartCmd runs the service passed in, either stand-alone or in-process with
@@ -96,7 +112,10 @@ which accepts a path for the resulting pprof file.
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			serverCtx := GetServerContextFromCmd(cmd)
-			clientCtx := client.GetClientContextFromCmd(cmd)
+			clientCtx, err := client.GetClientQueryContext(cmd)
+			if err != nil {
+				return err
+			}
 
 			withTM, _ := cmd.Flags().GetBool(flagWithTendermint)
 			if !withTM {
@@ -106,8 +125,15 @@ which accepts a path for the resulting pprof file.
 
 			serverCtx.Logger.Info("starting ABCI with Tendermint")
 
-			err := startInProcess(serverCtx, clientCtx.JSONMarshaler, appCreator)
-			return err
+			// amino is needed here for backwards compatibility of REST routes
+			err = startInProcess(serverCtx, clientCtx, appCreator)
+			errCode, ok := err.(ErrorCode)
+			if !ok {
+				return err
+			}
+
+			serverCtx.Logger.Debug(fmt.Sprintf("received quit signal: %d", errCode.Code))
+			return nil
 		},
 	}
 
@@ -128,9 +154,16 @@ which accepts a path for the resulting pprof file.
 	cmd.Flags().Uint64(FlagPruningKeepEvery, 0, "Offset heights to keep on disk after 'keep-every' (ignored if pruning is not 'custom')")
 	cmd.Flags().Uint64(FlagPruningInterval, 0, "Height interval at which pruned heights are removed from disk (ignored if pruning is not 'custom')")
 	cmd.Flags().Uint(FlagInvCheckPeriod, 0, "Assert registered invariants every N blocks")
+	cmd.Flags().Uint64(FlagMinRetainBlocks, 0, "Minimum block height offset during ABCI commit to prune Tendermint blocks")
 
 	cmd.Flags().Bool(flagGRPCEnable, true, "Define if the gRPC server should be enabled")
 	cmd.Flags().String(flagGRPCAddress, config.DefaultGRPCAddress, "the gRPC server address to listen on")
+
+	cmd.Flags().Bool(flagGRPCWebEnable, true, "Define if the gRPC-Web server should be enabled. (Note: gRPC must also be enabled.)")
+	cmd.Flags().String(flagGRPCWebAddress, config.DefaultGRPCWebAddress, "The gRPC-Web server address to listen on")
+
+	cmd.Flags().Uint64(FlagStateSyncSnapshotInterval, 0, "State sync snapshot interval")
+	cmd.Flags().Uint32(FlagStateSyncSnapshotKeepRecent, 2, "State sync snapshot to keep")
 
 	// add support for all Tendermint-specific command line options
 	tcmd.AddNodeFlags(cmd)
@@ -167,98 +200,20 @@ func startStandAlone(ctx *Context, appCreator types.AppCreator) error {
 		tmos.Exit(err.Error())
 	}
 
-	TrapSignal(func() {
+	defer func() {
 		if err = svr.Stop(); err != nil {
 			tmos.Exit(err.Error())
 		}
-	})
+	}()
 
-	// run forever (the node will not be returned)
-	select {}
+	// Wait for SIGINT or SIGTERM signal
+	return WaitForQuitSignals()
 }
 
-func startInProcess(ctx *Context, cdc codec.JSONMarshaler, appCreator types.AppCreator) error {
+// legacyAminoCdc is used for the legacy REST API
+func startInProcess(ctx *Context, clientCtx client.Context, appCreator types.AppCreator) error {
 	cfg := ctx.Config
 	home := cfg.RootDir
-
-	traceWriterFile := ctx.Viper.GetString(flagTraceStore)
-	db, err := openDB(home)
-	if err != nil {
-		return err
-	}
-
-	traceWriter, err := openTraceWriter(traceWriterFile)
-	if err != nil {
-		return err
-	}
-
-	app := appCreator(ctx.Logger, db, traceWriter, ctx.Viper)
-
-	nodeKey, err := p2p.LoadOrGenNodeKey(cfg.NodeKeyFile())
-	if err != nil {
-		return err
-	}
-
-	genDocProvider := node.DefaultGenesisDocProviderFunc(cfg)
-	tmNode, err := node.NewNode(
-		cfg,
-		pvm.LoadOrGenFilePV(cfg.PrivValidatorKeyFile(), cfg.PrivValidatorStateFile()),
-		nodeKey,
-		proxy.NewLocalClientCreator(app),
-		genDocProvider,
-		node.DefaultDBProvider,
-		node.DefaultMetricsProvider(cfg.Instrumentation),
-		ctx.Logger.With("module", "node"),
-	)
-	if err != nil {
-		return err
-	}
-
-	if err := tmNode.Start(); err != nil {
-		return err
-	}
-
-	var apiSrv *api.Server
-
-	config := config.GetConfig(ctx.Viper)
-	if config.API.Enable {
-		genDoc, err := genDocProvider()
-		if err != nil {
-			return err
-		}
-
-		clientCtx := client.Context{}.
-			WithHomeDir(home).
-			WithChainID(genDoc.ChainID).
-			WithJSONMarshaler(cdc).
-			WithClient(local.New(tmNode))
-
-		apiSrv = api.New(clientCtx, ctx.Logger.With("module", "api-server"))
-		app.RegisterAPIRoutes(apiSrv)
-
-		errCh := make(chan error)
-
-		go func() {
-			if err := apiSrv.Start(config); err != nil {
-				errCh <- err
-			}
-		}()
-
-		select {
-		case err := <-errCh:
-			return err
-		case <-time.After(5 * time.Second): // assume server started successfully
-		}
-	}
-
-	var grpcSrv *grpc.Server
-	if config.GRPC.Enable {
-		grpcSrv, err = servergrpc.StartGRPCServer(app, config.GRPC.Address)
-		if err != nil {
-			return err
-		}
-	}
-
 	var cpuProfileCleanup func()
 
 	if cpuProfile := ctx.Viper.GetString(flagCPUProfile); cpuProfile != "" {
@@ -279,7 +234,143 @@ func startInProcess(ctx *Context, cdc codec.JSONMarshaler, appCreator types.AppC
 		}
 	}
 
-	TrapSignal(func() {
+	traceWriterFile := ctx.Viper.GetString(flagTraceStore)
+	db, err := openDB(home)
+	if err != nil {
+		return err
+	}
+
+	traceWriter, err := openTraceWriter(traceWriterFile)
+	if err != nil {
+		return err
+	}
+
+	config := config.GetConfig(ctx.Viper)
+	if err := config.ValidateBasic(); err != nil {
+		return err
+	}
+
+	app := appCreator(ctx.Logger, db, traceWriter, ctx.Viper)
+
+	nodeKey, err := p2p.LoadOrGenNodeKey(cfg.NodeKeyFile())
+	if err != nil {
+		return err
+	}
+
+	genDocProvider := node.DefaultGenesisDocProviderFunc(cfg)
+	tmNode, err := node.NewNode(
+		cfg,
+		pvm.LoadOrGenFilePV(cfg.PrivValidatorKeyFile(), cfg.PrivValidatorStateFile()),
+		nodeKey,
+		proxy.NewLocalClientCreator(app),
+		genDocProvider,
+		node.DefaultDBProvider,
+		node.DefaultMetricsProvider(cfg.Instrumentation),
+		ctx.Logger,
+	)
+	if err != nil {
+		return err
+	}
+
+	ctx.Logger.Debug("initialization: tmNode created")
+	if err := tmNode.Start(); err != nil {
+		return err
+	}
+	ctx.Logger.Debug("initialization: tmNode started")
+
+	// Add the tx service to the gRPC router. We only need to register this
+	// service if API or gRPC is enabled, and avoid doing so in the general
+	// case, because it spawns a new local tendermint RPC client.
+	if config.API.Enable || config.GRPC.Enable {
+		clientCtx = clientCtx.WithClient(local.New(tmNode))
+
+		app.RegisterTxService(clientCtx)
+		app.RegisterTendermintService(clientCtx)
+	}
+
+	var apiSrv *api.Server
+	if config.API.Enable {
+		genDoc, err := genDocProvider()
+		if err != nil {
+			return err
+		}
+
+		clientCtx := clientCtx.
+			WithHomeDir(home).
+			WithChainID(genDoc.ChainID)
+
+		apiSrv = api.New(clientCtx, ctx.Logger.With("module", "api-server"))
+		app.RegisterAPIRoutes(apiSrv, config.API)
+		errCh := make(chan error)
+
+		go func() {
+			if err := apiSrv.Start(config); err != nil {
+				errCh <- err
+			}
+		}()
+
+		select {
+		case err := <-errCh:
+			return err
+		case <-time.After(types.ServerStartTime): // assume server started successfully
+		}
+	}
+
+	var (
+		grpcSrv    *grpc.Server
+		grpcWebSrv *http.Server
+	)
+	if config.GRPC.Enable {
+		grpcSrv, err = servergrpc.StartGRPCServer(clientCtx, app, config.GRPC.Address)
+		if err != nil {
+			return err
+		}
+		if config.GRPCWeb.Enable {
+			grpcWebSrv, err = servergrpc.StartGRPCWeb(grpcSrv, config)
+			if err != nil {
+				ctx.Logger.Error("failed to start grpc-web http server: ", err)
+				return err
+			}
+		}
+	}
+
+	var rosettaSrv crgserver.Server
+	if config.Rosetta.Enable {
+		offlineMode := config.Rosetta.Offline
+		if !config.GRPC.Enable { // If GRPC is not enabled rosetta cannot work in online mode, so it works in offline mode.
+			offlineMode = true
+		}
+
+		conf := &rosetta.Config{
+			Blockchain:    config.Rosetta.Blockchain,
+			Network:       config.Rosetta.Network,
+			TendermintRPC: ctx.Config.RPC.ListenAddress,
+			GRPCEndpoint:  config.GRPC.Address,
+			Addr:          config.Rosetta.Address,
+			Retries:       config.Rosetta.Retries,
+			Offline:       offlineMode,
+		}
+		conf.WithCodec(clientCtx.InterfaceRegistry, clientCtx.Codec.(*codec.ProtoCodec))
+
+		rosettaSrv, err = rosetta.ServerFromConfig(conf)
+		if err != nil {
+			return err
+		}
+		errCh := make(chan error)
+		go func() {
+			if err := rosettaSrv.Start(); err != nil {
+				errCh <- err
+			}
+		}()
+
+		select {
+		case err := <-errCh:
+			return err
+		case <-time.After(types.ServerStartTime): // assume server started successfully
+		}
+	}
+
+	defer func() {
 		if tmNode.IsRunning() {
 			_ = tmNode.Stop()
 		}
@@ -294,11 +385,14 @@ func startInProcess(ctx *Context, cdc codec.JSONMarshaler, appCreator types.AppC
 
 		if grpcSrv != nil {
 			grpcSrv.Stop()
+			if grpcWebSrv != nil {
+				grpcWebSrv.Close()
+			}
 		}
 
 		ctx.Logger.Info("exiting...")
-	})
+	}()
 
-	// run forever (the node will not be returned)
-	select {}
+	// Wait for SIGINT or SIGTERM signal
+	return WaitForQuitSignals()
 }

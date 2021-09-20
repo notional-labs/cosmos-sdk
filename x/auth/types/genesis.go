@@ -9,17 +9,21 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/codec/types"
+	"github.com/cosmos/cosmos-sdk/types/module"
 )
 
 var _ types.UnpackInterfacesMessage = GenesisState{}
 
+// RandomGenesisAccountsFn defines the function required to generate custom account types
+type RandomGenesisAccountsFn func(simState *module.SimulationState) GenesisAccounts
+
 // NewGenesisState - Create a new genesis state
-func NewGenesisState(params Params, accounts GenesisAccounts) GenesisState {
+func NewGenesisState(params Params, accounts GenesisAccounts) *GenesisState {
 	genAccounts, err := PackAccounts(accounts)
 	if err != nil {
 		panic(err)
 	}
-	return GenesisState{
+	return &GenesisState{
 		Params:   params,
 		Accounts: genAccounts,
 	}
@@ -38,13 +42,13 @@ func (g GenesisState) UnpackInterfaces(unpacker types.AnyUnpacker) error {
 }
 
 // DefaultGenesisState - Return a default genesis state
-func DefaultGenesisState() GenesisState {
+func DefaultGenesisState() *GenesisState {
 	return NewGenesisState(DefaultParams(), GenesisAccounts{})
 }
 
 // GetGenesisStateFromAppState returns x/auth GenesisState given raw application
 // genesis state.
-func GetGenesisStateFromAppState(cdc codec.Marshaler, appState map[string]json.RawMessage) GenesisState {
+func GetGenesisStateFromAppState(cdc codec.Codec, appState map[string]json.RawMessage) GenesisState {
 	var genesisState GenesisState
 
 	if appState[ModuleName] != nil {
@@ -106,7 +110,7 @@ type GenesisAccountIterator struct{}
 // appGenesis and invokes a callback on each genesis account. If any call
 // returns true, iteration stops.
 func (GenesisAccountIterator) IterateGenesisAccounts(
-	cdc codec.Marshaler, appGenesis map[string]json.RawMessage, cb func(AccountI) (stop bool),
+	cdc codec.Codec, appGenesis map[string]json.RawMessage, cb func(AccountI) (stop bool),
 ) {
 	for _, genAcc := range GetGenesisStateFromAppState(cdc, appGenesis).Accounts {
 		acc, ok := genAcc.GetCachedValue().(AccountI)

@@ -5,22 +5,22 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	abci "github.com/tendermint/tendermint/abci/types"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
 	"github.com/cosmos/cosmos-sdk/simapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/slashing"
-	"github.com/cosmos/cosmos-sdk/x/slashing/keeper"
+	"github.com/cosmos/cosmos-sdk/x/slashing/testslashing"
 	"github.com/cosmos/cosmos-sdk/x/slashing/types"
 )
 
 func TestExportAndInitGenesis(t *testing.T) {
-	app := simapp.Setup(false)
-	ctx := app.BaseApp.NewContext(false, abci.Header{})
+	app := simapp.Setup(t, false)
+	ctx := app.BaseApp.NewContext(false, tmproto.Header{})
 
-	app.SlashingKeeper.SetParams(ctx, keeper.TestParams())
+	app.SlashingKeeper.SetParams(ctx, testslashing.TestParams())
 
-	addrDels := simapp.AddTestAddrsIncremental(app, ctx, 2, sdk.TokensFromConsensusPower(200))
+	addrDels := simapp.AddTestAddrsIncremental(app, ctx, 2, app.StakingKeeper.TokensFromConsensusPower(ctx, 200))
 
 	info1 := types.NewValidatorSigningInfo(sdk.ConsAddress(addrDels[0]), int64(4), int64(3),
 		time.Now().UTC().Add(100000000000), false, int64(10))
@@ -31,7 +31,7 @@ func TestExportAndInitGenesis(t *testing.T) {
 	app.SlashingKeeper.SetValidatorSigningInfo(ctx, sdk.ConsAddress(addrDels[1]), info2)
 	genesisState := slashing.ExportGenesis(ctx, app.SlashingKeeper)
 
-	require.Equal(t, genesisState.Params, keeper.TestParams())
+	require.Equal(t, genesisState.Params, testslashing.TestParams())
 	require.Len(t, genesisState.SigningInfos, 2)
 	require.Equal(t, genesisState.SigningInfos[0].ValidatorSigningInfo, info1)
 

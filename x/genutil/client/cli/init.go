@@ -1,11 +1,13 @@
 package cli
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 
+	"github.com/cosmos/go-bip39"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	cfg "github.com/tendermint/tendermint/config"
@@ -16,15 +18,23 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
-	"github.com/cosmos/cosmos-sdk/codec"
+	"github.com/cosmos/cosmos-sdk/client/input"
 	"github.com/cosmos/cosmos-sdk/server"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/cosmos/cosmos-sdk/x/genutil"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
 const (
-	flagOverwrite = "overwrite"
+	// FlagOverwrite defines a flag to overwrite an existing genesis JSON file.
+	FlagOverwrite = "overwrite"
+
+	// FlagSeed defines a flag to initialize the private validator key from a specific seed.
+	FlagRecover = "recover"
+
+	// FlagStakingBondDenom defines a flag to specify the staking token in the genesis file.
+	FlagStakingBondDenom = "staking-bond-denom"
 )
 
 type printInfo struct {
@@ -45,8 +55,8 @@ func newPrintInfo(moniker, chainID, nodeID, genTxsDir string, appMessage json.Ra
 	}
 }
 
-func displayInfo(cdc codec.JSONMarshaler, info printInfo) error {
-	out, err := codec.MarshalJSONIndent(cdc, info)
+func displayInfo(info printInfo) error {
+	out, err := json.MarshalIndent(info, "", " ")
 	if err != nil {
 		return err
 	}
@@ -66,19 +76,40 @@ func InitCmd(mbm module.BasicManager, defaultNodeHome string) *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx := client.GetClientContextFromCmd(cmd)
-			cdc := clientCtx.JSONMarshaler
+			cdc := clientCtx.Codec
 
 			serverCtx := server.GetServerContextFromCmd(cmd)
 			config := serverCtx.Config
 
+			clientCtx = client.ReadHomeFlag(clientCtx, cmd)
 			config.SetRoot(clientCtx.HomeDir)
 
 			chainID, _ := cmd.Flags().GetString(flags.FlagChainID)
-			if chainID == "" {
+			switch {
+			case chainID != "":
+			case clientCtx.ChainID != "":
+				chainID = clientCtx.ChainID
+			default:
 				chainID = fmt.Sprintf("test-chain-%v", tmrand.Str(6))
 			}
 
-			nodeID, _, err := genutil.InitializeNodeValidatorFiles(config)
+			// Get bip39 mnemonic
+			var mnemonic string
+			recover, _ := cmd.Flags().GetBool(FlagRecover)
+			if recover {
+				inBuf := bufio.NewReader(cmd.InOrStdin())
+				value, err := input.GetString("Enter your bip39 mnemonic", inBuf)
+				if err != nil {
+					return err
+				}
+
+				mnemonic = value
+				if !bip39.IsMnemonicValid(mnemonic) {
+					return errors.New("invalid mnemonic")
+				}
+			}
+
+			nodeID, _, err := genutil.InitializeNodeValidatorFilesFromMnemonic(config, mnemonic)
 			if err != nil {
 				return err
 			}
@@ -86,14 +117,36 @@ func InitCmd(mbm module.BasicManager, defaultNodeHome string) *cobra.Command {
 			config.Moniker = args[0]
 
 			genFile := config.GenesisFile()
-			overwrite, _ := cmd.Flags().GetBool(flagOverwrite)
+			overwrite, _ := cmd.Flags().GetBool(FlagOverwrite)
+			stakingBondDenom, _ := cmd.Flags().GetString(FlagStakingBondDenom)
 
 			if !overwrite && tmos.FileExists(genFile) {
 				return fmt.Errorf("genesis.json file already exists: %v", genFile)
 			}
-			appState, err := codec.MarshalJSONIndent(cdc, mbm.DefaultGenesis(cdc))
+
+			appGenState := mbm.DefaultGenesis(cdc)
+
+			if stakingBondDenom != "" {
+				var stakingGenesis stakingtypes.GenesisState
+
+				stakingRaw := appGenState[stakingtypes.ModuleName]
+				err := clientCtx.Codec.UnmarshalJSON(stakingRaw, &stakingGenesis)
+				if err != nil {
+					return err
+				}
+
+				stakingGenesis.Params.BondDenom = stakingBondDenom
+				modifiedStakingStr, err := clientCtx.Codec.MarshalJSON(&stakingGenesis)
+				if err != nil {
+					return err
+				}
+
+				appGenState[stakingtypes.ModuleName] = modifiedStakingStr
+			}
+
+			appState, err := json.MarshalIndent(appGenState, "", " ")
 			if err != nil {
-				return errors.Wrap(err, "Failed to marshall default genesis state")
+				return errors.Wrap(err, "Failed to marshal default genesis state")
 			}
 
 			genDoc := &types.GenesisDoc{}
@@ -111,6 +164,7 @@ func InitCmd(mbm module.BasicManager, defaultNodeHome string) *cobra.Command {
 			genDoc.ChainID = chainID
 			genDoc.Validators = nil
 			genDoc.AppState = appState
+
 			if err = genutil.ExportGenesisFile(genDoc, genFile); err != nil {
 				return errors.Wrap(err, "Failed to export gensis file")
 			}
@@ -118,13 +172,15 @@ func InitCmd(mbm module.BasicManager, defaultNodeHome string) *cobra.Command {
 			toPrint := newPrintInfo(config.Moniker, chainID, nodeID, "", appState)
 
 			cfg.WriteConfigFile(filepath.Join(config.RootDir, "config", "config.toml"), config)
-			return displayInfo(cdc, toPrint)
+			return displayInfo(toPrint)
 		},
 	}
 
 	cmd.Flags().String(cli.HomeFlag, defaultNodeHome, "node's home directory")
-	cmd.Flags().BoolP(flagOverwrite, "o", false, "overwrite the genesis.json file")
+	cmd.Flags().BoolP(FlagOverwrite, "o", false, "overwrite the genesis.json file")
+	cmd.Flags().Bool(FlagRecover, false, "provide seed phrase to recover existing key instead of creating")
 	cmd.Flags().String(flags.FlagChainID, "", "genesis file chain-id, if left blank will be randomly created")
+	cmd.Flags().String(FlagStakingBondDenom, "", "genesis file staking bond denomination, if left blank default value is 'stake'")
 
 	return cmd
 }

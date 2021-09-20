@@ -1,4 +1,4 @@
-package types
+package types_test
 
 import (
 	"testing"
@@ -7,7 +7,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/cosmos/cosmos-sdk/codec"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	gov "github.com/cosmos/cosmos-sdk/x/gov/types"
+	"github.com/cosmos/cosmos-sdk/x/upgrade/types"
 )
 
 type ProposalWrapper struct {
@@ -23,10 +25,10 @@ func TestContentAccessors(t *testing.T) {
 		str   string
 	}{
 		"upgrade": {
-			p: NewSoftwareUpgradeProposal("Title", "desc", Plan{
-				Name: "due_time",
-				Info: "https://foo.bar",
-				Time: mustParseTime("2019-07-08T11:33:55Z"),
+			p: types.NewSoftwareUpgradeProposal("Title", "desc", types.Plan{
+				Name:   "due_height",
+				Info:   "https://foo.bar",
+				Height: 99999999999,
 			}),
 			title: "Title",
 			desc:  "desc",
@@ -34,7 +36,7 @@ func TestContentAccessors(t *testing.T) {
 			str:   "Software Upgrade Proposal:\n  Title:       Title\n  Description: desc\n",
 		},
 		"cancel": {
-			p:     NewCancelSoftwareUpgradeProposal("Cancel", "bad idea"),
+			p:     types.NewCancelSoftwareUpgradeProposal("Cancel", "bad idea"),
 			title: "Cancel",
 			desc:  "bad idea",
 			typ:   "CancelSoftwareUpgrade",
@@ -42,9 +44,9 @@ func TestContentAccessors(t *testing.T) {
 		},
 	}
 
-	cdc := codec.New()
-	gov.RegisterCodec(cdc)
-	RegisterCodec(cdc)
+	cdc := codec.NewLegacyAmino()
+	gov.RegisterLegacyAminoCodec(cdc)
+	types.RegisterLegacyAminoCodec(cdc)
 
 	for name, tc := range cases {
 		tc := tc // copy to local variable for scopelint
@@ -57,10 +59,10 @@ func TestContentAccessors(t *testing.T) {
 
 			// try to encode and decode type to ensure codec works
 			wrap := ProposalWrapper{tc.p}
-			bz, err := cdc.MarshalBinaryBare(&wrap)
+			bz, err := cdc.Marshal(&wrap)
 			require.NoError(t, err)
 			unwrap := ProposalWrapper{}
-			err = cdc.UnmarshalBinaryBare(bz, &unwrap)
+			err = cdc.Unmarshal(bz, &unwrap)
 			require.NoError(t, err)
 
 			// all methods should look the same
@@ -73,4 +75,31 @@ func TestContentAccessors(t *testing.T) {
 		})
 
 	}
+}
+
+// tests a software update proposal can be marshaled and unmarshaled
+func TestMarshalSoftwareUpdateProposal(t *testing.T) {
+	// create proposal
+	plan := types.Plan{
+		Name:   "upgrade",
+		Height: 1000,
+	}
+	content := types.NewSoftwareUpgradeProposal("title", "description", plan)
+	sup, ok := content.(*types.SoftwareUpgradeProposal)
+	require.True(t, ok)
+
+	// create codec
+	ir := codectypes.NewInterfaceRegistry()
+	types.RegisterInterfaces(ir)
+	gov.RegisterInterfaces(ir)
+	cdc := codec.NewProtoCodec(ir)
+
+	// marshal message
+	bz, err := cdc.MarshalJSON(sup)
+	require.NoError(t, err)
+
+	// unmarshal proposal
+	newSup := &types.SoftwareUpgradeProposal{}
+	err = cdc.UnmarshalJSON(bz, newSup)
+	require.NoError(t, err)
 }

@@ -7,25 +7,28 @@ import (
 
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
 	"github.com/cosmos/cosmos-sdk/simapp"
 	simappparams "github.com/cosmos/cosmos-sdk/simapp/params"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
+	"github.com/cosmos/cosmos-sdk/x/bank/testutil"
 	distrtypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
 	"github.com/cosmos/cosmos-sdk/x/staking/simulation"
+	"github.com/cosmos/cosmos-sdk/x/staking/teststaking"
 	"github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
 // TestWeightedOperations tests the weights of the operations.
 func TestWeightedOperations(t *testing.T) {
 
-	app, ctx := createTestApp(false)
+	app, ctx := createTestApp(t, false)
 
 	ctx.WithChainID("test-chain")
 
-	cdc := app.LegacyAmino()
+	cdc := app.AppCodec()
 	appParams := make(simtypes.AppParams)
 
 	weightesOps := simulation.WeightedOperations(appParams, cdc, app.AccountKeeper,
@@ -61,7 +64,7 @@ func TestWeightedOperations(t *testing.T) {
 // TestSimulateMsgCreateValidator tests the normal scenario of a valid message of type TypeMsgCreateValidator.
 // Abonormal scenarios, where the message are created by an errors are not tested here.
 func TestSimulateMsgCreateValidator(t *testing.T) {
-	app, ctx := createTestApp(false)
+	app, ctx := createTestApp(t, false)
 
 	// setup 3 accounts
 	s := rand.NewSource(1)
@@ -69,7 +72,7 @@ func TestSimulateMsgCreateValidator(t *testing.T) {
 	accounts := getTestingAccounts(t, r, app, ctx, 3)
 
 	// begin a new block
-	app.BeginBlock(abci.RequestBeginBlock{Header: abci.Header{Height: app.LastBlockHeight() + 1, AppHash: app.LastCommitID().Hash}})
+	app.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{Height: app.LastBlockHeight() + 1, AppHash: app.LastCommitID().Hash}})
 
 	// execute operation
 	op := simulation.SimulateMsgCreateValidator(app.AccountKeeper, app.BankKeeper, app.StakingKeeper)
@@ -80,20 +83,20 @@ func TestSimulateMsgCreateValidator(t *testing.T) {
 	types.ModuleCdc.UnmarshalJSON(operationMsg.Msg, &msg)
 
 	require.True(t, operationMsg.OK)
-	require.Equal(t, "0.170063593193511020", msg.Commission.MaxChangeRate.String())
-	require.Equal(t, "0.660000000000000000", msg.Commission.MaxRate.String())
-	require.Equal(t, "0.047464127245687382", msg.Commission.Rate.String())
+	require.Equal(t, "0.080000000000000000", msg.Commission.MaxChangeRate.String())
+	require.Equal(t, "0.080000000000000000", msg.Commission.MaxRate.String())
+	require.Equal(t, "0.019527679037870745", msg.Commission.Rate.String())
 	require.Equal(t, types.TypeMsgCreateValidator, msg.Type())
-	require.Equal(t, "cosmos1ghekyjucln7y67ntx7cf27m9dpuxxemn4c8g4r", msg.DelegatorAddress.String())
-	require.Equal(t, "cosmosvalconspub1addwnpepqwr8k5g44urevkvz5ys2qjag0nnp6xkd2f8lejn5pw2rehkjt6ftv5d9nrp", msg.Pubkey)
-	require.Equal(t, "cosmosvaloper1ghekyjucln7y67ntx7cf27m9dpuxxemnsvnaes", msg.ValidatorAddress.String())
+	require.Equal(t, []byte{0xa, 0x20, 0x51, 0xde, 0xbd, 0xe8, 0xfa, 0xdf, 0x4e, 0xfc, 0x33, 0xa5, 0x16, 0x94, 0xf6, 0xee, 0xd3, 0x69, 0x7a, 0x7a, 0x1c, 0x2d, 0x50, 0xb6, 0x2, 0xf7, 0x16, 0x4e, 0x66, 0x9f, 0xff, 0x38, 0x91, 0x9b}, msg.Pubkey.Value)
+	require.Equal(t, "cosmos1ghekyjucln7y67ntx7cf27m9dpuxxemn4c8g4r", msg.DelegatorAddress)
+	require.Equal(t, "cosmosvaloper1ghekyjucln7y67ntx7cf27m9dpuxxemnsvnaes", msg.ValidatorAddress)
 	require.Len(t, futureOperations, 0)
 }
 
 // TestSimulateMsgEditValidator tests the normal scenario of a valid message of type TypeMsgEditValidator.
 // Abonormal scenarios, where the message is created by an errors are not tested here.
 func TestSimulateMsgEditValidator(t *testing.T) {
-	app, ctx := createTestApp(false)
+	app, ctx := createTestApp(t, false)
 	blockTime := time.Now().UTC()
 	ctx = ctx.WithBlockTime(blockTime)
 
@@ -106,7 +109,7 @@ func TestSimulateMsgEditValidator(t *testing.T) {
 	_ = getTestingValidator0(t, app, ctx, accounts)
 
 	// begin a new block
-	app.BeginBlock(abci.RequestBeginBlock{Header: abci.Header{Height: app.LastBlockHeight() + 1, AppHash: app.LastCommitID().Hash, Time: blockTime}})
+	app.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{Height: app.LastBlockHeight() + 1, AppHash: app.LastCommitID().Hash, Time: blockTime}})
 
 	// execute operation
 	op := simulation.SimulateMsgEditValidator(app.AccountKeeper, app.BankKeeper, app.StakingKeeper)
@@ -118,19 +121,19 @@ func TestSimulateMsgEditValidator(t *testing.T) {
 
 	require.True(t, operationMsg.OK)
 	require.Equal(t, "0.280623462081924936", msg.CommissionRate.String())
-	require.Equal(t, "jLxzIivHSl", msg.GetDescription().Moniker)
-	require.Equal(t, "rBqDOTtGTO", msg.GetDescription().Identity)
-	require.Equal(t, "BSpYuLyYgg", msg.GetDescription().Website)
-	require.Equal(t, "wNbeHVIkPZ", msg.GetDescription().SecurityContact)
+	require.Equal(t, "xKGLwQvuyN", msg.Description.Moniker)
+	require.Equal(t, "SlcxgdXhhu", msg.Description.Identity)
+	require.Equal(t, "WeLrQKjLxz", msg.Description.Website)
+	require.Equal(t, "rBqDOTtGTO", msg.Description.SecurityContact)
 	require.Equal(t, types.TypeMsgEditValidator, msg.Type())
-	require.Equal(t, "cosmosvaloper1tnh2q55v8wyygtt9srz5safamzdengsn9dsd7z", msg.ValidatorAddress.String())
+	require.Equal(t, "cosmosvaloper1tnh2q55v8wyygtt9srz5safamzdengsn9dsd7z", msg.ValidatorAddress)
 	require.Len(t, futureOperations, 0)
 }
 
 // TestSimulateMsgDelegate tests the normal scenario of a valid message of type TypeMsgDelegate.
 // Abonormal scenarios, where the message is created by an errors are not tested here.
 func TestSimulateMsgDelegate(t *testing.T) {
-	app, ctx := createTestApp(false)
+	app, ctx := createTestApp(t, false)
 	blockTime := time.Now().UTC()
 	ctx = ctx.WithBlockTime(blockTime)
 
@@ -141,10 +144,10 @@ func TestSimulateMsgDelegate(t *testing.T) {
 
 	// setup accounts[0] as validator
 	validator0 := getTestingValidator0(t, app, ctx, accounts)
-	setupValidatorRewards(app, ctx, validator0.OperatorAddress)
+	setupValidatorRewards(app, ctx, validator0.GetOperator())
 
 	// begin a new block
-	app.BeginBlock(abci.RequestBeginBlock{Header: abci.Header{Height: app.LastBlockHeight() + 1, AppHash: app.LastCommitID().Hash, Time: blockTime}})
+	app.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{Height: app.LastBlockHeight() + 1, AppHash: app.LastCommitID().Hash, Time: blockTime}})
 
 	// execute operation
 	op := simulation.SimulateMsgDelegate(app.AccountKeeper, app.BankKeeper, app.StakingKeeper)
@@ -155,18 +158,18 @@ func TestSimulateMsgDelegate(t *testing.T) {
 	types.ModuleCdc.UnmarshalJSON(operationMsg.Msg, &msg)
 
 	require.True(t, operationMsg.OK)
-	require.Equal(t, "cosmos1ghekyjucln7y67ntx7cf27m9dpuxxemn4c8g4r", msg.DelegatorAddress.String())
-	require.Equal(t, "4896096", msg.Amount.Amount.String())
+	require.Equal(t, "cosmos1ghekyjucln7y67ntx7cf27m9dpuxxemn4c8g4r", msg.DelegatorAddress)
+	require.Equal(t, "98100858108421259236", msg.Amount.Amount.String())
 	require.Equal(t, "stake", msg.Amount.Denom)
 	require.Equal(t, types.TypeMsgDelegate, msg.Type())
-	require.Equal(t, "cosmosvaloper1tnh2q55v8wyygtt9srz5safamzdengsn9dsd7z", msg.ValidatorAddress.String())
+	require.Equal(t, "cosmosvaloper1tnh2q55v8wyygtt9srz5safamzdengsn9dsd7z", msg.ValidatorAddress)
 	require.Len(t, futureOperations, 0)
 }
 
 // TestSimulateMsgUndelegate tests the normal scenario of a valid message of type TypeMsgUndelegate.
 // Abonormal scenarios, where the message is created by an errors are not tested here.
 func TestSimulateMsgUndelegate(t *testing.T) {
-	app, ctx := createTestApp(false)
+	app, ctx := createTestApp(t, false)
 	blockTime := time.Now().UTC()
 	ctx = ctx.WithBlockTime(blockTime)
 
@@ -179,17 +182,17 @@ func TestSimulateMsgUndelegate(t *testing.T) {
 	validator0 := getTestingValidator0(t, app, ctx, accounts)
 
 	// setup delegation
-	delTokens := sdk.TokensFromConsensusPower(2)
+	delTokens := app.StakingKeeper.TokensFromConsensusPower(ctx, 2)
 	validator0, issuedShares := validator0.AddTokensFromDel(delTokens)
 	delegator := accounts[1]
-	delegation := types.NewDelegation(delegator.Address, validator0.OperatorAddress, issuedShares)
+	delegation := types.NewDelegation(delegator.Address, validator0.GetOperator(), issuedShares)
 	app.StakingKeeper.SetDelegation(ctx, delegation)
-	app.DistrKeeper.SetDelegatorStartingInfo(ctx, validator0.OperatorAddress, delegator.Address, distrtypes.NewDelegatorStartingInfo(2, sdk.OneDec(), 200))
+	app.DistrKeeper.SetDelegatorStartingInfo(ctx, validator0.GetOperator(), delegator.Address, distrtypes.NewDelegatorStartingInfo(2, sdk.OneDec(), 200))
 
-	setupValidatorRewards(app, ctx, validator0.OperatorAddress)
+	setupValidatorRewards(app, ctx, validator0.GetOperator())
 
 	// begin a new block
-	app.BeginBlock(abci.RequestBeginBlock{Header: abci.Header{Height: app.LastBlockHeight() + 1, AppHash: app.LastCommitID().Hash, Time: blockTime}})
+	app.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{Height: app.LastBlockHeight() + 1, AppHash: app.LastCommitID().Hash, Time: blockTime}})
 
 	// execute operation
 	op := simulation.SimulateMsgUndelegate(app.AccountKeeper, app.BankKeeper, app.StakingKeeper)
@@ -200,11 +203,11 @@ func TestSimulateMsgUndelegate(t *testing.T) {
 	types.ModuleCdc.UnmarshalJSON(operationMsg.Msg, &msg)
 
 	require.True(t, operationMsg.OK)
-	require.Equal(t, "cosmos1p8wcgrjr4pjju90xg6u9cgq55dxwq8j7u4x9a0", msg.DelegatorAddress.String())
-	require.Equal(t, "560969", msg.Amount.Amount.String())
+	require.Equal(t, "cosmos1p8wcgrjr4pjju90xg6u9cgq55dxwq8j7u4x9a0", msg.DelegatorAddress)
+	require.Equal(t, "280623462081924937", msg.Amount.Amount.String())
 	require.Equal(t, "stake", msg.Amount.Denom)
 	require.Equal(t, types.TypeMsgUndelegate, msg.Type())
-	require.Equal(t, "cosmosvaloper1tnh2q55v8wyygtt9srz5safamzdengsn9dsd7z", msg.ValidatorAddress.String())
+	require.Equal(t, "cosmosvaloper1tnh2q55v8wyygtt9srz5safamzdengsn9dsd7z", msg.ValidatorAddress)
 	require.Len(t, futureOperations, 0)
 
 }
@@ -212,7 +215,7 @@ func TestSimulateMsgUndelegate(t *testing.T) {
 // TestSimulateMsgBeginRedelegate tests the normal scenario of a valid message of type TypeMsgBeginRedelegate.
 // Abonormal scenarios, where the message is created by an errors, are not tested here.
 func TestSimulateMsgBeginRedelegate(t *testing.T) {
-	app, ctx := createTestApp(false)
+	app, ctx := createTestApp(t, false)
 	blockTime := time.Now().UTC()
 	ctx = ctx.WithBlockTime(blockTime)
 
@@ -225,20 +228,20 @@ func TestSimulateMsgBeginRedelegate(t *testing.T) {
 	validator0 := getTestingValidator0(t, app, ctx, accounts)
 	validator1 := getTestingValidator1(t, app, ctx, accounts)
 
-	delTokens := sdk.TokensFromConsensusPower(2)
+	delTokens := app.StakingKeeper.TokensFromConsensusPower(ctx, 2)
 	validator0, issuedShares := validator0.AddTokensFromDel(delTokens)
 
 	// setup accounts[2] as delegator
 	delegator := accounts[2]
-	delegation := types.NewDelegation(delegator.Address, validator1.OperatorAddress, issuedShares)
+	delegation := types.NewDelegation(delegator.Address, validator1.GetOperator(), issuedShares)
 	app.StakingKeeper.SetDelegation(ctx, delegation)
-	app.DistrKeeper.SetDelegatorStartingInfo(ctx, validator1.OperatorAddress, delegator.Address, distrtypes.NewDelegatorStartingInfo(2, sdk.OneDec(), 200))
+	app.DistrKeeper.SetDelegatorStartingInfo(ctx, validator1.GetOperator(), delegator.Address, distrtypes.NewDelegatorStartingInfo(2, sdk.OneDec(), 200))
 
-	setupValidatorRewards(app, ctx, validator0.OperatorAddress)
-	setupValidatorRewards(app, ctx, validator1.OperatorAddress)
+	setupValidatorRewards(app, ctx, validator0.GetOperator())
+	setupValidatorRewards(app, ctx, validator1.GetOperator())
 
 	// begin a new block
-	app.BeginBlock(abci.RequestBeginBlock{Header: abci.Header{Height: app.LastBlockHeight() + 1, AppHash: app.LastCommitID().Hash, Time: blockTime}})
+	app.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{Height: app.LastBlockHeight() + 1, AppHash: app.LastCommitID().Hash, Time: blockTime}})
 
 	// execute operation
 	op := simulation.SimulateMsgBeginRedelegate(app.AccountKeeper, app.BankKeeper, app.StakingKeeper)
@@ -249,21 +252,22 @@ func TestSimulateMsgBeginRedelegate(t *testing.T) {
 	types.ModuleCdc.UnmarshalJSON(operationMsg.Msg, &msg)
 
 	require.True(t, operationMsg.OK)
-	require.Equal(t, "cosmos12gwd9jchc69wck8dhstxgwz3z8qs8yv67ps8mu", msg.DelegatorAddress.String())
-	require.Equal(t, "692322", msg.Amount.Amount.String())
+	require.Equal(t, "cosmos12gwd9jchc69wck8dhstxgwz3z8qs8yv67ps8mu", msg.DelegatorAddress)
+	require.Equal(t, "489348507626016866", msg.Amount.Amount.String())
 	require.Equal(t, "stake", msg.Amount.Denom)
 	require.Equal(t, types.TypeMsgBeginRedelegate, msg.Type())
-	require.Equal(t, "cosmosvaloper1h6a7shta7jyc72hyznkys683z98z36e0zdk8g9", msg.GetValidatorDstAddress().String())
-	require.Equal(t, "cosmosvaloper17s94pzwhsn4ah25tec27w70n65h5t2scgxzkv2", msg.GetValidatorSrcAddress().String())
+	require.Equal(t, "cosmosvaloper1h6a7shta7jyc72hyznkys683z98z36e0zdk8g9", msg.ValidatorDstAddress)
+	require.Equal(t, "cosmosvaloper17s94pzwhsn4ah25tec27w70n65h5t2scgxzkv2", msg.ValidatorSrcAddress)
 	require.Len(t, futureOperations, 0)
 
 }
 
 // returns context and an app with updated mint keeper
-func createTestApp(isCheckTx bool) (*simapp.SimApp, sdk.Context) {
-	app := simapp.Setup(isCheckTx)
+func createTestApp(t *testing.T, isCheckTx bool) (*simapp.SimApp, sdk.Context) {
+	// sdk.PowerReduction = sdk.NewIntFromBigInt(new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil))
+	app := simapp.Setup(t, isCheckTx)
 
-	ctx := app.BaseApp.NewContext(isCheckTx, abci.Header{})
+	ctx := app.BaseApp.NewContext(isCheckTx, tmproto.Header{})
 	app.MintKeeper.SetParams(ctx, minttypes.DefaultParams())
 	app.MintKeeper.SetMinter(ctx, minttypes.DefaultInitialMinter())
 
@@ -273,15 +277,14 @@ func createTestApp(isCheckTx bool) (*simapp.SimApp, sdk.Context) {
 func getTestingAccounts(t *testing.T, r *rand.Rand, app *simapp.SimApp, ctx sdk.Context, n int) []simtypes.Account {
 	accounts := simtypes.RandomAccounts(r, n)
 
-	initAmt := sdk.TokensFromConsensusPower(200)
+	initAmt := app.StakingKeeper.TokensFromConsensusPower(ctx, 200)
 	initCoins := sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, initAmt))
 
 	// add coins to the accounts
 	for _, account := range accounts {
 		acc := app.AccountKeeper.NewAccountWithAddress(ctx, account.Address)
 		app.AccountKeeper.SetAccount(ctx, acc)
-		err := app.BankKeeper.SetBalances(ctx, account.Address, initCoins)
-		require.NoError(t, err)
+		require.NoError(t, testutil.FundAccount(app.BankKeeper, ctx, account.Address, initCoins))
 	}
 
 	return accounts
@@ -301,12 +304,12 @@ func getTestingValidator(t *testing.T, app *simapp.SimApp, ctx sdk.Context, acco
 	account := accounts[n]
 	valPubKey := account.PubKey
 	valAddr := sdk.ValAddress(account.PubKey.Address().Bytes())
-	validator := types.NewValidator(valAddr, valPubKey, types.Description{})
+	validator := teststaking.NewValidator(t, valAddr, valPubKey)
 	validator, err := validator.SetInitialCommission(commission)
 	require.NoError(t, err)
 
 	validator.DelegatorShares = sdk.NewDec(100)
-	validator.Tokens = sdk.NewInt(1000000)
+	validator.Tokens = app.StakingKeeper.TokensFromConsensusPower(ctx, 100)
 
 	app.StakingKeeper.SetValidator(ctx, validator)
 

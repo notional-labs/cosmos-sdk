@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"testing"
 
+	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
+
 	"github.com/stretchr/testify/suite"
-	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/crypto"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/tx"
+	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/simapp"
 	"github.com/cosmos/cosmos-sdk/testutil/testdata"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -24,7 +26,7 @@ import (
 // TestAccount represents an account used in the tests in x/auth/ante.
 type TestAccount struct {
 	acc  types.AccountI
-	priv crypto.PrivKey
+	priv cryptotypes.PrivKey
 }
 
 // AnteTestSuite is a test suite to be used with ante handler tests.
@@ -39,9 +41,9 @@ type AnteTestSuite struct {
 }
 
 // returns context and app with params set on account keeper
-func createTestApp(isCheckTx bool) (*simapp.SimApp, sdk.Context) {
-	app := simapp.Setup(isCheckTx)
-	ctx := app.BaseApp.NewContext(isCheckTx, abci.Header{})
+func createTestApp(t *testing.T, isCheckTx bool) (*simapp.SimApp, sdk.Context) {
+	app := simapp.Setup(t, isCheckTx)
+	ctx := app.BaseApp.NewContext(isCheckTx, tmproto.Header{})
 	app.AccountKeeper.SetParams(ctx, authtypes.DefaultParams())
 
 	return app, ctx
@@ -49,18 +51,44 @@ func createTestApp(isCheckTx bool) (*simapp.SimApp, sdk.Context) {
 
 // SetupTest setups a new test, with new app, context, and anteHandler.
 func (suite *AnteTestSuite) SetupTest(isCheckTx bool) {
-	suite.app, suite.ctx = createTestApp(isCheckTx)
+	suite.app, suite.ctx = createTestApp(suite.T(), isCheckTx)
 	suite.ctx = suite.ctx.WithBlockHeight(1)
 
 	// Set up TxConfig.
-	encodingConfig := simapp.MakeEncodingConfig()
-	// We're using TestMsg amino encoding in some tests, so register it here.
+	encodingConfig := simapp.MakeTestEncodingConfig()
+	// We're using TestMsg encoding in some tests, so register it here.
 	encodingConfig.Amino.RegisterConcrete(&testdata.TestMsg{}, "testdata.TestMsg", nil)
+	testdata.RegisterInterfaces(encodingConfig.InterfaceRegistry)
 
 	suite.clientCtx = client.Context{}.
 		WithTxConfig(encodingConfig.TxConfig)
 
-	suite.anteHandler = ante.NewAnteHandler(suite.app.AccountKeeper, suite.app.BankKeeper, ante.DefaultSigVerificationGasConsumer, encodingConfig.TxConfig.SignModeHandler())
+	// We're not using ante.NewAnteHandler here because:
+	// - ante.NewAnteHandler doesn't have SetUpContextDecorator, as it has been
+	//   moved to the gas TxMiddleware
+	// - whereas these tests have not been migrated to middlewares yet, so
+	//   still need the SetUpContextDecorator.
+	//
+	// TODO: migrate all antehandler tests to middleware tests.
+	// https://github.com/cosmos/cosmos-sdk/issues/9585
+	anteDecorators := []sdk.AnteDecorator{
+		ante.NewSetUpContextDecorator(),
+		ante.NewRejectExtensionOptionsDecorator(),
+		ante.NewMempoolFeeDecorator(),
+		ante.NewValidateBasicDecorator(),
+		ante.NewTxTimeoutHeightDecorator(),
+		ante.NewValidateMemoDecorator(suite.app.AccountKeeper),
+		ante.NewConsumeGasForTxSizeDecorator(suite.app.AccountKeeper),
+		ante.NewDeductFeeDecorator(suite.app.AccountKeeper, suite.app.BankKeeper, suite.app.FeeGrantKeeper),
+		// SetPubKeyDecorator must be called before all signature verification decorators
+		ante.NewSetPubKeyDecorator(suite.app.AccountKeeper),
+		ante.NewValidateSigCountDecorator(suite.app.AccountKeeper),
+		ante.NewSigGasConsumeDecorator(suite.app.AccountKeeper, ante.DefaultSigVerificationGasConsumer),
+		ante.NewSigVerificationDecorator(suite.app.AccountKeeper, encodingConfig.TxConfig.SignModeHandler()),
+		ante.NewIncrementSequenceDecorator(suite.app.AccountKeeper),
+	}
+
+	suite.anteHandler = sdk.ChainAnteDecorators(anteDecorators...)
 }
 
 // CreateTestAccounts creates `numAccs` accounts, and return all relevant
@@ -74,9 +102,14 @@ func (suite *AnteTestSuite) CreateTestAccounts(numAccs int) []TestAccount {
 		err := acc.SetAccountNumber(uint64(i))
 		suite.Require().NoError(err)
 		suite.app.AccountKeeper.SetAccount(suite.ctx, acc)
-		suite.app.BankKeeper.SetBalances(suite.ctx, addr, sdk.Coins{
+		someCoins := sdk.Coins{
 			sdk.NewInt64Coin("atom", 10000000),
-		})
+		}
+		err = suite.app.BankKeeper.MintCoins(suite.ctx, minttypes.ModuleName, someCoins)
+		suite.Require().NoError(err)
+
+		err = suite.app.BankKeeper.SendCoinsFromModuleToAccount(suite.ctx, minttypes.ModuleName, addr, someCoins)
+		suite.Require().NoError(err)
 
 		accounts = append(accounts, TestAccount{acc, priv})
 	}
@@ -85,17 +118,18 @@ func (suite *AnteTestSuite) CreateTestAccounts(numAccs int) []TestAccount {
 }
 
 // CreateTestTx is a helper function to create a tx given multiple inputs.
-func (suite *AnteTestSuite) CreateTestTx(privs []crypto.PrivKey, accNums []uint64, accSeqs []uint64, chainID string) (xauthsigning.Tx, error) {
+func (suite *AnteTestSuite) CreateTestTx(privs []cryptotypes.PrivKey, accNums []uint64, accSeqs []uint64, chainID string) (xauthsigning.Tx, error) {
 	// First round: we gather all the signer infos. We use the "set empty
 	// signature" hack to do that.
 	var sigsV2 []signing.SignatureV2
-	for _, priv := range privs {
+	for i, priv := range privs {
 		sigV2 := signing.SignatureV2{
 			PubKey: priv.PubKey(),
 			Data: &signing.SingleSignatureData{
 				SignMode:  suite.clientCtx.TxConfig.SignModeHandler().DefaultMode(),
 				Signature: nil,
 			},
+			Sequence: accSeqs[i],
 		}
 
 		sigsV2 = append(sigsV2, sigV2)
@@ -109,11 +143,13 @@ func (suite *AnteTestSuite) CreateTestTx(privs []crypto.PrivKey, accNums []uint6
 	sigsV2 = []signing.SignatureV2{}
 	for i, priv := range privs {
 		signerData := xauthsigning.SignerData{
-			ChainID:         chainID,
-			AccountNumber:   accNums[i],
-			AccountSequence: accSeqs[i],
+			ChainID:       chainID,
+			AccountNumber: accNums[i],
+			Sequence:      accSeqs[i],
 		}
-		sigV2, err := tx.SignWithPrivKey(suite.clientCtx.TxConfig.SignModeHandler().DefaultMode(), signerData, suite.txBuilder, priv, suite.clientCtx.TxConfig)
+		sigV2, err := tx.SignWithPrivKey(
+			suite.clientCtx.TxConfig.SignModeHandler().DefaultMode(), signerData,
+			suite.txBuilder, priv, suite.clientCtx.TxConfig, accSeqs[i])
 		if err != nil {
 			return nil, err
 		}
@@ -138,7 +174,7 @@ type TestCase struct {
 }
 
 // CreateTestTx is a helper function to create a tx given multiple inputs.
-func (suite *AnteTestSuite) RunTestCase(privs []crypto.PrivKey, msgs []sdk.Msg, feeAmount sdk.Coins, gasLimit uint64, accNums, accSeqs []uint64, chainID string, tc TestCase) {
+func (suite *AnteTestSuite) RunTestCase(privs []cryptotypes.PrivKey, msgs []sdk.Msg, feeAmount sdk.Coins, gasLimit uint64, accNums, accSeqs []uint64, chainID string, tc TestCase) {
 	suite.Run(fmt.Sprintf("Case %s", tc.desc), func() {
 		suite.Require().NoError(suite.txBuilder.SetMsgs(msgs...))
 		suite.txBuilder.SetFeeAmount(feeAmount)

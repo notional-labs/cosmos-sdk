@@ -1,23 +1,24 @@
 package keys
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	"github.com/cosmos/cosmos-sdk/simapp"
 	"github.com/cosmos/cosmos-sdk/testutil"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 func Test_runDeleteCmd(t *testing.T) {
 	// Now add a temporary keybase
-	kbHome, cleanUp := testutil.NewTestCaseDir(t)
-	t.Cleanup(cleanUp)
-
+	kbHome := t.TempDir()
 	cmd := DeleteKeyCommand()
 	cmd.Flags().AddFlagSet(Commands(kbHome).PersistentFlags())
 	mockIn := testutil.ApplyMockIODiscardOutErr(cmd)
@@ -31,21 +32,28 @@ func Test_runDeleteCmd(t *testing.T) {
 	fakeKeyName1 := "runDeleteCmd_Key1"
 	fakeKeyName2 := "runDeleteCmd_Key2"
 
-	path := sdk.GetConfig().GetFullFundraiserPath()
+	path := sdk.GetConfig().GetFullBIP44Path()
+	cdc := simapp.MakeTestEncodingConfig().Codec
 
-	kb, err := keyring.New(sdk.KeyringServiceName(), keyring.BackendTest, kbHome, mockIn)
+	cmd.SetArgs([]string{"blah", fmt.Sprintf("--%s=%s", flags.FlagHome, kbHome)})
+	kb, err := keyring.New(sdk.KeyringServiceName(), keyring.BackendTest, kbHome, mockIn, cdc)
 	require.NoError(t, err)
 
 	_, err = kb.NewAccount(fakeKeyName1, testutil.TestMnemonic, "", path, hd.Secp256k1)
 	require.NoError(t, err)
 
-	_, _, err = kb.NewMnemonic(fakeKeyName2, keyring.English, sdk.FullFundraiserPath, hd.Secp256k1)
+	_, _, err = kb.NewMnemonic(fakeKeyName2, keyring.English, sdk.FullFundraiserPath, keyring.DefaultBIP39Passphrase, hd.Secp256k1)
 	require.NoError(t, err)
 
-	cmd.SetArgs([]string{"blah", fmt.Sprintf("--%s=%s", flags.FlagHome, kbHome)})
-	err = cmd.Execute()
+	clientCtx := client.Context{}.
+		WithKeyringDir(kbHome).
+		WithCodec(cdc)
+
+	ctx := context.WithValue(context.Background(), client.ClientContextKey, &clientCtx)
+
+	err = cmd.ExecuteContext(ctx)
 	require.Error(t, err)
-	require.Equal(t, "The specified item could not be found in the keyring", err.Error())
+	require.EqualError(t, err, "blah: key not found")
 
 	// User confirmation missing
 	cmd.SetArgs([]string{

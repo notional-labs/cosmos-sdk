@@ -1,31 +1,42 @@
 package keys
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/tendermint/tendermint/crypto"
-	"github.com/tendermint/tendermint/crypto/secp256k1"
-
+	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	"github.com/cosmos/cosmos-sdk/crypto/types/multisig"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/multisig"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
+	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
+	"github.com/cosmos/cosmos-sdk/simapp"
 	"github.com/cosmos/cosmos-sdk/testutil"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 func Test_multiSigKey_Properties(t *testing.T) {
-	tmpKey1 := secp256k1.GenPrivKeySecp256k1([]byte("mySecret"))
-	pk := multisig.NewPubKeyMultisigThreshold(1, []crypto.PubKey{tmpKey1.PubKey()})
-	tmp := keyring.NewMultiInfo("myMultisig", pk)
+	tmpKey1 := secp256k1.GenPrivKeyFromSecret([]byte("mySecret"))
+	pk := multisig.NewLegacyAminoPubKey(
+		1,
+		[]cryptotypes.PubKey{tmpKey1.PubKey()},
+	)
+	k, err := keyring.NewMultiRecord("myMultisig", pk)
+	require.NoError(t, err)
+	require.Equal(t, "myMultisig", k.Name)
+	require.Equal(t, keyring.TypeMulti, k.GetType())
 
-	require.Equal(t, "myMultisig", tmp.GetName())
-	require.Equal(t, keyring.TypeMulti, tmp.GetType())
-	require.Equal(t, "D3923267FA8A3DD367BB768FA8BDC8FF7F89DA3F", tmp.GetPubKey().Address().String())
-	require.Equal(t, "cosmos16wfryel63g7axeamw68630wglalcnk3l0zuadc", sdk.MustBech32ifyAddressBytes("cosmos", tmp.GetAddress()))
+	pub, err := k.GetPubKey()
+	require.NoError(t, err)
+	require.Equal(t, "D3923267FA8A3DD367BB768FA8BDC8FF7F89DA3F", pub.Address().String())
+
+	addr, err := k.GetAddress()
+	require.NoError(t, err)
+	require.Equal(t, "cosmos16wfryel63g7axeamw68630wglalcnk3l0zuadc", sdk.MustBech32ifyAddressBytes("cosmos", addr))
 }
 
 func Test_showKeysCmd(t *testing.T) {
@@ -40,20 +51,25 @@ func Test_runShowCmd(t *testing.T) {
 	cmd.Flags().AddFlagSet(Commands("home").PersistentFlags())
 	mockIn := testutil.ApplyMockIODiscardOutErr(cmd)
 
+	kbHome := t.TempDir()
+	cdc := simapp.MakeTestEncodingConfig().Codec
+	kb, err := keyring.New(sdk.KeyringServiceName(), keyring.BackendTest, kbHome, mockIn, cdc)
+	require.NoError(t, err)
+
+	clientCtx := client.Context{}.
+		WithKeyringDir(kbHome).
+		WithCodec(cdc)
+	ctx := context.WithValue(context.Background(), client.ClientContextKey, &clientCtx)
+
 	cmd.SetArgs([]string{"invalid"})
-	require.EqualError(t, cmd.Execute(), "invalid is not a valid name or address: decoding bech32 failed: invalid bech32 string length 7")
+	require.EqualError(t, cmd.ExecuteContext(ctx), "invalid is not a valid name or address: decoding bech32 failed: invalid bech32 string length 7")
 
 	cmd.SetArgs([]string{"invalid1", "invalid2"})
-	require.EqualError(t, cmd.Execute(), "invalid1 is not a valid name or address: decoding bech32 failed: invalid index of 1")
-
-	kbHome, cleanUp := testutil.NewTestCaseDir(t)
-	t.Cleanup(cleanUp)
+	require.EqualError(t, cmd.ExecuteContext(ctx), "invalid1 is not a valid name or address: decoding bech32 failed: invalid index of 1")
 
 	fakeKeyName1 := "runShowCmd_Key1"
 	fakeKeyName2 := "runShowCmd_Key2"
 
-	kb, err := keyring.New(sdk.KeyringServiceName(), keyring.BackendTest, kbHome, mockIn)
-	require.NoError(t, err)
 	t.Cleanup(func() {
 		kb.Delete("runShowCmd_Key1")
 		kb.Delete("runShowCmd_Key2")
@@ -71,83 +87,85 @@ func Test_runShowCmd(t *testing.T) {
 	cmd.SetArgs([]string{
 		fakeKeyName1,
 		fmt.Sprintf("--%s=%s", flags.FlagHome, kbHome),
-		fmt.Sprintf("--%s=%s", flags.FlagKeyringBackend, keyring.BackendTest),
 		fmt.Sprintf("--%s=", FlagBechPrefix),
+		fmt.Sprintf("--%s=%s", flags.FlagKeyringBackend, keyring.BackendTest),
 	})
-	require.EqualError(t, cmd.Execute(), "invalid Bech32 prefix encoding provided: ")
+	require.EqualError(t, cmd.ExecuteContext(ctx), "invalid Bech32 prefix encoding provided: ")
 
 	cmd.SetArgs([]string{
 		fakeKeyName1,
 		fmt.Sprintf("--%s=%s", flags.FlagHome, kbHome),
-		fmt.Sprintf("--%s=%s", flags.FlagKeyringBackend, keyring.BackendTest),
 		fmt.Sprintf("--%s=%s", FlagBechPrefix, sdk.PrefixAccount),
+		fmt.Sprintf("--%s=%s", flags.FlagKeyringBackend, keyring.BackendTest),
 	})
 
 	// try fetch by name
-	require.NoError(t, cmd.Execute())
+	require.NoError(t, cmd.ExecuteContext(ctx))
 
 	// try fetch by addr
-	info, err := kb.Key(fakeKeyName1)
+	k, err := kb.Key(fakeKeyName1)
+	require.NoError(t, err)
+	addr, err := k.GetAddress()
+	require.NoError(t, err)
 	cmd.SetArgs([]string{
-		info.GetAddress().String(),
+		addr.String(),
 		fmt.Sprintf("--%s=%s", flags.FlagHome, kbHome),
-		fmt.Sprintf("--%s=%s", flags.FlagKeyringBackend, keyring.BackendTest),
 		fmt.Sprintf("--%s=%s", FlagBechPrefix, sdk.PrefixAccount),
+		fmt.Sprintf("--%s=%s", flags.FlagKeyringBackend, keyring.BackendTest),
 	})
 
-	require.NoError(t, err)
-	require.NoError(t, cmd.Execute())
+	require.NoError(t, cmd.ExecuteContext(ctx))
 
 	// Now try multisig key - set bech to acc
 	cmd.SetArgs([]string{
 		fakeKeyName1, fakeKeyName2,
 		fmt.Sprintf("--%s=%s", flags.FlagHome, kbHome),
-		fmt.Sprintf("--%s=%s", flags.FlagKeyringBackend, keyring.BackendTest),
 		fmt.Sprintf("--%s=%s", FlagBechPrefix, sdk.PrefixAccount),
 		fmt.Sprintf("--%s=0", flagMultiSigThreshold),
+		fmt.Sprintf("--%s=%s", flags.FlagKeyringBackend, keyring.BackendTest),
 	})
-	require.EqualError(t, cmd.Execute(), "threshold must be a positive integer")
+	require.EqualError(t, cmd.ExecuteContext(ctx), "threshold must be a positive integer")
 
 	cmd.SetArgs([]string{
 		fakeKeyName1, fakeKeyName2,
 		fmt.Sprintf("--%s=%s", flags.FlagHome, kbHome),
-		fmt.Sprintf("--%s=%s", flags.FlagKeyringBackend, keyring.BackendTest),
 		fmt.Sprintf("--%s=%s", FlagBechPrefix, sdk.PrefixAccount),
 		fmt.Sprintf("--%s=2", flagMultiSigThreshold),
+		fmt.Sprintf("--%s=%s", flags.FlagKeyringBackend, keyring.BackendTest),
 	})
-	require.NoError(t, cmd.Execute())
+	require.NoError(t, cmd.ExecuteContext(ctx))
 
 	// Now try multisig key - set bech to acc + threshold=2
 	cmd.SetArgs([]string{
 		fakeKeyName1, fakeKeyName2,
 		fmt.Sprintf("--%s=%s", flags.FlagHome, kbHome),
-		fmt.Sprintf("--%s=%s", flags.FlagKeyringBackend, keyring.BackendTest),
 		fmt.Sprintf("--%s=acc", FlagBechPrefix),
 		fmt.Sprintf("--%s=true", FlagDevice),
 		fmt.Sprintf("--%s=2", flagMultiSigThreshold),
+		fmt.Sprintf("--%s=%s", flags.FlagKeyringBackend, keyring.BackendTest),
 	})
-	require.EqualError(t, cmd.Execute(), "the device flag (-d) can only be used for accounts stored in devices")
+	require.EqualError(t, cmd.ExecuteContext(ctx), "the device flag (-d) can only be used for accounts stored in devices")
 
 	cmd.SetArgs([]string{
 		fakeKeyName1, fakeKeyName2,
 		fmt.Sprintf("--%s=%s", flags.FlagHome, kbHome),
-		fmt.Sprintf("--%s=%s", flags.FlagKeyringBackend, keyring.BackendTest),
 		fmt.Sprintf("--%s=val", FlagBechPrefix),
 		fmt.Sprintf("--%s=true", FlagDevice),
 		fmt.Sprintf("--%s=2", flagMultiSigThreshold),
+		fmt.Sprintf("--%s=%s", flags.FlagKeyringBackend, keyring.BackendTest),
 	})
-	require.EqualError(t, cmd.Execute(), "the device flag (-d) can only be used for accounts")
+	require.EqualError(t, cmd.ExecuteContext(ctx), "the device flag (-d) can only be used for accounts")
 
 	cmd.SetArgs([]string{
 		fakeKeyName1, fakeKeyName2,
 		fmt.Sprintf("--%s=%s", flags.FlagHome, kbHome),
-		fmt.Sprintf("--%s=%s", flags.FlagKeyringBackend, keyring.BackendTest),
 		fmt.Sprintf("--%s=val", FlagBechPrefix),
 		fmt.Sprintf("--%s=true", FlagDevice),
 		fmt.Sprintf("--%s=2", flagMultiSigThreshold),
 		fmt.Sprintf("--%s=true", FlagPublicKey),
+		fmt.Sprintf("--%s=%s", flags.FlagKeyringBackend, keyring.BackendTest),
 	})
-	require.EqualError(t, cmd.Execute(), "the device flag (-d) can only be used for addresses not pubkeys")
+	require.EqualError(t, cmd.ExecuteContext(ctx), "the device flag (-d) can only be used for addresses not pubkeys")
 }
 
 func Test_validateMultisigThreshold(t *testing.T) {
@@ -188,28 +206,20 @@ func Test_getBechKeyOut(t *testing.T) {
 	}{
 		{"empty", args{""}, nil, true},
 		{"wrong", args{"???"}, nil, true},
-		{"acc", args{sdk.PrefixAccount}, keyring.Bech32KeyOutput, false},
-		{"val", args{sdk.PrefixValidator}, keyring.Bech32ValKeyOutput, false},
-		{"cons", args{sdk.PrefixConsensus}, keyring.Bech32ConsKeyOutput, false},
+		{"acc", args{sdk.PrefixAccount}, keyring.MkAccKeyOutput, false},
+		{"val", args{sdk.PrefixValidator}, keyring.MkValKeyOutput, false},
+		{"cons", args{sdk.PrefixConsensus}, keyring.MkConsKeyOutput, false},
 	}
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := getBechKeyOut(tt.args.bechPrefix)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("getBechKeyOut() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-
-			if !tt.wantErr {
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
 				require.NotNil(t, got)
 			}
-
-			// TODO: Still not possible to compare functions
-			// Maybe in next release: https://github.com/stretchr/testify/issues/182
-			//if &got != &tt.want {
-			//	t.Errorf("getBechKeyOut() = %v, want %v", got, tt.want)
-			//}
 		})
 	}
 }

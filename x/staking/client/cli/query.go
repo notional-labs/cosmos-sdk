@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -47,6 +46,8 @@ func GetQueryCmd() *cobra.Command {
 
 // GetCmdQueryValidator implements the validator query command.
 func GetCmdQueryValidator() *cobra.Command {
+	bech32PrefixValAddr := sdk.GetConfig().GetBech32ValidatorAddrPrefix()
+
 	cmd := &cobra.Command{
 		Use:   "validator [validator-addr]",
 		Short: "Query a validator",
@@ -54,19 +55,17 @@ func GetCmdQueryValidator() *cobra.Command {
 			fmt.Sprintf(`Query details about an individual validator.
 
 Example:
-$ %s query staking validator cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj
+$ %s query staking validator %s1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj
 `,
-				version.AppName,
+				version.AppName, bech32PrefixValAddr,
 			),
 		),
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			clientCtx := client.GetClientContextFromCmd(cmd)
-			clientCtx, err := client.ReadQueryCommandFlags(clientCtx, cmd.Flags())
+			clientCtx, err := client.GetClientQueryContext(cmd)
 			if err != nil {
 				return err
 			}
-
 			queryClient := types.NewQueryClient(clientCtx)
 
 			addr, err := sdk.ValAddressFromBech32(args[0])
@@ -74,13 +73,13 @@ $ %s query staking validator cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhff
 				return err
 			}
 
-			params := &types.QueryValidatorRequest{ValidatorAddr: addr}
+			params := &types.QueryValidatorRequest{ValidatorAddr: addr.String()}
 			res, err := queryClient.Validator(cmd.Context(), params)
 			if err != nil {
 				return err
 			}
 
-			return clientCtx.PrintOutput(res.Validator)
+			return clientCtx.PrintProto(&res.Validator)
 		},
 	}
 
@@ -105,38 +104,38 @@ $ %s query staking validators
 			),
 		),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			clientCtx := client.GetClientContextFromCmd(cmd)
-			clientCtx, err := client.ReadQueryCommandFlags(clientCtx, cmd.Flags())
+			clientCtx, err := client.GetClientQueryContext(cmd)
+			if err != nil {
+				return err
+			}
+			queryClient := types.NewQueryClient(clientCtx)
+			pageReq, err := client.ReadPageRequest(cmd.Flags())
 			if err != nil {
 				return err
 			}
 
-			resKVs, _, err := clientCtx.QuerySubspace(types.ValidatorsKey, types.StoreKey)
+			result, err := queryClient.Validators(cmd.Context(), &types.QueryValidatorsRequest{
+				// Leaving status empty on purpose to query all validators.
+				Pagination: pageReq,
+			})
 			if err != nil {
 				return err
 			}
 
-			var validators types.Validators
-			for _, kv := range resKVs {
-				validator, err := types.UnmarshalValidator(types.ModuleCdc, kv.Value)
-				if err != nil {
-					return err
-				}
-
-				validators = append(validators, validator)
-			}
-
-			return clientCtx.PrintOutput(validators)
+			return clientCtx.PrintProto(result)
 		},
 	}
 
 	flags.AddQueryFlagsToCmd(cmd)
+	flags.AddPaginationFlagsToCmd(cmd, "validators")
 
 	return cmd
 }
 
 // GetCmdQueryValidatorUnbondingDelegations implements the query all unbonding delegatations from a validator command.
 func GetCmdQueryValidatorUnbondingDelegations() *cobra.Command {
+	bech32PrefixValAddr := sdk.GetConfig().GetBech32ValidatorAddrPrefix()
+
 	cmd := &cobra.Command{
 		Use:   "unbonding-delegations-from [validator-addr]",
 		Short: "Query all unbonding delegatations from a validator",
@@ -144,19 +143,17 @@ func GetCmdQueryValidatorUnbondingDelegations() *cobra.Command {
 			fmt.Sprintf(`Query delegations that are unbonding _from_ a validator.
 
 Example:
-$ %s query staking unbonding-delegations-from cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj
+$ %s query staking unbonding-delegations-from %s1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj
 `,
-				version.AppName,
+				version.AppName, bech32PrefixValAddr,
 			),
 		),
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			clientCtx := client.GetClientContextFromCmd(cmd)
-			clientCtx, err := client.ReadQueryCommandFlags(clientCtx, cmd.Flags())
+			clientCtx, err := client.GetClientQueryContext(cmd)
 			if err != nil {
 				return err
 			}
-
 			queryClient := types.NewQueryClient(clientCtx)
 
 			valAddr, err := sdk.ValAddressFromBech32(args[0])
@@ -170,16 +167,16 @@ $ %s query staking unbonding-delegations-from cosmosvaloper1gghjut3ccd8ay0zduzj6
 			}
 
 			params := &types.QueryValidatorUnbondingDelegationsRequest{
-				ValidatorAddr: valAddr,
+				ValidatorAddr: valAddr.String(),
 				Pagination:    pageReq,
 			}
 
-			res, err := queryClient.ValidatorUnbondingDelegations(context.Background(), params)
+			res, err := queryClient.ValidatorUnbondingDelegations(cmd.Context(), params)
 			if err != nil {
 				return err
 			}
 
-			return clientCtx.PrintOutput(res)
+			return clientCtx.PrintProto(res)
 		},
 	}
 
@@ -192,6 +189,8 @@ $ %s query staking unbonding-delegations-from cosmosvaloper1gghjut3ccd8ay0zduzj6
 // GetCmdQueryValidatorRedelegations implements the query all redelegatations
 // from a validator command.
 func GetCmdQueryValidatorRedelegations() *cobra.Command {
+	bech32PrefixValAddr := sdk.GetConfig().GetBech32ValidatorAddrPrefix()
+
 	cmd := &cobra.Command{
 		Use:   "redelegations-from [validator-addr]",
 		Short: "Query all outgoing redelegatations from a validator",
@@ -199,19 +198,17 @@ func GetCmdQueryValidatorRedelegations() *cobra.Command {
 			fmt.Sprintf(`Query delegations that are redelegating _from_ a validator.
 
 Example:
-$ %s query staking redelegations-from cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj
+$ %s query staking redelegations-from %s1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj
 `,
-				version.AppName,
+				version.AppName, bech32PrefixValAddr,
 			),
 		),
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			clientCtx := client.GetClientContextFromCmd(cmd)
-			clientCtx, err := client.ReadQueryCommandFlags(clientCtx, cmd.Flags())
+			clientCtx, err := client.GetClientQueryContext(cmd)
 			if err != nil {
 				return err
 			}
-
 			queryClient := types.NewQueryClient(clientCtx)
 
 			valSrcAddr, err := sdk.ValAddressFromBech32(args[0])
@@ -225,16 +222,16 @@ $ %s query staking redelegations-from cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fx
 			}
 
 			params := &types.QueryRedelegationsRequest{
-				SrcValidatorAddr: valSrcAddr,
+				SrcValidatorAddr: valSrcAddr.String(),
 				Pagination:       pageReq,
 			}
 
-			res, err := queryClient.Redelegations(context.Background(), params)
+			res, err := queryClient.Redelegations(cmd.Context(), params)
 			if err != nil {
 				return err
 			}
 
-			return clientCtx.PrintOutput(res)
+			return clientCtx.PrintProto(res)
 		},
 	}
 
@@ -246,6 +243,9 @@ $ %s query staking redelegations-from cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fx
 
 // GetCmdQueryDelegation the query delegation command.
 func GetCmdQueryDelegation() *cobra.Command {
+	bech32PrefixAccAddr := sdk.GetConfig().GetBech32AccountAddrPrefix()
+	bech32PrefixValAddr := sdk.GetConfig().GetBech32ValidatorAddrPrefix()
+
 	cmd := &cobra.Command{
 		Use:   "delegation [delegator-addr] [validator-addr]",
 		Short: "Query a delegation based on address and validator address",
@@ -253,19 +253,17 @@ func GetCmdQueryDelegation() *cobra.Command {
 			fmt.Sprintf(`Query delegations for an individual delegator on an individual validator.
 
 Example:
-$ %s query staking delegation cosmos1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj
+$ %s query staking delegation %s1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p %s1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj
 `,
-				version.AppName,
+				version.AppName, bech32PrefixAccAddr, bech32PrefixValAddr,
 			),
 		),
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			clientCtx := client.GetClientContextFromCmd(cmd)
-			clientCtx, err := client.ReadQueryCommandFlags(clientCtx, cmd.Flags())
+			clientCtx, err := client.GetClientQueryContext(cmd)
 			if err != nil {
 				return err
 			}
-
 			queryClient := types.NewQueryClient(clientCtx)
 
 			delAddr, err := sdk.AccAddressFromBech32(args[0])
@@ -279,16 +277,16 @@ $ %s query staking delegation cosmos1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p cosm
 			}
 
 			params := &types.QueryDelegationRequest{
-				DelegatorAddr: delAddr,
-				ValidatorAddr: valAddr,
+				DelegatorAddr: delAddr.String(),
+				ValidatorAddr: valAddr.String(),
 			}
 
-			res, err := queryClient.Delegation(context.Background(), params)
+			res, err := queryClient.Delegation(cmd.Context(), params)
 			if err != nil {
 				return err
 			}
 
-			return clientCtx.PrintOutput(res.DelegationResponse)
+			return clientCtx.PrintProto(res.DelegationResponse)
 		},
 	}
 
@@ -300,6 +298,8 @@ $ %s query staking delegation cosmos1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p cosm
 // GetCmdQueryDelegations implements the command to query all the delegations
 // made from one delegator.
 func GetCmdQueryDelegations() *cobra.Command {
+	bech32PrefixAccAddr := sdk.GetConfig().GetBech32AccountAddrPrefix()
+
 	cmd := &cobra.Command{
 		Use:   "delegations [delegator-addr]",
 		Short: "Query all delegations made by one delegator",
@@ -307,19 +307,17 @@ func GetCmdQueryDelegations() *cobra.Command {
 			fmt.Sprintf(`Query delegations for an individual delegator on all validators.
 
 Example:
-$ %s query staking delegations cosmos1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p
+$ %s query staking delegations %s1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p
 `,
-				version.AppName,
+				version.AppName, bech32PrefixAccAddr,
 			),
 		),
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			clientCtx := client.GetClientContextFromCmd(cmd)
-			clientCtx, err := client.ReadQueryCommandFlags(clientCtx, cmd.Flags())
+			clientCtx, err := client.GetClientQueryContext(cmd)
 			if err != nil {
 				return err
 			}
-
 			queryClient := types.NewQueryClient(clientCtx)
 
 			delAddr, err := sdk.AccAddressFromBech32(args[0])
@@ -333,16 +331,16 @@ $ %s query staking delegations cosmos1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p
 			}
 
 			params := &types.QueryDelegatorDelegationsRequest{
-				DelegatorAddr: delAddr,
+				DelegatorAddr: delAddr.String(),
 				Pagination:    pageReq,
 			}
 
-			res, err := queryClient.DelegatorDelegations(context.Background(), params)
+			res, err := queryClient.DelegatorDelegations(cmd.Context(), params)
 			if err != nil {
 				return err
 			}
 
-			return clientCtx.PrintOutput(res)
+			return clientCtx.PrintProto(res)
 		},
 	}
 
@@ -355,6 +353,8 @@ $ %s query staking delegations cosmos1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p
 // GetCmdQueryValidatorDelegations implements the command to query all the
 // delegations to a specific validator.
 func GetCmdQueryValidatorDelegations() *cobra.Command {
+	bech32PrefixValAddr := sdk.GetConfig().GetBech32ValidatorAddrPrefix()
+
 	cmd := &cobra.Command{
 		Use:   "delegations-to [validator-addr]",
 		Short: "Query all delegations made to one validator",
@@ -362,19 +362,17 @@ func GetCmdQueryValidatorDelegations() *cobra.Command {
 			fmt.Sprintf(`Query delegations on an individual validator.
 
 Example:
-$ %s query staking delegations-to cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj
+$ %s query staking delegations-to %s1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj
 `,
-				version.AppName,
+				version.AppName, bech32PrefixValAddr,
 			),
 		),
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			clientCtx := client.GetClientContextFromCmd(cmd)
-			clientCtx, err := client.ReadQueryCommandFlags(clientCtx, cmd.Flags())
+			clientCtx, err := client.GetClientQueryContext(cmd)
 			if err != nil {
 				return err
 			}
-
 			queryClient := types.NewQueryClient(clientCtx)
 
 			valAddr, err := sdk.ValAddressFromBech32(args[0])
@@ -388,16 +386,16 @@ $ %s query staking delegations-to cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fxs9ld
 			}
 
 			params := &types.QueryValidatorDelegationsRequest{
-				ValidatorAddr: valAddr,
+				ValidatorAddr: valAddr.String(),
 				Pagination:    pageReq,
 			}
 
-			res, err := queryClient.ValidatorDelegations(context.Background(), params)
+			res, err := queryClient.ValidatorDelegations(cmd.Context(), params)
 			if err != nil {
 				return err
 			}
 
-			return clientCtx.PrintOutput(res)
+			return clientCtx.PrintProto(res)
 		},
 	}
 
@@ -410,6 +408,9 @@ $ %s query staking delegations-to cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fxs9ld
 // GetCmdQueryUnbondingDelegation implements the command to query a single
 // unbonding-delegation record.
 func GetCmdQueryUnbondingDelegation() *cobra.Command {
+	bech32PrefixAccAddr := sdk.GetConfig().GetBech32AccountAddrPrefix()
+	bech32PrefixValAddr := sdk.GetConfig().GetBech32ValidatorAddrPrefix()
+
 	cmd := &cobra.Command{
 		Use:   "unbonding-delegation [delegator-addr] [validator-addr]",
 		Short: "Query an unbonding-delegation record based on delegator and validator address",
@@ -417,19 +418,17 @@ func GetCmdQueryUnbondingDelegation() *cobra.Command {
 			fmt.Sprintf(`Query unbonding delegations for an individual delegator on an individual validator.
 
 Example:
-$ %s query staking unbonding-delegation cosmos1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj
+$ %s query staking unbonding-delegation %s1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p %s1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj
 `,
-				version.AppName,
+				version.AppName, bech32PrefixAccAddr, bech32PrefixValAddr,
 			),
 		),
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			clientCtx := client.GetClientContextFromCmd(cmd)
-			clientCtx, err := client.ReadQueryCommandFlags(clientCtx, cmd.Flags())
+			clientCtx, err := client.GetClientQueryContext(cmd)
 			if err != nil {
 				return err
 			}
-
 			queryClient := types.NewQueryClient(clientCtx)
 
 			valAddr, err := sdk.ValAddressFromBech32(args[1])
@@ -443,16 +442,16 @@ $ %s query staking unbonding-delegation cosmos1gghjut3ccd8ay0zduzj64hwre2fxs9ld7
 			}
 
 			params := &types.QueryUnbondingDelegationRequest{
-				DelegatorAddr: delAddr,
-				ValidatorAddr: valAddr,
+				DelegatorAddr: delAddr.String(),
+				ValidatorAddr: valAddr.String(),
 			}
 
-			res, err := queryClient.UnbondingDelegation(context.Background(), params)
+			res, err := queryClient.UnbondingDelegation(cmd.Context(), params)
 			if err != nil {
 				return err
 			}
 
-			return clientCtx.PrintOutput(res.Unbond)
+			return clientCtx.PrintProto(&res.Unbond)
 		},
 	}
 
@@ -464,6 +463,8 @@ $ %s query staking unbonding-delegation cosmos1gghjut3ccd8ay0zduzj64hwre2fxs9ld7
 // GetCmdQueryUnbondingDelegations implements the command to query all the
 // unbonding-delegation records for a delegator.
 func GetCmdQueryUnbondingDelegations() *cobra.Command {
+	bech32PrefixAccAddr := sdk.GetConfig().GetBech32AccountAddrPrefix()
+
 	cmd := &cobra.Command{
 		Use:   "unbonding-delegations [delegator-addr]",
 		Short: "Query all unbonding-delegations records for one delegator",
@@ -471,19 +472,17 @@ func GetCmdQueryUnbondingDelegations() *cobra.Command {
 			fmt.Sprintf(`Query unbonding delegations for an individual delegator.
 
 Example:
-$ %s query staking unbonding-delegations cosmos1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p
+$ %s query staking unbonding-delegations %s1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p
 `,
-				version.AppName,
+				version.AppName, bech32PrefixAccAddr,
 			),
 		),
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			clientCtx := client.GetClientContextFromCmd(cmd)
-			clientCtx, err := client.ReadQueryCommandFlags(clientCtx, cmd.Flags())
+			clientCtx, err := client.GetClientQueryContext(cmd)
 			if err != nil {
 				return err
 			}
-
 			queryClient := types.NewQueryClient(clientCtx)
 
 			delegatorAddr, err := sdk.AccAddressFromBech32(args[0])
@@ -497,16 +496,16 @@ $ %s query staking unbonding-delegations cosmos1gghjut3ccd8ay0zduzj64hwre2fxs9ld
 			}
 
 			params := &types.QueryDelegatorUnbondingDelegationsRequest{
-				DelegatorAddr: delegatorAddr,
+				DelegatorAddr: delegatorAddr.String(),
 				Pagination:    pageReq,
 			}
 
-			res, err := queryClient.DelegatorUnbondingDelegations(context.Background(), params)
+			res, err := queryClient.DelegatorUnbondingDelegations(cmd.Context(), params)
 			if err != nil {
 				return err
 			}
 
-			return clientCtx.PrintOutput(res)
+			return clientCtx.PrintProto(res)
 		},
 	}
 
@@ -519,6 +518,9 @@ $ %s query staking unbonding-delegations cosmos1gghjut3ccd8ay0zduzj64hwre2fxs9ld
 // GetCmdQueryRedelegation implements the command to query a single
 // redelegation record.
 func GetCmdQueryRedelegation() *cobra.Command {
+	bech32PrefixAccAddr := sdk.GetConfig().GetBech32AccountAddrPrefix()
+	bech32PrefixValAddr := sdk.GetConfig().GetBech32ValidatorAddrPrefix()
+
 	cmd := &cobra.Command{
 		Use:   "redelegation [delegator-addr] [src-validator-addr] [dst-validator-addr]",
 		Short: "Query a redelegation record based on delegator and a source and destination validator address",
@@ -526,19 +528,17 @@ func GetCmdQueryRedelegation() *cobra.Command {
 			fmt.Sprintf(`Query a redelegation record for an individual delegator between a source and destination validator.
 
 Example:
-$ %s query staking redelegation cosmos1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p cosmosvaloper1l2rsakp388kuv9k8qzq6lrm9taddae7fpx59wm cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj
+$ %s query staking redelegation %s1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p %s1l2rsakp388kuv9k8qzq6lrm9taddae7fpx59wm %s1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj
 `,
-				version.AppName,
+				version.AppName, bech32PrefixAccAddr, bech32PrefixValAddr, bech32PrefixValAddr,
 			),
 		),
 		Args: cobra.ExactArgs(3),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			clientCtx := client.GetClientContextFromCmd(cmd)
-			clientCtx, err := client.ReadQueryCommandFlags(clientCtx, cmd.Flags())
+			clientCtx, err := client.GetClientQueryContext(cmd)
 			if err != nil {
 				return err
 			}
-
 			queryClient := types.NewQueryClient(clientCtx)
 
 			delAddr, err := sdk.AccAddressFromBech32(args[0])
@@ -557,17 +557,17 @@ $ %s query staking redelegation cosmos1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p co
 			}
 
 			params := &types.QueryRedelegationsRequest{
-				DelegatorAddr:    delAddr,
-				DstValidatorAddr: valDstAddr,
-				SrcValidatorAddr: valSrcAddr,
+				DelegatorAddr:    delAddr.String(),
+				DstValidatorAddr: valDstAddr.String(),
+				SrcValidatorAddr: valSrcAddr.String(),
 			}
 
-			res, err := queryClient.Redelegations(context.Background(), params)
+			res, err := queryClient.Redelegations(cmd.Context(), params)
 			if err != nil {
 				return err
 			}
 
-			return clientCtx.PrintOutput(res.RedelegationResponses)
+			return clientCtx.PrintProto(res)
 		},
 	}
 
@@ -579,6 +579,8 @@ $ %s query staking redelegation cosmos1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p co
 // GetCmdQueryRedelegations implements the command to query all the
 // redelegation records for a delegator.
 func GetCmdQueryRedelegations() *cobra.Command {
+	bech32PrefixAccAddr := sdk.GetConfig().GetBech32AccountAddrPrefix()
+
 	cmd := &cobra.Command{
 		Use:   "redelegations [delegator-addr]",
 		Args:  cobra.ExactArgs(1),
@@ -587,18 +589,16 @@ func GetCmdQueryRedelegations() *cobra.Command {
 			fmt.Sprintf(`Query all redelegation records for an individual delegator.
 
 Example:
-$ %s query staking redelegation cosmos1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p
+$ %s query staking redelegation %s1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p
 `,
-				version.AppName,
+				version.AppName, bech32PrefixAccAddr,
 			),
 		),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			clientCtx := client.GetClientContextFromCmd(cmd)
-			clientCtx, err := client.ReadQueryCommandFlags(clientCtx, cmd.Flags())
+			clientCtx, err := client.GetClientQueryContext(cmd)
 			if err != nil {
 				return err
 			}
-
 			queryClient := types.NewQueryClient(clientCtx)
 
 			delAddr, err := sdk.AccAddressFromBech32(args[0])
@@ -612,16 +612,16 @@ $ %s query staking redelegation cosmos1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p
 			}
 
 			params := &types.QueryRedelegationsRequest{
-				DelegatorAddr: delAddr,
+				DelegatorAddr: delAddr.String(),
 				Pagination:    pageReq,
 			}
 
-			res, err := queryClient.Redelegations(context.Background(), params)
+			res, err := queryClient.Redelegations(cmd.Context(), params)
 			if err != nil {
 				return err
 			}
 
-			return clientCtx.PrintOutput(res)
+			return clientCtx.PrintProto(res)
 		},
 	}
 
@@ -647,12 +647,10 @@ $ %s query staking historical-info 5
 			),
 		),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			clientCtx := client.GetClientContextFromCmd(cmd)
-			clientCtx, err := client.ReadQueryCommandFlags(clientCtx, cmd.Flags())
+			clientCtx, err := client.GetClientQueryContext(cmd)
 			if err != nil {
 				return err
 			}
-
 			queryClient := types.NewQueryClient(clientCtx)
 
 			height, err := strconv.ParseInt(args[0], 10, 64)
@@ -661,13 +659,12 @@ $ %s query staking historical-info 5
 			}
 
 			params := &types.QueryHistoricalInfoRequest{Height: height}
-			res, err := queryClient.HistoricalInfo(context.Background(), params)
-
+			res, err := queryClient.HistoricalInfo(cmd.Context(), params)
 			if err != nil {
 				return err
 			}
 
-			return clientCtx.PrintOutput(res.Hist)
+			return clientCtx.PrintProto(res.Hist)
 		},
 	}
 
@@ -692,20 +689,18 @@ $ %s query staking pool
 			),
 		),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			clientCtx := client.GetClientContextFromCmd(cmd)
-			clientCtx, err := client.ReadQueryCommandFlags(clientCtx, cmd.Flags())
+			clientCtx, err := client.GetClientQueryContext(cmd)
 			if err != nil {
 				return err
 			}
-
 			queryClient := types.NewQueryClient(clientCtx)
 
-			res, err := queryClient.Pool(context.Background(), &types.QueryPoolRequest{})
+			res, err := queryClient.Pool(cmd.Context(), &types.QueryPoolRequest{})
 			if err != nil {
 				return err
 			}
 
-			return clientCtx.PrintOutput(res.Pool)
+			return clientCtx.PrintProto(&res.Pool)
 		},
 	}
 
@@ -730,20 +725,18 @@ $ %s query staking params
 			),
 		),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			clientCtx := client.GetClientContextFromCmd(cmd)
-			clientCtx, err := client.ReadQueryCommandFlags(clientCtx, cmd.Flags())
+			clientCtx, err := client.GetClientQueryContext(cmd)
 			if err != nil {
 				return err
 			}
-
 			queryClient := types.NewQueryClient(clientCtx)
 
-			res, err := queryClient.Params(context.Background(), &types.QueryParamsRequest{})
+			res, err := queryClient.Params(cmd.Context(), &types.QueryParamsRequest{})
 			if err != nil {
 				return err
 			}
 
-			return clientCtx.PrintOutput(res.Params)
+			return clientCtx.PrintProto(&res.Params)
 		},
 	}
 

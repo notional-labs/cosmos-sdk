@@ -1,8 +1,6 @@
 package keeper
 
 import (
-	"fmt"
-
 	"github.com/tendermint/tendermint/libs/log"
 
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -13,25 +11,27 @@ import (
 
 // Keeper of the global paramstore
 type Keeper struct {
-	cdc    codec.Marshaler
-	key    sdk.StoreKey
-	tkey   sdk.StoreKey
-	spaces map[string]*types.Subspace
+	cdc         codec.BinaryCodec
+	legacyAmino *codec.LegacyAmino
+	key         sdk.StoreKey
+	tkey        sdk.StoreKey
+	spaces      map[string]*types.Subspace
 }
 
 // NewKeeper constructs a params keeper
-func NewKeeper(cdc codec.Marshaler, key, tkey sdk.StoreKey) Keeper {
+func NewKeeper(cdc codec.BinaryCodec, legacyAmino *codec.LegacyAmino, key, tkey sdk.StoreKey) Keeper {
 	return Keeper{
-		cdc:    cdc,
-		key:    key,
-		tkey:   tkey,
-		spaces: make(map[string]*types.Subspace),
+		cdc:         cdc,
+		legacyAmino: legacyAmino,
+		key:         key,
+		tkey:        tkey,
+		spaces:      make(map[string]*types.Subspace),
 	}
 }
 
 // Logger returns a module-specific logger.
 func (k Keeper) Logger(ctx sdk.Context) log.Logger {
-	return ctx.Logger().With("module", fmt.Sprintf("x/%s", proposal.ModuleName))
+	return ctx.Logger().With("module", "x/"+proposal.ModuleName)
 }
 
 // Allocate subspace used for keepers
@@ -45,7 +45,7 @@ func (k Keeper) Subspace(s string) types.Subspace {
 		panic("cannot use empty string for subspace")
 	}
 
-	space := types.NewSubspace(k.cdc, k.key, k.tkey, s)
+	space := types.NewSubspace(k.cdc, k.legacyAmino, k.key, k.tkey, s)
 	k.spaces[s] = &space
 
 	return space
@@ -58,4 +58,16 @@ func (k Keeper) GetSubspace(s string) (types.Subspace, bool) {
 		return types.Subspace{}, false
 	}
 	return *space, ok
+}
+
+// GetSubspaces returns all the registered subspaces.
+func (k Keeper) GetSubspaces() []types.Subspace {
+	spaces := make([]types.Subspace, len(k.spaces))
+	i := 0
+	for _, ss := range k.spaces {
+		spaces[i] = *ss
+		i++
+	}
+
+	return spaces
 }

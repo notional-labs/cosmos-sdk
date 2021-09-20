@@ -3,28 +3,26 @@ package keeper_test
 import (
 	"encoding/hex"
 	"fmt"
-	"testing"
 	"time"
 
-	"github.com/cosmos/cosmos-sdk/codec"
+	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
+
+	"github.com/stretchr/testify/suite"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
+	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/simapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/cosmos/cosmos-sdk/x/evidence/exported"
 	"github.com/cosmos/cosmos-sdk/x/evidence/keeper"
 	"github.com/cosmos/cosmos-sdk/x/evidence/types"
-
-	"github.com/stretchr/testify/suite"
-	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/crypto"
-	"github.com/tendermint/tendermint/crypto/ed25519"
 )
 
 var (
-	pubkeys = []crypto.PubKey{
+	pubkeys = []cryptotypes.PubKey{
 		newPubKey("0B485CFC0EECC619440448436F8FC9DF40566F2369E72400281454CB552AFB50"),
 		newPubKey("0B485CFC0EECC619440448436F8FC9DF40566F2369E72400281454CB552AFB51"),
 		newPubKey("0B485CFC0EECC619440448436F8FC9DF40566F2369E72400281454CB552AFB52"),
@@ -36,23 +34,23 @@ var (
 		sdk.ValAddress(pubkeys[2].Address()),
 	}
 
-	initAmt   = sdk.TokensFromConsensusPower(200)
+	// The default power validators are initialized to have within tests
+	initAmt   = sdk.TokensFromConsensusPower(200, sdk.DefaultPowerReduction)
 	initCoins = sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, initAmt))
 )
 
-func newPubKey(pk string) (res crypto.PubKey) {
+func newPubKey(pk string) (res cryptotypes.PubKey) {
 	pkBytes, err := hex.DecodeString(pk)
 	if err != nil {
 		panic(err)
 	}
 
-	var pubkey ed25519.PubKeyEd25519
-	copy(pubkey[:], pkBytes)
+	pubkey := &ed25519.PubKey{Key: pkBytes}
 
 	return pubkey
 }
 
-func testEquivocationHandler(k interface{}) types.Handler {
+func testEquivocationHandler(_ interface{}) types.Handler {
 	return func(ctx sdk.Context, e exported.Evidence) error {
 		if err := e.ValidateBasic(); err != nil {
 			return err
@@ -82,8 +80,7 @@ type KeeperTestSuite struct {
 
 func (suite *KeeperTestSuite) SetupTest() {
 	checkTx := false
-	app := simapp.Setup(checkTx)
-	legacyQuerierCdc := codec.NewAminoCodec(app.LegacyAmino())
+	app := simapp.Setup(suite.T(), checkTx)
 
 	// recreate keeper in order to use custom testing types
 	evidenceKeeper := keeper.NewKeeper(
@@ -95,8 +92,8 @@ func (suite *KeeperTestSuite) SetupTest() {
 
 	app.EvidenceKeeper = *evidenceKeeper
 
-	suite.ctx = app.BaseApp.NewContext(checkTx, abci.Header{Height: 1})
-	suite.querier = keeper.NewQuerier(*evidenceKeeper, legacyQuerierCdc)
+	suite.ctx = app.BaseApp.NewContext(checkTx, tmproto.Header{Height: 1})
+	suite.querier = keeper.NewQuerier(*evidenceKeeper, app.LegacyAmino())
 	suite.app = app
 
 	for i, addr := range valAddresses {
@@ -119,7 +116,7 @@ func (suite *KeeperTestSuite) populateEvidence(ctx sdk.Context, numEvidence int)
 			Height:           11,
 			Power:            100,
 			Time:             time.Now().UTC(),
-			ConsensusAddress: sdk.ConsAddress(pk.PubKey().Address().Bytes()),
+			ConsensusAddress: sdk.ConsAddress(pk.PubKey().Address().Bytes()).String(),
 		}
 
 		suite.Nil(suite.app.EvidenceKeeper.SubmitEvidence(ctx, evidence[i]))
@@ -132,11 +129,10 @@ func (suite *KeeperTestSuite) populateValidators(ctx sdk.Context) {
 	// add accounts and set total supply
 	totalSupplyAmt := initAmt.MulRaw(int64(len(valAddresses)))
 	totalSupply := sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, totalSupplyAmt))
-	suite.app.BankKeeper.SetSupply(ctx, banktypes.NewSupply(totalSupply))
+	suite.NoError(suite.app.BankKeeper.MintCoins(ctx, minttypes.ModuleName, totalSupply))
 
 	for _, addr := range valAddresses {
-		_, err := suite.app.BankKeeper.AddCoins(ctx, sdk.AccAddress(addr), initCoins)
-		suite.NoError(err)
+		suite.NoError(suite.app.BankKeeper.SendCoinsFromModuleToAccount(ctx, minttypes.ModuleName, (sdk.AccAddress)(addr), initCoins))
 	}
 }
 
@@ -148,7 +144,7 @@ func (suite *KeeperTestSuite) TestSubmitValidEvidence() {
 		Height:           1,
 		Power:            100,
 		Time:             time.Now().UTC(),
-		ConsensusAddress: sdk.ConsAddress(pk.PubKey().Address().Bytes()),
+		ConsensusAddress: sdk.ConsAddress(pk.PubKey().Address().Bytes()).String(),
 	}
 
 	suite.Nil(suite.app.EvidenceKeeper.SubmitEvidence(ctx, e))
@@ -166,7 +162,7 @@ func (suite *KeeperTestSuite) TestSubmitValidEvidence_Duplicate() {
 		Height:           1,
 		Power:            100,
 		Time:             time.Now().UTC(),
-		ConsensusAddress: sdk.ConsAddress(pk.PubKey().Address().Bytes()),
+		ConsensusAddress: sdk.ConsAddress(pk.PubKey().Address().Bytes()).String(),
 	}
 
 	suite.Nil(suite.app.EvidenceKeeper.SubmitEvidence(ctx, e))
@@ -184,7 +180,7 @@ func (suite *KeeperTestSuite) TestSubmitInvalidEvidence() {
 		Height:           0,
 		Power:            100,
 		Time:             time.Now().UTC(),
-		ConsensusAddress: sdk.ConsAddress(pk.PubKey().Address().Bytes()),
+		ConsensusAddress: sdk.ConsAddress(pk.PubKey().Address().Bytes()).String(),
 	}
 
 	suite.Error(suite.app.EvidenceKeeper.SubmitEvidence(ctx, e))
@@ -211,8 +207,4 @@ func (suite *KeeperTestSuite) TestGetEvidenceHandler() {
 	handler, err = suite.app.EvidenceKeeper.GetEvidenceHandler("invalidHandler")
 	suite.Error(err)
 	suite.Nil(handler)
-}
-
-func TestKeeperTestSuite(t *testing.T) {
-	suite.Run(t, new(KeeperTestSuite))
 }

@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/x/staking/exported"
 	"github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
@@ -53,11 +52,11 @@ func ModuleAccountInvariants(k Keeper) sdk.Invariant {
 		notBondedPool := k.GetNotBondedPool(ctx)
 		bondDenom := k.BondDenom(ctx)
 
-		k.IterateValidators(ctx, func(_ int64, validator exported.ValidatorI) bool {
+		k.IterateValidators(ctx, func(_ int64, validator types.ValidatorI) bool {
 			switch validator.GetStatus() {
-			case sdk.Bonded:
+			case types.Bonded:
 				bonded = bonded.Add(validator.GetTokens())
-			case sdk.Unbonding, sdk.Unbonded:
+			case types.Unbonding, types.Unbonded:
 				notBonded = notBonded.Add(validator.GetTokens())
 			default:
 				panic("invalid validator status")
@@ -106,13 +105,13 @@ func NonNegativePowerInvariant(k Keeper) sdk.Invariant {
 				panic(fmt.Sprintf("validator record not found for address: %X\n", iterator.Value()))
 			}
 
-			powerKey := types.GetValidatorsByPowerIndexKey(validator)
+			powerKey := types.GetValidatorsByPowerIndexKey(validator, k.PowerReduction(ctx))
 
 			if !bytes.Equal(iterator.Key(), powerKey) {
 				broken = true
 				msg += fmt.Sprintf("power store invariance:\n\tvalidator.Power: %v"+
 					"\n\tkey should be: %v\n\tkey in store: %v\n",
-					validator.GetConsensusPower(), powerKey, iterator.Key())
+					validator.GetConsensusPower(k.PowerReduction(ctx)), powerKey, iterator.Key())
 			}
 
 			if validator.Tokens.IsNegative() {

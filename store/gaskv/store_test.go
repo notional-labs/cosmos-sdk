@@ -26,6 +26,7 @@ func TestGasKVStoreBasic(t *testing.T) {
 	require.Equal(t, types.StoreTypeDB, st.GetStoreType())
 	require.Panics(t, func() { st.CacheWrap() })
 	require.Panics(t, func() { st.CacheWrapWithTrace(nil, nil) })
+	require.Panics(t, func() { st.CacheWrapWithListeners(nil, nil) })
 
 	require.Panics(t, func() { st.Set(nil, []byte("value")) }, "setting a nil key should panic")
 	require.Panics(t, func() { st.Set([]byte(""), []byte("value")) }, "setting an empty key should panic")
@@ -55,7 +56,11 @@ func TestGasKVStoreIterator(t *testing.T) {
 	require.Nil(t, end)
 	require.NoError(t, iterator.Error())
 
-	t.Cleanup(iterator.Close)
+	t.Cleanup(func() {
+		if err := iterator.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
 	ka := iterator.Key()
 	require.Equal(t, ka, keyFmt(1))
 	va := iterator.Value()
@@ -71,7 +76,11 @@ func TestGasKVStoreIterator(t *testing.T) {
 	require.NoError(t, iterator.Error())
 
 	reverseIterator := st.ReverseIterator(nil, nil)
-	t.Cleanup(reverseIterator.Close)
+	t.Cleanup(func() {
+		if err := reverseIterator.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
 	require.Equal(t, reverseIterator.Key(), keyFmt(2))
 	reverseIterator.Next()
 	require.Equal(t, reverseIterator.Key(), keyFmt(1))

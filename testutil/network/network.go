@@ -2,20 +2,21 @@ package network
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
+	"github.com/spf13/cobra"
 	tmcfg "github.com/tendermint/tendermint/config"
-	"github.com/tendermint/tendermint/crypto"
 	tmflags "github.com/tendermint/tendermint/libs/cli/flags"
 	"github.com/tendermint/tendermint/libs/log"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -26,15 +27,18 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
-	clientkeys "github.com/cosmos/cosmos-sdk/client/keys"
 	"github.com/cosmos/cosmos-sdk/client/tx"
 	"github.com/cosmos/cosmos-sdk/codec"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
+	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/cosmos/cosmos-sdk/server/api"
 	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	"github.com/cosmos/cosmos-sdk/simapp"
+	"github.com/cosmos/cosmos-sdk/simapp/params"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -50,19 +54,26 @@ var lock = new(sync.Mutex)
 // creates an ABCI Application to provide to Tendermint.
 type AppConstructor = func(val Validator) servertypes.Application
 
-func NewSimApp(val Validator) servertypes.Application {
-	return simapp.NewSimApp(
-		val.Ctx.Logger, dbm.NewMemDB(), nil, true, make(map[int64]bool), val.Ctx.Config.RootDir, 0,
-		baseapp.SetPruning(storetypes.NewPruningOptionsFromString(val.AppConfig.Pruning)),
-		baseapp.SetMinGasPrices(val.AppConfig.MinGasPrices),
-	)
+// NewAppConstructor returns a new simapp AppConstructor
+func NewAppConstructor(encodingCfg params.EncodingConfig) AppConstructor {
+	return func(val Validator) servertypes.Application {
+		return simapp.NewSimApp(
+			val.Ctx.Logger, dbm.NewMemDB(), nil, true, make(map[int64]bool), val.Ctx.Config.RootDir, 0,
+			encodingCfg,
+			simapp.EmptyAppOptions{},
+			baseapp.SetPruning(storetypes.NewPruningOptionsFromString(val.AppConfig.Pruning)),
+			baseapp.SetMinGasPrices(val.AppConfig.MinGasPrices),
+		)
+	}
 }
 
 // Config defines the necessary configuration used to bootstrap and start an
 // in-process local testing network.
 type Config struct {
-	Codec            codec.Marshaler
-	LegacyAmino      *codec.LegacyAmino
+	Codec             codec.Codec
+	LegacyAmino       *codec.LegacyAmino // TODO: Remove!
+	InterfaceRegistry codectypes.InterfaceRegistry
+
 	TxConfig         client.TxConfig
 	AccountRetriever client.AccountRetriever
 	AppConstructor   AppConstructor             // the ABCI application constructor
@@ -72,38 +83,46 @@ type Config struct {
 	NumValidators    int                        // the total number of validators to create and bond
 	BondDenom        string                     // the staking bond denomination
 	MinGasPrices     string                     // the minimum gas prices each validator will accept
-	Passphrase       string                     // the passphrase provided to the test keyring
 	AccountTokens    sdk.Int                    // the amount of unique validator tokens (e.g. 1000node0)
 	StakingTokens    sdk.Int                    // the amount of tokens each validator has available to stake
 	BondedTokens     sdk.Int                    // the amount of tokens each validator stakes
 	PruningStrategy  string                     // the pruning strategy each validator will have
-	EnableLogging    bool                       // enable Tendermint logging to STDOUT
+	EnableTMLogging  bool                       // enable Tendermint logging to STDOUT
 	CleanupDir       bool                       // remove base temporary directory during cleanup
+	SigningAlgo      string                     // signing algorithm for keys
+	KeyringOptions   []keyring.Option           // keyring configuration options
+	RPCAddress       string                     // RPC listen address (including port)
+	APIAddress       string                     // REST API listen address (including port)
+	GRPCAddress      string                     // GRPC server listen address (including port)
+	PrintMnemonic    bool                       // print the mnemonic of first validator as log output for testing
 }
 
 // DefaultConfig returns a sane default configuration suitable for nearly all
 // testing requirements.
 func DefaultConfig() Config {
-	encCfg := simapp.MakeEncodingConfig()
+	encCfg := simapp.MakeTestEncodingConfig()
 
 	return Config{
-		Codec:            encCfg.Marshaler,
-		TxConfig:         encCfg.TxConfig,
-		LegacyAmino:      encCfg.Amino,
-		AccountRetriever: authtypes.NewAccountRetriever(encCfg.Marshaler),
-		AppConstructor:   NewSimApp,
-		GenesisState:     simapp.ModuleBasics.DefaultGenesis(encCfg.Marshaler),
-		TimeoutCommit:    2 * time.Second,
-		ChainID:          "chain-" + tmrand.NewRand().Str(6),
-		NumValidators:    4,
-		BondDenom:        sdk.DefaultBondDenom,
-		MinGasPrices:     fmt.Sprintf("0.000006%s", sdk.DefaultBondDenom),
-		Passphrase:       clientkeys.DefaultKeyPass,
-		AccountTokens:    sdk.TokensFromConsensusPower(1000),
-		StakingTokens:    sdk.TokensFromConsensusPower(500),
-		BondedTokens:     sdk.TokensFromConsensusPower(100),
-		PruningStrategy:  storetypes.PruningOptionNothing,
-		CleanupDir:       true,
+		Codec:             encCfg.Codec,
+		TxConfig:          encCfg.TxConfig,
+		LegacyAmino:       encCfg.Amino,
+		InterfaceRegistry: encCfg.InterfaceRegistry,
+		AccountRetriever:  authtypes.AccountRetriever{},
+		AppConstructor:    NewAppConstructor(encCfg),
+		GenesisState:      simapp.ModuleBasics.DefaultGenesis(encCfg.Codec),
+		TimeoutCommit:     2 * time.Second,
+		ChainID:           "chain-" + tmrand.NewRand().Str(6),
+		NumValidators:     4,
+		BondDenom:         sdk.DefaultBondDenom,
+		MinGasPrices:      fmt.Sprintf("0.000006%s", sdk.DefaultBondDenom),
+		AccountTokens:     sdk.TokensFromConsensusPower(1000, sdk.DefaultPowerReduction),
+		StakingTokens:     sdk.TokensFromConsensusPower(500, sdk.DefaultPowerReduction),
+		BondedTokens:      sdk.TokensFromConsensusPower(100, sdk.DefaultPowerReduction),
+		PruningStrategy:   storetypes.PruningOptionNothing,
+		CleanupDir:        true,
+		SigningAlgo:       string(hd.Secp256k1Type),
+		KeyringOptions:    []keyring.Option{},
+		PrintMnemonic:     false,
 	}
 }
 
@@ -119,7 +138,7 @@ type (
 	// to create networks. In addition, only the first validator will have a valid
 	// RPC and API server/client.
 	Network struct {
-		T          *testing.T
+		Logger     Logger
 		BaseDir    string
 		Validators []*Validator
 
@@ -135,7 +154,7 @@ type (
 		Ctx        *server.Context
 		Dir        string
 		NodeID     string
-		PubKey     crypto.PubKey
+		PubKey     cryptotypes.PubKey
 		Moniker    string
 		APIAddress string
 		RPCAddress string
@@ -144,33 +163,57 @@ type (
 		ValAddress sdk.ValAddress
 		RPCClient  tmclient.Client
 
-		tmNode *node.Node
-		api    *api.Server
-		grpc   *grpc.Server
+		tmNode  *node.Node
+		api     *api.Server
+		grpc    *grpc.Server
+		grpcWeb *http.Server
 	}
 )
 
-func New(t *testing.T, cfg Config) *Network {
+// Logger is a network logger interface that exposes testnet-level Log() methods for an in-process testing network
+// This is not to be confused with logging that may happen at an individual node or validator level
+type Logger interface {
+	Log(args ...interface{})
+	Logf(format string, args ...interface{})
+}
+
+var _ Logger = (*testing.T)(nil)
+var _ Logger = (*CLILogger)(nil)
+
+type CLILogger struct {
+	cmd *cobra.Command
+}
+
+func (s CLILogger) Log(args ...interface{}) {
+	s.cmd.Println(args...)
+}
+
+func (s CLILogger) Logf(format string, args ...interface{}) {
+	s.cmd.Printf(format, args...)
+}
+
+func NewCLILogger(cmd *cobra.Command) CLILogger {
+	return CLILogger{cmd}
+}
+
+// New creates a new Network for integration tests or in-process testnets run via the CLI
+func New(l Logger, baseDir string, cfg Config) (*Network, error) {
 	// only one caller/test can create and use a network at a time
-	t.Log("acquiring test network lock")
+	l.Log("acquiring test network lock")
 	lock.Lock()
 
-	baseDir, err := ioutil.TempDir(os.TempDir(), cfg.ChainID)
-	require.NoError(t, err)
-	t.Logf("created temporary directory: %s", baseDir)
-
 	network := &Network{
-		T:          t,
+		Logger:     l,
 		BaseDir:    baseDir,
 		Validators: make([]*Validator, cfg.NumValidators),
 		Config:     cfg,
 	}
 
-	t.Log("preparing test network...")
+	l.Logf("preparing test network with chain-id \"%s\"\n", cfg.ChainID)
 
 	monikers := make([]string, cfg.NumValidators)
 	nodeIDs := make([]string, cfg.NumValidators)
-	valPubKeys := make([]crypto.PubKey, cfg.NumValidators)
+	valPubKeys := make([]cryptotypes.PubKey, cfg.NumValidators)
 
 	var (
 		genAccounts []authtypes.GenesisAccount
@@ -198,29 +241,59 @@ func New(t *testing.T, cfg Config) *Network {
 		apiAddr := ""
 		tmCfg.RPC.ListenAddress = ""
 		appCfg.GRPC.Enable = false
+		appCfg.GRPCWeb.Enable = false
+		apiListenAddr := ""
 		if i == 0 {
-			apiListenAddr, _, err := server.FreeTCPAddr()
-			require.NoError(t, err)
-			appCfg.API.Address = apiListenAddr
+			if cfg.APIAddress != "" {
+				apiListenAddr = cfg.APIAddress
+			} else {
+				var err error
+				apiListenAddr, _, err = server.FreeTCPAddr()
+				if err != nil {
+					return nil, err
+				}
+			}
 
+			appCfg.API.Address = apiListenAddr
 			apiURL, err := url.Parse(apiListenAddr)
-			require.NoError(t, err)
+			if err != nil {
+				return nil, err
+			}
 			apiAddr = fmt.Sprintf("http://%s:%s", apiURL.Hostname(), apiURL.Port())
 
-			rpcAddr, _, err := server.FreeTCPAddr()
-			require.NoError(t, err)
-			tmCfg.RPC.ListenAddress = rpcAddr
+			if cfg.RPCAddress != "" {
+				tmCfg.RPC.ListenAddress = cfg.RPCAddress
+			} else {
+				rpcAddr, _, err := server.FreeTCPAddr()
+				if err != nil {
+					return nil, err
+				}
+				tmCfg.RPC.ListenAddress = rpcAddr
+			}
 
-			_, grpcPort, err := server.FreeTCPAddr()
-			require.NoError(t, err)
-			appCfg.GRPC.Address = fmt.Sprintf("0.0.0.0:%s", grpcPort)
+			if cfg.GRPCAddress != "" {
+				appCfg.GRPC.Address = cfg.GRPCAddress
+			} else {
+				_, grpcPort, err := server.FreeTCPAddr()
+				if err != nil {
+					return nil, err
+				}
+				appCfg.GRPC.Address = fmt.Sprintf("0.0.0.0:%s", grpcPort)
+			}
 			appCfg.GRPC.Enable = true
+
+			_, grpcWebPort, err := server.FreeTCPAddr()
+			if err != nil {
+				return nil, err
+			}
+			appCfg.GRPCWeb.Address = fmt.Sprintf("0.0.0.0:%s", grpcWebPort)
+			appCfg.GRPCWeb.Enable = true
 		}
 
 		logger := log.NewNopLogger()
-		if cfg.EnableLogging {
+		if cfg.EnableTMLogging {
 			logger = log.NewTMLogger(log.NewSyncWriter(os.Stdout))
-			logger, _ = tmflags.ParseLogLevel("info", logger, tmcfg.DefaultLogLevel())
+			logger, _ = tmflags.ParseLogLevel("info", logger, tmcfg.DefaultLogLevel)
 		}
 
 		ctx.Logger = logger
@@ -230,40 +303,74 @@ func New(t *testing.T, cfg Config) *Network {
 		clientDir := filepath.Join(network.BaseDir, nodeDirName, "simcli")
 		gentxsDir := filepath.Join(network.BaseDir, "gentxs")
 
-		require.NoError(t, os.MkdirAll(filepath.Join(nodeDir, "config"), 0755))
-		require.NoError(t, os.MkdirAll(clientDir, 0755))
+		err := os.MkdirAll(filepath.Join(nodeDir, "config"), 0755)
+		if err != nil {
+			return nil, err
+		}
+
+		err = os.MkdirAll(clientDir, 0755)
+		if err != nil {
+			return nil, err
+		}
 
 		tmCfg.SetRoot(nodeDir)
 		tmCfg.Moniker = nodeDirName
 		monikers[i] = nodeDirName
 
 		proxyAddr, _, err := server.FreeTCPAddr()
-		require.NoError(t, err)
+		if err != nil {
+			return nil, err
+		}
 		tmCfg.ProxyApp = proxyAddr
 
 		p2pAddr, _, err := server.FreeTCPAddr()
-		require.NoError(t, err)
+		if err != nil {
+			return nil, err
+		}
 		tmCfg.P2P.ListenAddress = p2pAddr
 		tmCfg.P2P.AddrBookStrict = false
 		tmCfg.P2P.AllowDuplicateIP = true
 
 		nodeID, pubKey, err := genutil.InitializeNodeValidatorFiles(tmCfg)
-		require.NoError(t, err)
+		if err != nil {
+			return nil, err
+		}
 		nodeIDs[i] = nodeID
 		valPubKeys[i] = pubKey
 
-		kb, err := keyring.New(sdk.KeyringServiceName(), keyring.BackendTest, clientDir, buf)
-		require.NoError(t, err)
+		kb, err := keyring.New(sdk.KeyringServiceName(), keyring.BackendTest, clientDir, buf, cfg.Codec, cfg.KeyringOptions...)
+		if err != nil {
+			return nil, err
+		}
 
-		addr, secret, err := server.GenerateSaveCoinKey(kb, nodeDirName, cfg.Passphrase, true)
-		require.NoError(t, err)
+		keyringAlgos, _ := kb.SupportedAlgorithms()
+		algo, err := keyring.NewSigningAlgoFromString(cfg.SigningAlgo, keyringAlgos)
+		if err != nil {
+			return nil, err
+		}
+
+		addr, secret, err := server.GenerateSaveCoinKey(kb, nodeDirName, true, algo)
+		if err != nil {
+			return nil, err
+		}
+
+		// if PrintMnemonic is set to true, we print the first validator node's secret to the network's logger
+		// for debugging and manual testing
+		if cfg.PrintMnemonic && i == 0 {
+			printMnemonic(l, secret)
+		}
 
 		info := map[string]string{"secret": secret}
 		infoBz, err := json.Marshal(info)
-		require.NoError(t, err)
+		if err != nil {
+			return nil, err
+		}
 
 		// save private key seed words
-		require.NoError(t, writeFile(fmt.Sprintf("%v.json", "key_seed"), clientDir, infoBz))
+		err = writeFile(fmt.Sprintf("%v.json", "key_seed"), clientDir, infoBz)
+		if err != nil {
+			return nil, err
+		}
 
 		balances := sdk.NewCoins(
 			sdk.NewCoin(fmt.Sprintf("%stoken", nodeDirName), cfg.AccountTokens),
@@ -271,27 +378,40 @@ func New(t *testing.T, cfg Config) *Network {
 		)
 
 		genFiles = append(genFiles, tmCfg.GenesisFile())
-		genBalances = append(genBalances, banktypes.Balance{Address: addr, Coins: balances.Sort()})
+		genBalances = append(genBalances, banktypes.Balance{Address: addr.String(), Coins: balances.Sort()})
 		genAccounts = append(genAccounts, authtypes.NewBaseAccount(addr, nil, 0, 0))
 
 		commission, err := sdk.NewDecFromStr("0.5")
-		require.NoError(t, err)
+		if err != nil {
+			return nil, err
+		}
 
-		createValMsg := stakingtypes.NewMsgCreateValidator(
+		createValMsg, err := stakingtypes.NewMsgCreateValidator(
 			sdk.ValAddress(addr),
 			valPubKeys[i],
-			sdk.NewCoin(sdk.DefaultBondDenom, cfg.BondedTokens),
+			sdk.NewCoin(cfg.BondDenom, cfg.BondedTokens),
 			stakingtypes.NewDescription(nodeDirName, "", "", "", ""),
 			stakingtypes.NewCommissionRates(commission, sdk.OneDec(), sdk.OneDec()),
 			sdk.OneInt(),
 		)
+		if err != nil {
+			return nil, err
+		}
 
 		p2pURL, err := url.Parse(p2pAddr)
-		require.NoError(t, err)
+		if err != nil {
+			return nil, err
+		}
 
 		memo := fmt.Sprintf("%s@%s:%s", nodeIDs[i], p2pURL.Hostname(), p2pURL.Port())
+		fee := sdk.NewCoins(sdk.NewCoin(fmt.Sprintf("%stoken", nodeDirName), sdk.NewInt(0)))
 		txBuilder := cfg.TxConfig.NewTxBuilder()
-		require.NoError(t, txBuilder.SetMsgs(createValMsg))
+		err = txBuilder.SetMsgs(createValMsg)
+		if err != nil {
+			return nil, err
+		}
+		txBuilder.SetFeeAmount(fee)    // Arbitrary fee
+		txBuilder.SetGasLimit(1000000) // Need at least 100386
 		txBuilder.SetMemo(memo)
 
 		txFactory := tx.Factory{}
@@ -301,20 +421,29 @@ func New(t *testing.T, cfg Config) *Network {
 			WithKeybase(kb).
 			WithTxConfig(cfg.TxConfig)
 
-		err = tx.Sign(txFactory, nodeDirName, txBuilder)
-		require.NoError(t, err)
+		err = tx.Sign(txFactory, nodeDirName, txBuilder, true)
+		if err != nil {
+			return nil, err
+		}
 
 		txBz, err := cfg.TxConfig.TxJSONEncoder()(txBuilder.GetTx())
-		require.NoError(t, err)
-		require.NoError(t, writeFile(fmt.Sprintf("%v.json", nodeDirName), gentxsDir, txBz))
+		if err != nil {
+			return nil, err
+		}
+		err = writeFile(fmt.Sprintf("%v.json", nodeDirName), gentxsDir, txBz)
+		if err != nil {
+			return nil, err
+		}
 
 		srvconfig.WriteConfigFile(filepath.Join(nodeDir, "config/app.toml"), appCfg)
 
 		clientCtx := client.Context{}.
+			WithKeyringDir(clientDir).
 			WithKeyring(kb).
 			WithHomeDir(tmCfg.RootDir).
 			WithChainID(cfg.ChainID).
-			WithJSONMarshaler(cfg.Codec).
+			WithInterfaceRegistry(cfg.InterfaceRegistry).
+			WithCodec(cfg.Codec).
 			WithLegacyAmino(cfg.LegacyAmino).
 			WithTxConfig(cfg.TxConfig).
 			WithAccountRetriever(cfg.AccountRetriever)
@@ -335,21 +464,30 @@ func New(t *testing.T, cfg Config) *Network {
 		}
 	}
 
-	require.NoError(t, initGenFiles(cfg, genAccounts, genBalances, genFiles))
-	require.NoError(t, collectGenFiles(cfg, network.Validators, network.BaseDir))
-
-	t.Log("starting test network...")
-	for _, v := range network.Validators {
-		require.NoError(t, startInProcess(cfg, v))
+	err := initGenFiles(cfg, genAccounts, genBalances, genFiles)
+	if err != nil {
+		return nil, err
+	}
+	err = collectGenFiles(cfg, network.Validators, network.BaseDir)
+	if err != nil {
+		return nil, err
 	}
 
-	t.Log("started test network")
+	l.Log("starting test network...")
+	for _, v := range network.Validators {
+		err := startInProcess(cfg, v)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	l.Log("started test network")
 
 	// Ensure we cleanup incase any test was abruptly halted (e.g. SIGINT) as any
 	// defer in a test would not be called.
 	server.TrapSignal(network.Cleanup)
 
-	return network
+	return network, nil
 }
 
 // LatestHeight returns the latest height of the network or an error if the
@@ -359,7 +497,7 @@ func (n *Network) LatestHeight() (int64, error) {
 		return 0, errors.New("no validators available")
 	}
 
-	status, err := n.Validators[0].RPCClient.Status()
+	status, err := n.Validators[0].RPCClient.Status(context.Background())
 	if err != nil {
 		return 0, err
 	}
@@ -393,7 +531,7 @@ func (n *Network) WaitForHeightWithTimeout(h int64, t time.Duration) (int64, err
 			ticker.Stop()
 			return latestHeight, errors.New("timeout exceeded waiting for block")
 		case <-ticker.C:
-			status, err := val.RPCClient.Status()
+			status, err := val.RPCClient.Status(context.Background())
 			if err == nil && status != nil {
 				latestHeight = status.SyncInfo.LatestBlockHeight
 				if latestHeight >= h {
@@ -427,10 +565,10 @@ func (n *Network) WaitForNextBlock() error {
 func (n *Network) Cleanup() {
 	defer func() {
 		lock.Unlock()
-		n.T.Log("released test network lock")
+		n.Logger.Log("released test network lock")
 	}()
 
-	n.T.Log("cleaning up test network...")
+	n.Logger.Log("cleaning up test network...")
 
 	for _, v := range n.Validators {
 		if v.tmNode != nil && v.tmNode.IsRunning() {
@@ -443,6 +581,9 @@ func (n *Network) Cleanup() {
 
 		if v.grpc != nil {
 			v.grpc.Stop()
+			if v.grpcWeb != nil {
+				_ = v.grpcWeb.Close()
+			}
 		}
 	}
 
@@ -450,5 +591,47 @@ func (n *Network) Cleanup() {
 		_ = os.RemoveAll(n.BaseDir)
 	}
 
-	n.T.Log("finished cleaning up test network")
+	n.Logger.Log("finished cleaning up test network")
+}
+
+// printMnemonic prints a provided mnemonic seed phrase on a network logger
+// for debugging and manual testing
+func printMnemonic(l Logger, secret string) {
+	lines := []string{
+		"THIS MNEMONIC IS FOR TESTING PURPOSES ONLY",
+		"DO NOT USE IN PRODUCTION",
+		"",
+		strings.Join(strings.Fields(secret)[0:8], " "),
+		strings.Join(strings.Fields(secret)[8:16], " "),
+		strings.Join(strings.Fields(secret)[16:24], " "),
+	}
+
+	lineLengths := make([]int, len(lines))
+	for i, line := range lines {
+		lineLengths[i] = len(line)
+	}
+
+	maxLineLength := 0
+	for _, lineLen := range lineLengths {
+		if lineLen > maxLineLength {
+			maxLineLength = lineLen
+		}
+	}
+
+	l.Log("\n")
+	l.Log(strings.Repeat("+", maxLineLength+8))
+	for _, line := range lines {
+		l.Logf("++  %s  ++\n", centerText(line, maxLineLength))
+	}
+	l.Log(strings.Repeat("+", maxLineLength+8))
+	l.Log("\n")
+}
+
+// centerText centers text across a fixed width, filling either side with whitespace buffers
+func centerText(text string, width int) string {
+	textLen := len(text)
+	leftBuffer := strings.Repeat(" ", (width-textLen)/2)
+	rightBuffer := strings.Repeat(" ", (width-textLen)/2+(width-textLen)%2)
+
+	return fmt.Sprintf("%s%s%s", leftBuffer, text, rightBuffer)
 }

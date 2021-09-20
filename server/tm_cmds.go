@@ -4,17 +4,15 @@ package server
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/spf13/cobra"
 	tcmd "github.com/tendermint/tendermint/cmd/tendermint/commands"
-	"github.com/tendermint/tendermint/libs/cli"
 	"github.com/tendermint/tendermint/p2p"
 	pvm "github.com/tendermint/tendermint/privval"
 	tversion "github.com/tendermint/tendermint/version"
 	yaml "gopkg.in/yaml.v2"
 
-	"github.com/cosmos/cosmos-sdk/codec"
+	"github.com/cosmos/cosmos-sdk/client"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -28,18 +26,17 @@ func ShowNodeIDCmd() *cobra.Command {
 			serverCtx := GetServerContextFromCmd(cmd)
 			cfg := serverCtx.Config
 
-			nodeKey, err := p2p.LoadOrGenNodeKey(cfg.NodeKeyFile())
+			nodeKey, err := p2p.LoadNodeKey(cfg.NodeKeyFile())
 			if err != nil {
 				return err
 			}
-
 			fmt.Println(nodeKey.ID())
 			return nil
 		},
 	}
 }
 
-// ShowValidator - ported from Tendermint, show this node's validator info
+// ShowValidatorCmd - ported from Tendermint, show this node's validator info
 func ShowValidatorCmd() *cobra.Command {
 	cmd := cobra.Command{
 		Use:   "show-validator",
@@ -48,28 +45,25 @@ func ShowValidatorCmd() *cobra.Command {
 			serverCtx := GetServerContextFromCmd(cmd)
 			cfg := serverCtx.Config
 
-			privValidator := pvm.LoadOrGenFilePV(cfg.PrivValidatorKeyFile(), cfg.PrivValidatorStateFile())
-			valPubKey, err := privValidator.GetPubKey()
+			privValidator := pvm.LoadFilePV(cfg.PrivValidatorKeyFile(), cfg.PrivValidatorStateFile())
+			pk, err := privValidator.GetPubKey()
 			if err != nil {
 				return err
 			}
-
-			output, _ := cmd.Flags().GetString(cli.OutputFlag)
-			if strings.ToLower(output) == "json" {
-				return printlnJSON(valPubKey)
-			}
-
-			pubkey, err := sdk.Bech32ifyPubKey(sdk.Bech32PubKeyTypeConsPub, valPubKey)
+			sdkPK, err := cryptocodec.FromTmPubKeyInterface(pk)
 			if err != nil {
 				return err
 			}
-
-			fmt.Println(pubkey)
+			clientCtx := client.GetClientContextFromCmd(cmd)
+			bz, err := clientCtx.Codec.MarshalInterfaceJSON(sdkPK)
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(bz))
 			return nil
 		},
 	}
 
-	cmd.Flags().StringP(cli.OutputFlag, "o", "text", "Output format (text|json)")
 	return &cmd
 }
 
@@ -82,20 +76,13 @@ func ShowAddressCmd() *cobra.Command {
 			serverCtx := GetServerContextFromCmd(cmd)
 			cfg := serverCtx.Config
 
-			privValidator := pvm.LoadOrGenFilePV(cfg.PrivValidatorKeyFile(), cfg.PrivValidatorStateFile())
+			privValidator := pvm.LoadFilePV(cfg.PrivValidatorKeyFile(), cfg.PrivValidatorStateFile())
 			valConsAddr := (sdk.ConsAddress)(privValidator.GetAddress())
-
-			output, _ := cmd.Flags().GetString(cli.OutputFlag)
-			if strings.ToLower(output) == "json" {
-				return printlnJSON(valConsAddr)
-			}
-
 			fmt.Println(valConsAddr.String())
 			return nil
 		},
 	}
 
-	cmd.Flags().StringP(cli.OutputFlag, "o", "text", "Output format (text|json)")
 	return cmd
 }
 
@@ -114,10 +101,10 @@ against which this app has been compiled.
 				BlockProtocol uint64
 				P2PProtocol   uint64
 			}{
-				Tendermint:    tversion.Version,
+				Tendermint:    tversion.TMCoreSemVer,
 				ABCI:          tversion.ABCIVersion,
-				BlockProtocol: tversion.BlockProtocol.Uint64(),
-				P2PProtocol:   tversion.P2PProtocol.Uint64(),
+				BlockProtocol: tversion.BlockProtocol,
+				P2PProtocol:   tversion.P2PProtocol,
 			})
 			if err != nil {
 				return err
@@ -129,24 +116,11 @@ against which this app has been compiled.
 	}
 }
 
-func printlnJSON(v interface{}) error {
-	cdc := codec.New()
-	cryptocodec.RegisterCrypto(cdc)
-
-	marshalled, err := cdc.MarshalJSON(v)
-	if err != nil {
-		return err
-	}
-
-	fmt.Println(string(marshalled))
-	return nil
-}
-
 // UnsafeResetAllCmd - extension of the tendermint command, resets initialization
 func UnsafeResetAllCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "unsafe-reset-all",
-		Short: "Resets the blockchain database, removes address book files, and resets priv_validator.json to the genesis state",
+		Short: "Resets the blockchain database, removes address book files, and resets data/priv_validator_state.json to the genesis state",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			serverCtx := GetServerContextFromCmd(cmd)
 			cfg := serverCtx.Config

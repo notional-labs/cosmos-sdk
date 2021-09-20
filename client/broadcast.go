@@ -1,15 +1,19 @@
 package client
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
-	"github.com/tendermint/tendermint/crypto/tmhash"
 	"github.com/tendermint/tendermint/mempool"
+	tmtypes "github.com/tendermint/tendermint/types"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	"github.com/cosmos/cosmos-sdk/types/tx"
 )
 
 // BroadcastTx broadcasts a transactions either synchronously or asynchronously
@@ -42,13 +46,13 @@ func (ctx Context) BroadcastTx(txBytes []byte) (res *sdk.TxResponse, err error) 
 // TODO: Avoid brittle string matching in favor of error matching. This requires
 // a change to Tendermint's RPCError type to allow retrieval or matching against
 // a concrete error type.
-func CheckTendermintError(err error, txBytes []byte) *sdk.TxResponse {
+func CheckTendermintError(err error, tx tmtypes.Tx) *sdk.TxResponse {
 	if err == nil {
 		return nil
 	}
 
 	errStr := strings.ToLower(err.Error())
-	txHash := fmt.Sprintf("%X", tmhash.Sum(txBytes))
+	txHash := fmt.Sprintf("%X", tx.Hash())
 
 	switch {
 	case strings.Contains(errStr, strings.ToLower(mempool.ErrTxInCache.Error())):
@@ -90,24 +94,15 @@ func (ctx Context) BroadcastTxCommit(txBytes []byte) (*sdk.TxResponse, error) {
 		return nil, err
 	}
 
-	res, err := node.BroadcastTxCommit(txBytes)
-	if err != nil {
-		if errRes := CheckTendermintError(err, txBytes); errRes != nil {
-			return errRes, nil
-		}
-
-		return sdk.NewResponseFormatBroadcastTxCommit(res), err
-	}
-
-	if !res.CheckTx.IsOK() {
+	res, err := node.BroadcastTxCommit(context.Background(), txBytes)
+	if err == nil {
 		return sdk.NewResponseFormatBroadcastTxCommit(res), nil
 	}
 
-	if !res.DeliverTx.IsOK() {
-		return sdk.NewResponseFormatBroadcastTxCommit(res), nil
+	if errRes := CheckTendermintError(err, txBytes); errRes != nil {
+		return errRes, nil
 	}
-
-	return sdk.NewResponseFormatBroadcastTxCommit(res), nil
+	return sdk.NewResponseFormatBroadcastTxCommit(res), err
 }
 
 // BroadcastTxSync broadcasts transaction bytes to a Tendermint node
@@ -118,7 +113,7 @@ func (ctx Context) BroadcastTxSync(txBytes []byte) (*sdk.TxResponse, error) {
 		return nil, err
 	}
 
-	res, err := node.BroadcastTxSync(txBytes)
+	res, err := node.BroadcastTxSync(context.Background(), txBytes)
 	if errRes := CheckTendermintError(err, txBytes); errRes != nil {
 		return errRes, nil
 	}
@@ -134,10 +129,43 @@ func (ctx Context) BroadcastTxAsync(txBytes []byte) (*sdk.TxResponse, error) {
 		return nil, err
 	}
 
-	res, err := node.BroadcastTxAsync(txBytes)
+	res, err := node.BroadcastTxAsync(context.Background(), txBytes)
 	if errRes := CheckTendermintError(err, txBytes); errRes != nil {
 		return errRes, nil
 	}
 
 	return sdk.NewResponseFormatBroadcastTx(res), err
+}
+
+// TxServiceBroadcast is a helper function to broadcast a Tx with the correct gRPC types
+// from the tx service. Calls `clientCtx.BroadcastTx` under the hood.
+func TxServiceBroadcast(grpcCtx context.Context, clientCtx Context, req *tx.BroadcastTxRequest) (*tx.BroadcastTxResponse, error) {
+	if req == nil || req.TxBytes == nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid empty tx")
+	}
+
+	clientCtx = clientCtx.WithBroadcastMode(normalizeBroadcastMode(req.Mode))
+	resp, err := clientCtx.BroadcastTx(req.TxBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return &tx.BroadcastTxResponse{
+		TxResponse: resp,
+	}, nil
+}
+
+// normalizeBroadcastMode converts a broadcast mode into a normalized string
+// to be passed into the clientCtx.
+func normalizeBroadcastMode(mode tx.BroadcastMode) string {
+	switch mode {
+	case tx.BroadcastMode_BROADCAST_MODE_ASYNC:
+		return "async"
+	case tx.BroadcastMode_BROADCAST_MODE_BLOCK:
+		return "block"
+	case tx.BroadcastMode_BROADCAST_MODE_SYNC:
+		return "sync"
+	default:
+		return "unspecified"
+	}
 }

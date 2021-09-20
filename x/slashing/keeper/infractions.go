@@ -3,14 +3,13 @@ package keeper
 import (
 	"fmt"
 
-	"github.com/tendermint/tendermint/crypto"
-
+	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/slashing/types"
 )
 
 // HandleValidatorSignature handles a validator signature, must be called once per validator per block.
-func (k Keeper) HandleValidatorSignature(ctx sdk.Context, addr crypto.Address, power int64, signed bool) {
+func (k Keeper) HandleValidatorSignature(ctx sdk.Context, addr cryptotypes.Address, power int64, signed bool) {
 	logger := k.Logger(ctx)
 	height := ctx.BlockHeight()
 
@@ -49,6 +48,8 @@ func (k Keeper) HandleValidatorSignature(ctx sdk.Context, addr crypto.Address, p
 		// Array value at this index has not changed, no need to update counter
 	}
 
+	minSignedPerWindow := k.MinSignedPerWindow(ctx)
+
 	if missed {
 		ctx.EventManager().EmitEvent(
 			sdk.NewEvent(
@@ -59,22 +60,23 @@ func (k Keeper) HandleValidatorSignature(ctx sdk.Context, addr crypto.Address, p
 			),
 		)
 
-		logger.Info(
-			fmt.Sprintf("Absent validator %s at height %d, %d missed, threshold %d", consAddr, height, signInfo.MissedBlocksCounter, k.MinSignedPerWindow(ctx)))
+		logger.Debug(
+			"absent validator",
+			"height", height,
+			"validator", consAddr.String(),
+			"missed", signInfo.MissedBlocksCounter,
+			"threshold", minSignedPerWindow,
+		)
 	}
 
 	minHeight := signInfo.StartHeight + k.SignedBlocksWindow(ctx)
-	maxMissed := k.SignedBlocksWindow(ctx) - k.MinSignedPerWindow(ctx)
+	maxMissed := k.SignedBlocksWindow(ctx) - minSignedPerWindow
 
 	// if we are past the minimum height and the validator has missed too many blocks, punish them
 	if height > minHeight && signInfo.MissedBlocksCounter > maxMissed {
 		validator := k.sk.ValidatorByConsAddr(ctx, consAddr)
 		if validator != nil && !validator.IsJailed() {
-
 			// Downtime confirmed: slash and jail the validator
-			logger.Info(fmt.Sprintf("Validator %s past min height of %d and below signed blocks threshold of %d",
-				consAddr, minHeight, k.MinSignedPerWindow(ctx)))
-
 			// We need to retrieve the stake distribution which signed the block, so we subtract ValidatorUpdateDelay from the evidence height,
 			// and subtract an additional 1 since this is the LastCommit.
 			// Note that this *can* result in a negative "distributionHeight" up to -ValidatorUpdateDelay-1,
@@ -82,6 +84,7 @@ func (k Keeper) HandleValidatorSignature(ctx sdk.Context, addr crypto.Address, p
 			// That's fine since this is just used to filter unbonding delegations & redelegations.
 			distributionHeight := height - sdk.ValidatorUpdateDelay - 1
 
+			coinsBurned := k.sk.Slash(ctx, consAddr, distributionHeight, power, k.SlashFractionDowntime(ctx))
 			ctx.EventManager().EmitEvent(
 				sdk.NewEvent(
 					types.EventTypeSlash,
@@ -89,9 +92,9 @@ func (k Keeper) HandleValidatorSignature(ctx sdk.Context, addr crypto.Address, p
 					sdk.NewAttribute(types.AttributeKeyPower, fmt.Sprintf("%d", power)),
 					sdk.NewAttribute(types.AttributeKeyReason, types.AttributeValueMissingSignature),
 					sdk.NewAttribute(types.AttributeKeyJailed, consAddr.String()),
+					sdk.NewAttribute(types.AttributeKeyBurnedCoins, coinsBurned.String()),
 				),
 			)
-			k.sk.Slash(ctx, consAddr, distributionHeight, power, k.SlashFractionDowntime(ctx))
 			k.sk.Jail(ctx, consAddr)
 
 			signInfo.JailedUntil = ctx.BlockHeader().Time.Add(k.DowntimeJailDuration(ctx))
@@ -100,10 +103,21 @@ func (k Keeper) HandleValidatorSignature(ctx sdk.Context, addr crypto.Address, p
 			signInfo.MissedBlocksCounter = 0
 			signInfo.IndexOffset = 0
 			k.clearValidatorMissedBlockBitArray(ctx, consAddr)
-		} else {
-			// Validator was (a) not found or (b) already jailed, don't slash
+
 			logger.Info(
-				fmt.Sprintf("Validator %s would have been slashed for downtime, but was either not found in store or already jailed", consAddr),
+				"slashing and jailing validator due to liveness fault",
+				"height", height,
+				"validator", consAddr.String(),
+				"min_height", minHeight,
+				"threshold", minSignedPerWindow,
+				"slashed", k.SlashFractionDowntime(ctx).String(),
+				"jailed_until", signInfo.JailedUntil,
+			)
+		} else {
+			// validator was (a) not found or (b) already jailed so we do not slash
+			logger.Info(
+				"validator would have been slashed for downtime, but was either not found in store or already jailed",
+				"validator", consAddr.String(),
 			)
 		}
 	}

@@ -15,13 +15,13 @@ import (
 )
 
 func TestGetCommandEncode(t *testing.T) {
-	encodingConfig := simappparams.MakeEncodingConfig()
+	encodingConfig := simappparams.MakeTestEncodingConfig()
 
 	cmd := GetEncodeCommand()
 	_ = testutil.ApplyMockIODiscardOutErr(cmd)
 
-	authtypes.RegisterCodec(encodingConfig.Amino)
-	sdk.RegisterCodec(encodingConfig.Amino)
+	authtypes.RegisterLegacyAminoCodec(encodingConfig.Amino)
+	sdk.RegisterLegacyAminoCodec(encodingConfig.Amino)
 
 	txCfg := encodingConfig.TxConfig
 
@@ -33,14 +33,13 @@ func TestGetCommandEncode(t *testing.T) {
 	jsonEncoded, err := txCfg.TxJSONEncoder()(builder.GetTx())
 	require.NoError(t, err)
 
-	txFile, cleanup := testutil.WriteToNewTempFile(t, string(jsonEncoded))
+	txFile := testutil.WriteToNewTempFile(t, string(jsonEncoded))
 	txFileName := txFile.Name()
-	t.Cleanup(cleanup)
 
 	ctx := context.Background()
 	clientCtx := client.Context{}.
 		WithTxConfig(encodingConfig.TxConfig).
-		WithJSONMarshaler(encodingConfig.Marshaler)
+		WithCodec(encodingConfig.Codec)
 	ctx = context.WithValue(ctx, client.ClientContextKey, &clientCtx)
 
 	cmd.SetArgs([]string{txFileName})
@@ -49,16 +48,16 @@ func TestGetCommandEncode(t *testing.T) {
 }
 
 func TestGetCommandDecode(t *testing.T) {
-	encodingConfig := simappparams.MakeEncodingConfig()
+	encodingConfig := simappparams.MakeTestEncodingConfig()
 
 	clientCtx := client.Context{}.
 		WithTxConfig(encodingConfig.TxConfig).
-		WithJSONMarshaler(encodingConfig.Marshaler)
+		WithCodec(encodingConfig.Codec)
 
 	cmd := GetDecodeCommand()
 	_ = testutil.ApplyMockIODiscardOutErr(cmd)
 
-	sdk.RegisterCodec(encodingConfig.Amino)
+	sdk.RegisterLegacyAminoCodec(encodingConfig.Amino)
 
 	txCfg := encodingConfig.TxConfig
 	clientCtx = clientCtx.WithTxConfig(txCfg)

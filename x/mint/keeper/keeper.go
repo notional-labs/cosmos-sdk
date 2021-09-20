@@ -1,8 +1,6 @@
 package keeper
 
 import (
-	"fmt"
-
 	"github.com/tendermint/tendermint/libs/log"
 
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -13,7 +11,7 @@ import (
 
 // Keeper of the mint store
 type Keeper struct {
-	cdc              codec.BinaryMarshaler
+	cdc              codec.BinaryCodec
 	storeKey         sdk.StoreKey
 	paramSpace       paramtypes.Subspace
 	stakingKeeper    types.StakingKeeper
@@ -23,7 +21,7 @@ type Keeper struct {
 
 // NewKeeper creates a new mint Keeper instance
 func NewKeeper(
-	cdc codec.BinaryMarshaler, key sdk.StoreKey, paramSpace paramtypes.Subspace,
+	cdc codec.BinaryCodec, key sdk.StoreKey, paramSpace paramtypes.Subspace,
 	sk types.StakingKeeper, ak types.AccountKeeper, bk types.BankKeeper,
 	feeCollectorName string,
 ) Keeper {
@@ -47,11 +45,9 @@ func NewKeeper(
 	}
 }
 
-//______________________________________________________________________
-
 // Logger returns a module-specific logger.
 func (k Keeper) Logger(ctx sdk.Context) log.Logger {
-	return ctx.Logger().With("module", fmt.Sprintf("x/%s", types.ModuleName))
+	return ctx.Logger().With("module", "x/"+types.ModuleName)
 }
 
 // get the minter
@@ -62,18 +58,16 @@ func (k Keeper) GetMinter(ctx sdk.Context) (minter types.Minter) {
 		panic("stored minter should not have been nil")
 	}
 
-	k.cdc.MustUnmarshalBinaryBare(b, &minter)
+	k.cdc.MustUnmarshal(b, &minter)
 	return
 }
 
 // set the minter
 func (k Keeper) SetMinter(ctx sdk.Context, minter types.Minter) {
 	store := ctx.KVStore(k.storeKey)
-	b := k.cdc.MustMarshalBinaryBare(&minter)
+	b := k.cdc.MustMarshal(&minter)
 	store.Set(types.MinterKey, b)
 }
-
-//______________________________________________________________________
 
 // GetParams returns the total set of minting parameters.
 func (k Keeper) GetParams(ctx sdk.Context) (params types.Params) {
@@ -85,8 +79,6 @@ func (k Keeper) GetParams(ctx sdk.Context) (params types.Params) {
 func (k Keeper) SetParams(ctx sdk.Context, params types.Params) {
 	k.paramSpace.SetParamSet(ctx, &params)
 }
-
-//______________________________________________________________________
 
 // StakingTokenSupply implements an alias call to the underlying staking keeper's
 // StakingTokenSupply to be used in BeginBlocker.

@@ -23,7 +23,7 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func TestContext_PrintOutput(t *testing.T) {
+func TestContext_PrintObject(t *testing.T) {
 	ctx := client.Context{}
 
 	animal := &testdata.Dog{
@@ -41,23 +41,23 @@ func TestContext_PrintOutput(t *testing.T) {
 	// proto
 	//
 	registry := testdata.NewTestInterfaceRegistry()
-	ctx = ctx.WithJSONMarshaler(codec.NewProtoCodec(registry))
+	ctx = ctx.WithCodec(codec.NewProtoCodec(registry))
 
 	// json
 	buf := &bytes.Buffer{}
 	ctx = ctx.WithOutput(buf)
 	ctx.OutputFormat = "json"
-	err = ctx.PrintOutput(hasAnimal)
+	err = ctx.PrintProto(hasAnimal)
 	require.NoError(t, err)
 	require.Equal(t,
 		`{"animal":{"@type":"/testdata.Dog","size":"big","name":"Spot"},"x":"10"}
-`, string(buf.Bytes()))
+`, buf.String())
 
 	// yaml
 	buf = &bytes.Buffer{}
 	ctx = ctx.WithOutput(buf)
 	ctx.OutputFormat = "text"
-	err = ctx.PrintOutput(hasAnimal)
+	err = ctx.PrintProto(hasAnimal)
 	require.NoError(t, err)
 	require.Equal(t,
 		`animal:
@@ -65,29 +65,29 @@ func TestContext_PrintOutput(t *testing.T) {
   name: Spot
   size: big
 x: "10"
-`, string(buf.Bytes()))
+`, buf.String())
 
 	//
 	// amino
 	//
 	amino := testdata.NewTestAmino()
-	ctx = ctx.WithJSONMarshaler(codec.NewAminoCodec(&codec.LegacyAmino{Amino: amino}))
+	ctx = ctx.WithLegacyAmino(&codec.LegacyAmino{Amino: amino})
 
 	// json
 	buf = &bytes.Buffer{}
 	ctx = ctx.WithOutput(buf)
 	ctx.OutputFormat = "json"
-	err = ctx.PrintOutput(hasAnimal)
+	err = ctx.PrintObjectLegacy(hasAnimal)
 	require.NoError(t, err)
 	require.Equal(t,
 		`{"type":"testdata/HasAnimal","value":{"animal":{"type":"testdata/Dog","value":{"size":"big","name":"Spot"}},"x":"10"}}
-`, string(buf.Bytes()))
+`, buf.String())
 
 	// yaml
 	buf = &bytes.Buffer{}
 	ctx = ctx.WithOutput(buf)
 	ctx.OutputFormat = "text"
-	err = ctx.PrintOutput(hasAnimal)
+	err = ctx.PrintObjectLegacy(hasAnimal)
 	require.NoError(t, err)
 	require.Equal(t,
 		`type: testdata/HasAnimal
@@ -98,17 +98,18 @@ value:
       name: Spot
       size: big
   x: "10"
-`, string(buf.Bytes()))
+`, buf.String())
 }
 
 func TestCLIQueryConn(t *testing.T) {
 	cfg := network.DefaultConfig()
 	cfg.NumValidators = 1
 
-	n := network.New(t, cfg)
+	n, err := network.New(t, t.TempDir(), cfg)
+	require.NoError(t, err)
 	defer n.Cleanup()
 
-	testClient := testdata.NewTestServiceClient(n.Validators[0].ClientCtx)
+	testClient := testdata.NewQueryClient(n.Validators[0].ClientCtx)
 	res, err := testClient.Echo(context.Background(), &testdata.EchoRequest{Message: "hello"})
 	require.NoError(t, err)
 	require.Equal(t, "hello", res.Message)

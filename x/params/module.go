@@ -1,12 +1,13 @@
 package params
 
 import (
+	"context"
 	"encoding/json"
 	"math/rand"
 
-	"github.com/gogo/protobuf/grpc"
-
 	"github.com/gorilla/mux"
+	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+
 	"github.com/spf13/cobra"
 	abci "github.com/tendermint/tendermint/abci/types"
 
@@ -37,22 +38,28 @@ func (AppModuleBasic) Name() string {
 	return proposal.ModuleName
 }
 
-// RegisterCodec registers the params module's types for the given codec.
-func (AppModuleBasic) RegisterCodec(cdc *codec.LegacyAmino) {
-	proposal.RegisterCodec(cdc)
+// RegisterLegacyAminoCodec registers the params module's types on the given LegacyAmino codec.
+func (AppModuleBasic) RegisterLegacyAminoCodec(cdc *codec.LegacyAmino) {
+	proposal.RegisterLegacyAminoCodec(cdc)
 }
 
 // DefaultGenesis returns default genesis state as raw bytes for the params
 // module.
-func (AppModuleBasic) DefaultGenesis(_ codec.JSONMarshaler) json.RawMessage { return nil }
+func (AppModuleBasic) DefaultGenesis(_ codec.JSONCodec) json.RawMessage { return nil }
 
 // ValidateGenesis performs genesis state validation for the params module.
-func (AppModuleBasic) ValidateGenesis(_ codec.JSONMarshaler, config client.TxEncodingConfig, _ json.RawMessage) error {
+func (AppModuleBasic) ValidateGenesis(_ codec.JSONCodec, config client.TxEncodingConfig, _ json.RawMessage) error {
 	return nil
 }
 
 // RegisterRESTRoutes registers the REST routes for the params module.
-func (AppModuleBasic) RegisterRESTRoutes(_ client.Context, _ *mux.Router) {}
+// Deprecated: RegisterRESTRoutes is deprecated.
+func (AppModuleBasic) RegisterRESTRoutes(clientCtx client.Context, rtr *mux.Router) {}
+
+// RegisterGRPCGatewayRoutes registers the gRPC Gateway routes for the params module.
+func (AppModuleBasic) RegisterGRPCGatewayRoutes(clientCtx client.Context, mux *runtime.ServeMux) {
+	proposal.RegisterQueryHandlerClient(context.Background(), mux, proposal.NewQueryClient(clientCtx))
+}
 
 // GetTxCmd returns no root tx command for the params module.
 func (AppModuleBasic) GetTxCmd() *cobra.Command { return nil }
@@ -65,8 +72,6 @@ func (AppModuleBasic) GetQueryCmd() *cobra.Command {
 func (am AppModuleBasic) RegisterInterfaces(registry codectypes.InterfaceRegistry) {
 	proposal.RegisterInterfaces(registry)
 }
-
-//____________________________________________________________________________
 
 // AppModule implements an application module for the distribution module.
 type AppModule struct {
@@ -86,11 +91,14 @@ func NewAppModule(k keeper.Keeper) AppModule {
 func (am AppModule) RegisterInvariants(_ sdk.InvariantRegistry) {}
 
 // InitGenesis performs a no-op.
-func (am AppModule) InitGenesis(_ sdk.Context, _ codec.JSONMarshaler, _ json.RawMessage) []abci.ValidatorUpdate {
+func (am AppModule) InitGenesis(_ sdk.Context, _ codec.JSONCodec, _ json.RawMessage) []abci.ValidatorUpdate {
 	return []abci.ValidatorUpdate{}
 }
 
-func (AppModule) Route() sdk.Route { return sdk.Route{} }
+// Deprecated: Route returns the message routing key for the params module.
+func (AppModule) Route() sdk.Route {
+	return sdk.Route{}
+}
 
 // GenerateGenesisState performs a no-op.
 func (AppModule) GenerateGenesisState(simState *module.SimulationState) {}
@@ -99,14 +107,15 @@ func (AppModule) GenerateGenesisState(simState *module.SimulationState) {}
 func (AppModule) QuerierRoute() string { return types.QuerierRoute }
 
 // LegacyQuerierHandler returns the x/params querier handler.
-func (am AppModule) LegacyQuerierHandler(legacyQuerierCdc codec.JSONMarshaler) sdk.Querier {
+func (am AppModule) LegacyQuerierHandler(legacyQuerierCdc *codec.LegacyAmino) sdk.Querier {
 	return keeper.NewQuerier(am.keeper, legacyQuerierCdc)
 }
 
-// RegisterQueryService registers a gRPC query service to respond to the
+// RegisterServices registers a gRPC query service to respond to the
 // module-specific gRPC queries.
-func (am AppModule) RegisterQueryService(server grpc.Server) {
-	proposal.RegisterQueryServer(server, am.keeper)
+func (am AppModule) RegisterServices(cfg module.Configurator) {
+	proposal.RegisterQueryServer(cfg.QueryServer(), am.keeper)
+
 }
 
 // ProposalContents returns all the params content functions used to
@@ -129,9 +138,12 @@ func (am AppModule) WeightedOperations(_ module.SimulationState) []simtypes.Weig
 }
 
 // ExportGenesis performs a no-op.
-func (am AppModule) ExportGenesis(_ sdk.Context, _ codec.JSONMarshaler) json.RawMessage {
+func (am AppModule) ExportGenesis(_ sdk.Context, _ codec.JSONCodec) json.RawMessage {
 	return nil
 }
+
+// ConsensusVersion implements AppModule/ConsensusVersion.
+func (AppModule) ConsensusVersion() uint64 { return 1 }
 
 // BeginBlock performs a no-op.
 func (AppModule) BeginBlock(_ sdk.Context, _ abci.RequestBeginBlock) {}

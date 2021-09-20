@@ -6,8 +6,11 @@ import (
 
 	dbm "github.com/tendermint/tm-db"
 
+	"github.com/cosmos/cosmos-sdk/codec/types"
+	"github.com/cosmos/cosmos-sdk/snapshots"
 	"github.com/cosmos/cosmos-sdk/store"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/tx"
 )
 
 // File for storing in-package BaseApp optional functions,
@@ -38,15 +41,42 @@ func SetHaltTime(haltTime uint64) func(*BaseApp) {
 	return func(bap *BaseApp) { bap.setHaltTime(haltTime) }
 }
 
+// SetMinRetainBlocks returns a BaseApp option function that sets the minimum
+// block retention height value when determining which heights to prune during
+// ABCI Commit.
+func SetMinRetainBlocks(minRetainBlocks uint64) func(*BaseApp) {
+	return func(bapp *BaseApp) { bapp.setMinRetainBlocks(minRetainBlocks) }
+}
+
 // SetTrace will turn on or off trace flag
 func SetTrace(trace bool) func(*BaseApp) {
 	return func(app *BaseApp) { app.setTrace(trace) }
+}
+
+// SetIndexEvents provides a BaseApp option function that sets the events to index.
+func SetIndexEvents(ie []string) func(*BaseApp) {
+	return func(app *BaseApp) { app.setIndexEvents(ie) }
 }
 
 // SetInterBlockCache provides a BaseApp option function that sets the
 // inter-block cache.
 func SetInterBlockCache(cache sdk.MultiStorePersistentCache) func(*BaseApp) {
 	return func(app *BaseApp) { app.setInterBlockCache(cache) }
+}
+
+// SetSnapshotInterval sets the snapshot interval.
+func SetSnapshotInterval(interval uint64) func(*BaseApp) {
+	return func(app *BaseApp) { app.SetSnapshotInterval(interval) }
+}
+
+// SetSnapshotKeepRecent sets the recent snapshots to keep.
+func SetSnapshotKeepRecent(keepRecent uint32) func(*BaseApp) {
+	return func(app *BaseApp) { app.SetSnapshotKeepRecent(keepRecent) }
+}
+
+// SetSnapshotStore sets the snapshot store.
+func SetSnapshotStore(snapshotStore *snapshots.Store) func(*BaseApp) {
+	return func(app *BaseApp) { app.SetSnapshotStore(snapshotStore) }
 }
 
 func (app *BaseApp) SetName(name string) {
@@ -66,12 +96,16 @@ func (app *BaseApp) SetParamStore(ps ParamStore) {
 	app.paramStore = ps
 }
 
-// SetAppVersion sets the application's version string.
-func (app *BaseApp) SetAppVersion(v string) {
+// SetVersion sets the application's version string.
+func (app *BaseApp) SetVersion(v string) {
 	if app.sealed {
-		panic("SetAppVersion() on sealed BaseApp")
+		panic("SetVersion() on sealed BaseApp")
 	}
+	app.version = v
+}
 
+// SetProtocolVersion sets the application's protocol version
+func (app *BaseApp) SetProtocolVersion(v uint64) {
 	app.appVersion = v
 }
 
@@ -115,12 +149,12 @@ func (app *BaseApp) SetEndBlocker(endBlocker sdk.EndBlocker) {
 	app.endBlocker = endBlocker
 }
 
-func (app *BaseApp) SetAnteHandler(ah sdk.AnteHandler) {
+func (app *BaseApp) SetTxHandler(txHandler tx.Handler) {
 	if app.sealed {
-		panic("SetAnteHandler() on sealed BaseApp")
+		panic("SetTxHandler() on sealed BaseApp")
 	}
 
-	app.anteHandler = ah
+	app.txHandler = txHandler
 }
 
 func (app *BaseApp) SetAddrPeerFilter(pf sdk.PeerFilter) {
@@ -162,10 +196,36 @@ func (app *BaseApp) SetStoreLoader(loader StoreLoader) {
 	app.storeLoader = loader
 }
 
-// SetRouter allows us to customize the router.
-func (app *BaseApp) SetRouter(router sdk.Router) {
+// SetSnapshotStore sets the snapshot store.
+func (app *BaseApp) SetSnapshotStore(snapshotStore *snapshots.Store) {
 	if app.sealed {
-		panic("SetRouter() on sealed BaseApp")
+		panic("SetSnapshotStore() on sealed BaseApp")
 	}
-	app.router = router
+	if snapshotStore == nil {
+		app.snapshotManager = nil
+		return
+	}
+	app.snapshotManager = snapshots.NewManager(snapshotStore, app.cms)
+}
+
+// SetSnapshotInterval sets the snapshot interval.
+func (app *BaseApp) SetSnapshotInterval(snapshotInterval uint64) {
+	if app.sealed {
+		panic("SetSnapshotInterval() on sealed BaseApp")
+	}
+	app.snapshotInterval = snapshotInterval
+}
+
+// SetSnapshotKeepRecent sets the number of recent snapshots to keep.
+func (app *BaseApp) SetSnapshotKeepRecent(snapshotKeepRecent uint32) {
+	if app.sealed {
+		panic("SetSnapshotKeepRecent() on sealed BaseApp")
+	}
+	app.snapshotKeepRecent = snapshotKeepRecent
+}
+
+// SetInterfaceRegistry sets the InterfaceRegistry.
+func (app *BaseApp) SetInterfaceRegistry(registry types.InterfaceRegistry) {
+	app.interfaceRegistry = registry
+	app.grpcQueryRouter.SetInterfaceRegistry(registry)
 }

@@ -1,7 +1,6 @@
 package types
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -19,15 +18,6 @@ const DefaultStartingProposalID uint64 = 1
 
 // NewProposal creates a new Proposal instance
 func NewProposal(content Content, id uint64, submitTime, depositEndTime time.Time) (Proposal, error) {
-	p := Proposal{
-		ProposalID:       id,
-		Status:           StatusDepositPeriod,
-		FinalTallyResult: EmptyTallyResult(),
-		TotalDeposit:     sdk.NewCoins(),
-		SubmitTime:       submitTime,
-		DepositEndTime:   depositEndTime,
-	}
-
 	msg, ok := content.(proto.Message)
 	if !ok {
 		return Proposal{}, fmt.Errorf("%T does not implement proto.Message", content)
@@ -38,7 +28,15 @@ func NewProposal(content Content, id uint64, submitTime, depositEndTime time.Tim
 		return Proposal{}, err
 	}
 
-	p.Content = any
+	p := Proposal{
+		Content:          any,
+		ProposalId:       id,
+		Status:           StatusDepositPeriod,
+		FinalTallyResult: EmptyTallyResult(),
+		TotalDeposit:     sdk.NewCoins(),
+		SubmitTime:       submitTime,
+		DepositEndTime:   depositEndTime,
+	}
 
 	return p, nil
 }
@@ -113,7 +111,7 @@ func (p Proposals) String() string {
 	out := "ID - (Status) [Type] Title\n"
 	for _, prop := range p {
 		out += fmt.Sprintf("%d - (%s) [%s] %s\n",
-			prop.ProposalID, prop.Status,
+			prop.ProposalId, prop.Status,
 			prop.ProposalType(), prop.GetTitle())
 	}
 	return strings.TrimSpace(out)
@@ -137,28 +135,11 @@ type (
 
 // ProposalStatusFromString turns a string into a ProposalStatus
 func ProposalStatusFromString(str string) (ProposalStatus, error) {
-	switch str {
-	case "DepositPeriod":
-		return StatusDepositPeriod, nil
-
-	case "VotingPeriod":
-		return StatusVotingPeriod, nil
-
-	case "Passed":
-		return StatusPassed, nil
-
-	case "Rejected":
-		return StatusRejected, nil
-
-	case "Failed":
-		return StatusFailed, nil
-
-	case "":
-		return StatusNil, nil
-
-	default:
-		return ProposalStatus(0xff), fmt.Errorf("'%s' is not a valid proposal status", str)
+	num, ok := ProposalStatus_value[str]
+	if !ok {
+		return StatusNil, fmt.Errorf("'%s' is not a valid proposal status", str)
 	}
+	return ProposalStatus(num), nil
 }
 
 // ValidProposalStatus returns true if the proposal status is valid and false
@@ -183,51 +164,6 @@ func (status ProposalStatus) Marshal() ([]byte, error) {
 func (status *ProposalStatus) Unmarshal(data []byte) error {
 	*status = ProposalStatus(data[0])
 	return nil
-}
-
-// MarshalJSON Marshals to JSON using string representation of the status
-func (status ProposalStatus) MarshalJSON() ([]byte, error) {
-	return json.Marshal(status.String())
-}
-
-// UnmarshalJSON Unmarshals from JSON assuming Bech32 encoding
-func (status *ProposalStatus) UnmarshalJSON(data []byte) error {
-	var s string
-	err := json.Unmarshal(data, &s)
-	if err != nil {
-		return err
-	}
-
-	bz2, err := ProposalStatusFromString(s)
-	if err != nil {
-		return err
-	}
-
-	*status = bz2
-	return nil
-}
-
-// String implements the Stringer interface.
-func (status ProposalStatus) String() string {
-	switch status {
-	case StatusDepositPeriod:
-		return "DepositPeriod"
-
-	case StatusVotingPeriod:
-		return "VotingPeriod"
-
-	case StatusPassed:
-		return "Passed"
-
-	case StatusRejected:
-		return "Rejected"
-
-	case StatusFailed:
-		return "Failed"
-
-	default:
-		return ""
-	}
 }
 
 // Format implements the fmt.Formatter interface.

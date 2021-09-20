@@ -7,16 +7,18 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gogo/gateway"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	"github.com/rakyll/statik/fs"
+	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/tendermint/tendermint/libs/log"
 	tmrpcserver "github.com/tendermint/tendermint/rpc/jsonrpc/server"
 
 	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/cosmos/cosmos-sdk/codec/legacy"
 	"github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/cosmos/cosmos-sdk/telemetry"
-	"github.com/cosmos/cosmos-sdk/types/rest"
+	grpctypes "github.com/cosmos/cosmos-sdk/types/grpc"
 
 	// unnamed import of statik for swagger UI support
 	_ "github.com/cosmos/cosmos-sdk/client/docs/statik"
@@ -24,19 +26,55 @@ import (
 
 // Server defines the server's API interface.
 type Server struct {
-	Router    *mux.Router
-	ClientCtx client.Context
+	Router            *mux.Router
+	GRPCGatewayRouter *runtime.ServeMux
+	ClientCtx         client.Context
 
 	logger   log.Logger
 	metrics  *telemetry.Metrics
 	listener net.Listener
 }
 
+// CustomGRPCHeaderMatcher for mapping request headers to
+// GRPC metadata.
+// HTTP headers that start with 'Grpc-Metadata-' are automatically mapped to
+// gRPC metadata after removing prefix 'Grpc-Metadata-'. We can use this
+// CustomGRPCHeaderMatcher if headers don't start with `Grpc-Metadata-`
+func CustomGRPCHeaderMatcher(key string) (string, bool) {
+	switch strings.ToLower(key) {
+	case grpctypes.GRPCBlockHeightHeader:
+		return grpctypes.GRPCBlockHeightHeader, true
+	default:
+		return runtime.DefaultHeaderMatcher(key)
+	}
+}
+
 func New(clientCtx client.Context, logger log.Logger) *Server {
+	// The default JSON marshaller used by the gRPC-Gateway is unable to marshal non-nullable non-scalar fields.
+	// Using the gogo/gateway package with the gRPC-Gateway WithMarshaler option fixes the scalar field marshalling issue.
+	marshalerOption := &gateway.JSONPb{
+		EmitDefaults: true,
+		Indent:       "  ",
+		OrigName:     true,
+		AnyResolver:  clientCtx.InterfaceRegistry,
+	}
+
 	return &Server{
 		Router:    mux.NewRouter(),
 		ClientCtx: clientCtx,
 		logger:    logger,
+		GRPCGatewayRouter: runtime.NewServeMux(
+			// Custom marshaler option is required for gogo proto
+			runtime.WithMarshalerOption(runtime.MIMEWildcard, marshalerOption),
+
+			// This is necessary to get error details properly
+			// marshalled in unary requests.
+			runtime.WithProtoErrorHandler(runtime.DefaultHTTPProtoErrorHandler),
+
+			// Custom header matcher for mapping request headers to
+			// GRPC metadata
+			runtime.WithIncomingHeaderMatcher(CustomGRPCHeaderMatcher),
+		),
 	}
 }
 
@@ -45,10 +83,6 @@ func New(clientCtx client.Context, logger log.Logger) *Server {
 // and are delegated to the Tendermint JSON RPC server. The process is
 // non-blocking, so an external signal handler must be used.
 func (s *Server) Start(cfg config.Config) error {
-	if cfg.API.Swagger {
-		s.registerSwaggerUI()
-	}
-
 	if cfg.Telemetry.Enabled {
 		m, err := telemetry.New(cfg.Telemetry)
 		if err != nil {
@@ -70,6 +104,8 @@ func (s *Server) Start(cfg config.Config) error {
 		return err
 	}
 
+	s.registerGRPCGatewayRoutes()
+
 	s.listener = listener
 	var h http.Handler = s.Router
 
@@ -78,6 +114,7 @@ func (s *Server) Start(cfg config.Config) error {
 		return tmrpcserver.Serve(s.listener, allowAllCORS(h), s.logger, tmCfg)
 	}
 
+	s.logger.Info("starting API server...")
 	return tmrpcserver.Serve(s.listener, s.Router, s.logger, tmCfg)
 }
 
@@ -86,14 +123,8 @@ func (s *Server) Close() error {
 	return s.listener.Close()
 }
 
-func (s *Server) registerSwaggerUI() {
-	statikFS, err := fs.New()
-	if err != nil {
-		panic(err)
-	}
-
-	staticServer := http.FileServer(statikFS)
-	s.Router.PathPrefix("/").Handler(staticServer)
+func (s *Server) registerGRPCGatewayRoutes() {
+	s.Router.PathPrefix("/").Handler(s.GRPCGatewayRouter)
 }
 
 func (s *Server) registerMetrics() {
@@ -102,7 +133,7 @@ func (s *Server) registerMetrics() {
 
 		gr, err := s.metrics.Gather(format)
 		if err != nil {
-			rest.WriteErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("failed to gather metrics: %s", err))
+			writeErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("failed to gather metrics: %s", err))
 			return
 		}
 
@@ -111,4 +142,23 @@ func (s *Server) registerMetrics() {
 	}
 
 	s.Router.HandleFunc("/metrics", metricsHandler).Methods("GET")
+}
+
+// errorResponse defines the attributes of a JSON error response.
+type errorResponse struct {
+	Code  int    `json:"code,omitempty"`
+	Error string `json:"error"`
+}
+
+// newErrorResponse creates a new errorResponse instance.
+func newErrorResponse(code int, err string) errorResponse {
+	return errorResponse{Code: code, Error: err}
+}
+
+// writeErrorResponse prepares and writes a HTTP error
+// given a status code and an error message.
+func writeErrorResponse(w http.ResponseWriter, status int, err string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_, _ = w.Write(legacy.Cdc.MustMarshalJSON(newErrorResponse(0, err)))
 }

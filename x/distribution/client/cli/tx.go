@@ -12,7 +12,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/tx"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/version"
-	"github.com/cosmos/cosmos-sdk/x/distribution/client/common"
 	"github.com/cosmos/cosmos-sdk/x/distribution/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 )
@@ -24,7 +23,7 @@ var (
 )
 
 const (
-	MaxMessagesPerTxDefault = 5
+	MaxMessagesPerTxDefault = 0
 )
 
 // NewTxCmd returns a root CLI command handler for all x/distribution transaction commands.
@@ -77,6 +76,8 @@ func newSplitAndApply(
 }
 
 func NewWithdrawRewardsCmd() *cobra.Command {
+	bech32PrefixValAddr := sdk.GetConfig().GetBech32ValidatorAddrPrefix()
+
 	cmd := &cobra.Command{
 		Use:   "withdraw-rewards [validator-addr]",
 		Short: "Withdraw rewards from a given delegation address, and optionally withdraw validator commission if the delegation address given is a validator operator",
@@ -85,20 +86,18 @@ func NewWithdrawRewardsCmd() *cobra.Command {
 and optionally withdraw validator commission if the delegation address given is a validator operator.
 
 Example:
-$ %s tx distribution withdraw-rewards cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj --from mykey
-$ %s tx distribution withdraw-rewards cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj --from mykey --commission
+$ %s tx distribution withdraw-rewards %s1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj --from mykey
+$ %s tx distribution withdraw-rewards %s1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj --from mykey --commission
 `,
-				version.AppName, version.AppName,
+				version.AppName, bech32PrefixValAddr, version.AppName, bech32PrefixValAddr,
 			),
 		),
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			clientCtx := client.GetClientContextFromCmd(cmd)
-			clientCtx, err := client.ReadTxCommandFlags(clientCtx, cmd.Flags())
+			clientCtx, err := client.GetClientTxContext(cmd)
 			if err != nil {
 				return err
 			}
-
 			delAddr := clientCtx.GetFromAddress()
 			valAddr, err := sdk.ValAddressFromBech32(args[0])
 			if err != nil {
@@ -109,12 +108,6 @@ $ %s tx distribution withdraw-rewards cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fx
 
 			if commission, _ := cmd.Flags().GetBool(FlagCommission); commission {
 				msgs = append(msgs, types.NewMsgWithdrawValidatorCommission(valAddr))
-			}
-
-			for _, msg := range msgs {
-				if err := msg.ValidateBasic(); err != nil {
-					return err
-				}
 			}
 
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msgs...)
@@ -133,21 +126,20 @@ func NewWithdrawAllRewardsCmd() *cobra.Command {
 		Short: "withdraw all delegations rewards for a delegator",
 		Long: strings.TrimSpace(
 			fmt.Sprintf(`Withdraw all rewards for a single delegator.
+Note that if you use this command with --%[2]s=%[3]s or --%[2]s=%[4]s, the %[5]s flag will automatically be set to 0.
 
 Example:
-$ %s tx distribution withdraw-all-rewards --from mykey
+$ %[1]s tx distribution withdraw-all-rewards --from mykey
 `,
-				version.AppName,
+				version.AppName, flags.FlagBroadcastMode, flags.BroadcastSync, flags.BroadcastAsync, FlagMaxMessagesPerTx,
 			),
 		),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			clientCtx := client.GetClientContextFromCmd(cmd)
-			clientCtx, err := client.ReadTxCommandFlags(clientCtx, cmd.Flags())
+			clientCtx, err := client.GetClientTxContext(cmd)
 			if err != nil {
 				return err
 			}
-
 			delAddr := clientCtx.GetFromAddress()
 
 			// The transaction cannot be generated offline since it requires a query
@@ -156,12 +148,31 @@ $ %s tx distribution withdraw-all-rewards --from mykey
 				return fmt.Errorf("cannot generate tx in offline mode")
 			}
 
-			msgs, err := common.WithdrawAllDelegatorRewards(clientCtx, delAddr)
+			queryClient := types.NewQueryClient(clientCtx)
+			delValsRes, err := queryClient.DelegatorValidators(cmd.Context(), &types.QueryDelegatorValidatorsRequest{DelegatorAddress: delAddr.String()})
 			if err != nil {
 				return err
 			}
 
+			validators := delValsRes.Validators
+			// build multi-message transaction
+			msgs := make([]sdk.Msg, 0, len(validators))
+			for _, valAddr := range validators {
+				val, err := sdk.ValAddressFromBech32(valAddr)
+				if err != nil {
+					return err
+				}
+
+				msg := types.NewMsgWithdrawDelegatorReward(delAddr, val)
+				msgs = append(msgs, msg)
+			}
+
 			chunkSize, _ := cmd.Flags().GetInt(FlagMaxMessagesPerTx)
+			if clientCtx.BroadcastMode != flags.BroadcastBlock && chunkSize > 0 {
+				return fmt.Errorf("cannot use broadcast mode %[1]s with %[2]s != 0",
+					clientCtx.BroadcastMode, FlagMaxMessagesPerTx)
+			}
+
 			return newSplitAndApply(tx.GenerateOrBroadcastTxCLI, clientCtx, cmd.Flags(), msgs, chunkSize)
 		},
 	}
@@ -173,6 +184,8 @@ $ %s tx distribution withdraw-all-rewards --from mykey
 }
 
 func NewSetWithdrawAddrCmd() *cobra.Command {
+	bech32PrefixAccAddr := sdk.GetConfig().GetBech32AccountAddrPrefix()
+
 	cmd := &cobra.Command{
 		Use:   "set-withdraw-addr [withdraw-addr]",
 		Short: "change the default withdraw address for rewards associated with an address",
@@ -180,19 +193,17 @@ func NewSetWithdrawAddrCmd() *cobra.Command {
 			fmt.Sprintf(`Set the withdraw address for rewards associated with a delegator address.
 
 Example:
-$ %s tx distribution set-withdraw-addr cosmos1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p --from mykey
+$ %s tx distribution set-withdraw-addr %s1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p --from mykey
 `,
-				version.AppName,
+				version.AppName, bech32PrefixAccAddr,
 			),
 		),
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			clientCtx := client.GetClientContextFromCmd(cmd)
-			clientCtx, err := client.ReadTxCommandFlags(clientCtx, cmd.Flags())
+			clientCtx, err := client.GetClientTxContext(cmd)
 			if err != nil {
 				return err
 			}
-
 			delAddr := clientCtx.GetFromAddress()
 			withdrawAddr, err := sdk.AccAddressFromBech32(args[0])
 			if err != nil {
@@ -200,9 +211,6 @@ $ %s tx distribution set-withdraw-addr cosmos1gghjut3ccd8ay0zduzj64hwre2fxs9ld75
 			}
 
 			msg := types.NewMsgSetWithdrawAddress(delAddr, withdrawAddr)
-			if err := msg.ValidateBasic(); err != nil {
-				return err
-			}
 
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
@@ -228,22 +236,17 @@ $ %s tx distribution fund-community-pool 100uatom --from mykey
 			),
 		),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			clientCtx := client.GetClientContextFromCmd(cmd)
-			clientCtx, err := client.ReadTxCommandFlags(clientCtx, cmd.Flags())
+			clientCtx, err := client.GetClientTxContext(cmd)
 			if err != nil {
 				return err
 			}
-
 			depositorAddr := clientCtx.GetFromAddress()
-			amount, err := sdk.ParseCoins(args[0])
+			amount, err := sdk.ParseCoinsNormalized(args[0])
 			if err != nil {
 				return err
 			}
 
 			msg := types.NewMsgFundCommunityPool(amount, depositorAddr)
-			if err := msg.ValidateBasic(); err != nil {
-				return err
-			}
 
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
@@ -256,6 +259,8 @@ $ %s tx distribution fund-community-pool 100uatom --from mykey
 
 // GetCmdSubmitProposal implements the command to submit a community-pool-spend proposal
 func GetCmdSubmitProposal() *cobra.Command {
+	bech32PrefixAccAddr := sdk.GetConfig().GetBech32AccountAddrPrefix()
+
 	cmd := &cobra.Command{
 		Use:   "community-pool-spend [proposal-file]",
 		Args:  cobra.ExactArgs(1),
@@ -272,53 +277,49 @@ Where proposal.json contains:
 {
   "title": "Community Pool Spend",
   "description": "Pay me some Atoms!",
-  "recipient": "cosmos1s5afhd6gxevu37mkqcvvsj8qeylhn0rz46zdlq",
+  "recipient": "%s1s5afhd6gxevu37mkqcvvsj8qeylhn0rz46zdlq",
   "amount": "1000stake",
   "deposit": "1000stake"
 }
 `,
-				version.AppName,
+				version.AppName, bech32PrefixAccAddr,
 			),
 		),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			clientCtx := client.GetClientContextFromCmd(cmd)
-			clientCtx, err := client.ReadTxCommandFlags(clientCtx, cmd.Flags())
+			clientCtx, err := client.GetClientTxContext(cmd)
+			if err != nil {
+				return err
+			}
+			proposal, err := ParseCommunityPoolSpendProposalWithDeposit(clientCtx.Codec, args[0])
 			if err != nil {
 				return err
 			}
 
-			proposal, err := ParseCommunityPoolSpendProposalJSON(clientCtx.JSONMarshaler, args[0])
+			amount, err := sdk.ParseCoinsNormalized(proposal.Amount)
 			if err != nil {
 				return err
 			}
 
-			amount, err := sdk.ParseCoins(proposal.Amount)
-			if err != nil {
-				return err
-			}
-
-			deposit, err := sdk.ParseCoins(proposal.Deposit)
+			deposit, err := sdk.ParseCoinsNormalized(proposal.Deposit)
 			if err != nil {
 				return err
 			}
 
 			from := clientCtx.GetFromAddress()
-			content := types.NewCommunityPoolSpendProposal(proposal.Title, proposal.Description, proposal.Recipient, amount)
+			recpAddr, err := sdk.AccAddressFromBech32(proposal.Recipient)
+			if err != nil {
+				return err
+			}
+			content := types.NewCommunityPoolSpendProposal(proposal.Title, proposal.Description, recpAddr, amount)
 
 			msg, err := govtypes.NewMsgSubmitProposal(content, deposit, from)
 			if err != nil {
 				return err
 			}
 
-			if err := msg.ValidateBasic(); err != nil {
-				return err
-			}
-
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
 	}
-
-	flags.AddTxFlagsToCmd(cmd)
 
 	return cmd
 }

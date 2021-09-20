@@ -16,27 +16,30 @@ func EndBlocker(ctx sdk.Context, keeper keeper.Keeper) {
 
 	logger := keeper.Logger(ctx)
 
-	// delete inactive proposal from store and its deposits
+	// delete dead proposals from store and burn theirs deposits. A proposal is dead when it's inactive and didn't get enough deposit on time to get into voting phase.
 	keeper.IterateInactiveProposalsQueue(ctx, ctx.BlockHeader().Time, func(proposal types.Proposal) bool {
-		keeper.DeleteProposal(ctx, proposal.ProposalID)
-		keeper.DeleteDeposits(ctx, proposal.ProposalID)
+		keeper.DeleteProposal(ctx, proposal.ProposalId)
+		keeper.DeleteAndBurnDeposits(ctx, proposal.ProposalId)
+
+		// called when proposal become inactive
+		keeper.AfterProposalFailedMinDeposit(ctx, proposal.ProposalId)
 
 		ctx.EventManager().EmitEvent(
 			sdk.NewEvent(
 				types.EventTypeInactiveProposal,
-				sdk.NewAttribute(types.AttributeKeyProposalID, fmt.Sprintf("%d", proposal.ProposalID)),
+				sdk.NewAttribute(types.AttributeKeyProposalID, fmt.Sprintf("%d", proposal.ProposalId)),
 				sdk.NewAttribute(types.AttributeKeyProposalResult, types.AttributeValueProposalDropped),
 			),
 		)
 
 		logger.Info(
-			fmt.Sprintf("proposal %d (%s) didn't meet minimum deposit of %s (had only %s); deleted",
-				proposal.ProposalID,
-				proposal.GetTitle(),
-				keeper.GetDepositParams(ctx).MinDeposit,
-				proposal.TotalDeposit,
-			),
+			"proposal did not meet minimum deposit; deleted",
+			"proposal", proposal.ProposalId,
+			"title", proposal.GetTitle(),
+			"min_deposit", keeper.GetDepositParams(ctx).MinDeposit.String(),
+			"total_deposit", proposal.TotalDeposit.String(),
 		)
+
 		return false
 	})
 
@@ -47,9 +50,9 @@ func EndBlocker(ctx sdk.Context, keeper keeper.Keeper) {
 		passes, burnDeposits, tallyResults := keeper.Tally(ctx, proposal)
 
 		if burnDeposits {
-			keeper.DeleteDeposits(ctx, proposal.ProposalID)
+			keeper.DeleteAndBurnDeposits(ctx, proposal.ProposalId)
 		} else {
-			keeper.RefundDeposits(ctx, proposal.ProposalID)
+			keeper.RefundAndDeleteDeposits(ctx, proposal.ProposalId)
 		}
 
 		if passes {
@@ -87,19 +90,22 @@ func EndBlocker(ctx sdk.Context, keeper keeper.Keeper) {
 		proposal.FinalTallyResult = tallyResults
 
 		keeper.SetProposal(ctx, proposal)
-		keeper.RemoveFromActiveProposalQueue(ctx, proposal.ProposalID, proposal.VotingEndTime)
+		keeper.RemoveFromActiveProposalQueue(ctx, proposal.ProposalId, proposal.VotingEndTime)
+
+		// when proposal become active
+		keeper.AfterProposalVotingPeriodEnded(ctx, proposal.ProposalId)
 
 		logger.Info(
-			fmt.Sprintf(
-				"proposal %d (%s) tallied; result: %s",
-				proposal.ProposalID, proposal.GetTitle(), logMsg,
-			),
+			"proposal tallied",
+			"proposal", proposal.ProposalId,
+			"title", proposal.GetTitle(),
+			"result", logMsg,
 		)
 
 		ctx.EventManager().EmitEvent(
 			sdk.NewEvent(
 				types.EventTypeActiveProposal,
-				sdk.NewAttribute(types.AttributeKeyProposalID, fmt.Sprintf("%d", proposal.ProposalID)),
+				sdk.NewAttribute(types.AttributeKeyProposalID, fmt.Sprintf("%d", proposal.ProposalId)),
 				sdk.NewAttribute(types.AttributeKeyProposalResult, tagValue),
 			),
 		)

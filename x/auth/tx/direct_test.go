@@ -8,7 +8,6 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
-	"github.com/cosmos/cosmos-sdk/std"
 	"github.com/cosmos/cosmos-sdk/testutil/testdata"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
@@ -21,20 +20,19 @@ func TestDirectModeHandler(t *testing.T) {
 	interfaceRegistry := codectypes.NewInterfaceRegistry()
 	interfaceRegistry.RegisterImplementations((*sdk.Msg)(nil), &testdata.TestMsg{})
 	marshaler := codec.NewProtoCodec(interfaceRegistry)
-	pubKeyCdc := std.DefaultPublicKeyCodec{}
 
-	txConfig := NewTxConfig(marshaler, pubKeyCdc, []signingtypes.SignMode{signingtypes.SignMode_SIGN_MODE_DIRECT})
+	txConfig := NewTxConfig(marshaler, []signingtypes.SignMode{signingtypes.SignMode_SIGN_MODE_DIRECT})
 	txBuilder := txConfig.NewTxBuilder()
 
 	memo := "sometestmemo"
 	msgs := []sdk.Msg{testdata.NewTestMsg(addr)}
-
-	pk, err := pubKeyCdc.Encode(pubkey)
+	accSeq := uint64(2) // Arbitrary account sequence
+	any, err := codectypes.NewAnyWithValue(pubkey)
 	require.NoError(t, err)
 
 	var signerInfo []*txtypes.SignerInfo
 	signerInfo = append(signerInfo, &txtypes.SignerInfo{
-		PublicKey: pk,
+		PublicKey: any,
 		ModeInfo: &txtypes.ModeInfo{
 			Sum: &txtypes.ModeInfo_Single_{
 				Single: &txtypes.ModeInfo_Single{
@@ -42,14 +40,16 @@ func TestDirectModeHandler(t *testing.T) {
 				},
 			},
 		},
+		Sequence: accSeq,
 	})
 
 	sigData := &signingtypes.SingleSignatureData{
 		SignMode: signingtypes.SignMode_SIGN_MODE_DIRECT,
 	}
 	sig := signingtypes.SignatureV2{
-		PubKey: pubkey,
-		Data:   sigData,
+		PubKey:   pubkey,
+		Data:     sigData,
+		Sequence: accSeq,
 	}
 
 	fee := txtypes.Fee{Amount: sdk.NewCoins(sdk.NewInt64Coin("atom", 150)), GasLimit: 20000}
@@ -69,9 +69,8 @@ func TestDirectModeHandler(t *testing.T) {
 	require.Len(t, modeHandler.Modes(), 1)
 
 	signingData := signing.SignerData{
-		ChainID:         "test-chain",
-		AccountNumber:   1,
-		AccountSequence: 1,
+		ChainID:       "test-chain",
+		AccountNumber: 1,
 	}
 
 	signBytes, err := modeHandler.GetSignBytes(signingtypes.SignMode_SIGN_MODE_DIRECT, signingData, txBuilder.GetTx())
@@ -84,7 +83,7 @@ func TestDirectModeHandler(t *testing.T) {
 		SignerInfos: signerInfo,
 	}
 
-	authInfoBytes := marshaler.MustMarshalBinaryBare(authInfo)
+	authInfoBytes := marshaler.MustMarshal(authInfo)
 
 	anys := make([]*codectypes.Any, len(msgs))
 
@@ -100,15 +99,14 @@ func TestDirectModeHandler(t *testing.T) {
 		Memo:     memo,
 		Messages: anys,
 	}
-	bodyBytes := marshaler.MustMarshalBinaryBare(txBody)
+	bodyBytes := marshaler.MustMarshal(txBody)
 
 	t.Log("verify GetSignBytes with generating sign bytes by marshaling SignDoc")
 	signDoc := txtypes.SignDoc{
-		AccountNumber:   1,
-		AccountSequence: 1,
-		AuthInfoBytes:   authInfoBytes,
-		BodyBytes:       bodyBytes,
-		ChainId:         "test-chain",
+		AccountNumber: 1,
+		AuthInfoBytes: authInfoBytes,
+		BodyBytes:     bodyBytes,
+		ChainId:       "test-chain",
 	}
 
 	expectedSignBytes, err := signDoc.Marshal()
@@ -133,6 +131,7 @@ func TestDirectModeHandler(t *testing.T) {
 
 func TestDirectModeHandler_nonDIRECT_MODE(t *testing.T) {
 	invalidModes := []signingtypes.SignMode{
+		signingtypes.SignMode_SIGN_MODE_DIRECT_JSON,
 		signingtypes.SignMode_SIGN_MODE_TEXTUAL,
 		signingtypes.SignMode_SIGN_MODE_LEGACY_AMINO_JSON,
 		signingtypes.SignMode_SIGN_MODE_UNSPECIFIED,

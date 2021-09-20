@@ -27,7 +27,7 @@ func CollectGenTxsCmd(genBalIterator types.GenesisBalancesIterator, defaultNodeH
 			config := serverCtx.Config
 
 			clientCtx := client.GetClientContextFromCmd(cmd)
-			cdc := clientCtx.JSONMarshaler
+			cdc := clientCtx.Codec
 
 			config.SetRoot(clientCtx.HomeDir)
 
@@ -59,7 +59,7 @@ func CollectGenTxsCmd(genBalIterator types.GenesisBalancesIterator, defaultNodeH
 
 			toPrint.AppMessage = appMessage
 
-			return displayInfo(cdc, toPrint)
+			return displayInfo(toPrint)
 		},
 	}
 

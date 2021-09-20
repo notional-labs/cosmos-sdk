@@ -1,6 +1,7 @@
 package network
 
 import (
+	"encoding/json"
 	"path/filepath"
 	"time"
 
@@ -13,9 +14,9 @@ import (
 	"github.com/tendermint/tendermint/types"
 	tmtime "github.com/tendermint/tendermint/types/time"
 
-	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/server/api"
 	servergrpc "github.com/cosmos/cosmos-sdk/server/grpc"
+	srvtypes "github.com/cosmos/cosmos-sdk/server/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/cosmos/cosmos-sdk/x/genutil"
@@ -26,6 +27,10 @@ func startInProcess(cfg Config, val *Validator) error {
 	logger := val.Ctx.Logger
 	tmCfg := val.Ctx.Config
 	tmCfg.Instrumentation.Prometheus = false
+
+	if err := val.AppConfig.ValidateBasic(); err != nil {
+		return err
+	}
 
 	nodeKey, err := p2p.LoadOrGenNodeKey(tmCfg.NodeKeyFile())
 	if err != nil {
@@ -59,12 +64,21 @@ func startInProcess(cfg Config, val *Validator) error {
 		val.RPCClient = local.New(tmNode)
 	}
 
-	if val.APIAddress != "" {
+	// We'll need a RPC client if the validator exposes a gRPC or REST endpoint.
+	if val.APIAddress != "" || val.AppConfig.GRPC.Enable {
 		val.ClientCtx = val.ClientCtx.
 			WithClient(val.RPCClient)
 
+		// Add the tx service in the gRPC router.
+		app.RegisterTxService(val.ClientCtx)
+
+		// Add the tendermint queries service in the gRPC router.
+		app.RegisterTendermintService(val.ClientCtx)
+	}
+
+	if val.APIAddress != "" {
 		apiSrv := api.New(val.ClientCtx, logger.With("module", "api-server"))
-		app.RegisterAPIRoutes(apiSrv)
+		app.RegisterAPIRoutes(apiSrv, val.AppConfig.API)
 
 		errCh := make(chan error)
 
@@ -77,19 +91,26 @@ func startInProcess(cfg Config, val *Validator) error {
 		select {
 		case err := <-errCh:
 			return err
-		case <-time.After(5 * time.Second): // assume server started successfully
+		case <-time.After(srvtypes.ServerStartTime): // assume server started successfully
 		}
 
 		val.api = apiSrv
 	}
 
 	if val.AppConfig.GRPC.Enable {
-		grpcSrv, err := servergrpc.StartGRPCServer(app, val.AppConfig.GRPC.Address)
+		grpcSrv, err := servergrpc.StartGRPCServer(val.ClientCtx, app, val.AppConfig.GRPC.Address)
 		if err != nil {
 			return err
 		}
 
 		val.grpc = grpcSrv
+
+		if val.AppConfig.GRPCWeb.Enable {
+			val.grpcWeb, err = servergrpc.StartGRPCWeb(grpcSrv, *val.AppConfig)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil
@@ -141,17 +162,17 @@ func initGenFiles(cfg Config, genAccounts []authtypes.GenesisAccount, genBalance
 		return err
 	}
 
-	authGenState.Accounts = accounts
-	cfg.GenesisState[authtypes.ModuleName] = cfg.Codec.MustMarshalJSON(authGenState)
+	authGenState.Accounts = append(authGenState.Accounts, accounts...)
+	cfg.GenesisState[authtypes.ModuleName] = cfg.Codec.MustMarshalJSON(&authGenState)
 
 	// set the balances in the genesis state
 	var bankGenState banktypes.GenesisState
 	cfg.Codec.MustUnmarshalJSON(cfg.GenesisState[banktypes.ModuleName], &bankGenState)
 
-	bankGenState.Balances = genBalances
-	cfg.GenesisState[banktypes.ModuleName] = cfg.Codec.MustMarshalJSON(bankGenState)
+	bankGenState.Balances = append(bankGenState.Balances, genBalances...)
+	cfg.GenesisState[banktypes.ModuleName] = cfg.Codec.MustMarshalJSON(&bankGenState)
 
-	appGenStateJSON, err := codec.MarshalJSONIndent(cfg.Codec, cfg.GenesisState)
+	appGenStateJSON, err := json.MarshalIndent(cfg.GenesisState, "", "  ")
 	if err != nil {
 		return err
 	}

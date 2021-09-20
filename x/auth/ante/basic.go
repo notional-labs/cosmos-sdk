@@ -1,21 +1,18 @@
 package ante
 
 import (
-	"github.com/tendermint/tendermint/crypto"
-
 	"github.com/cosmos/cosmos-sdk/codec/legacy"
-	"github.com/cosmos/cosmos-sdk/crypto/types/multisig"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/multisig"
+	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-	"github.com/cosmos/cosmos-sdk/x/auth/signing"
-	"github.com/cosmos/cosmos-sdk/x/auth/types"
+	"github.com/cosmos/cosmos-sdk/types/tx/signing"
+	"github.com/cosmos/cosmos-sdk/x/auth/migrations/legacytx"
+	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 )
 
-var (
-	_ sdk.TxWithMemo = (*types.StdTx)(nil) // assert StdTx implements TxWithMemo
-)
-
-// ValidateBasicDecorator will call tx.ValidateBasic and return any non-nil error.
+// ValidateBasicDecorator will call tx.ValidateBasic, msg.ValidateBasic(for each msg inside tx)
+// and return any non-nil error.
 // If ValidateBasic passes, decorator calls next AnteHandler in chain. Note,
 // ValidateBasicDecorator decorator will not get executed on ReCheckTx since it
 // is not dependent on application state.
@@ -78,7 +75,7 @@ func (vmd ValidateMemoDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate
 // CONTRACT: If simulate=true, then signatures must either be completely filled
 // in or empty.
 // CONTRACT: To use this decorator, signatures of transaction must be represented
-// as types.StdSignature otherwise simulate mode will incorrectly estimate gas cost.
+// as legacytx.StdSignature otherwise simulate mode will incorrectly estimate gas cost.
 type ConsumeTxSizeGasDecorator struct {
 	ak AccountKeeper
 }
@@ -90,7 +87,7 @@ func NewConsumeGasForTxSizeDecorator(ak AccountKeeper) ConsumeTxSizeGasDecorator
 }
 
 func (cgts ConsumeTxSizeGasDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
-	sigTx, ok := tx.(signing.SigVerifiableTx)
+	sigTx, ok := tx.(authsigning.SigVerifiableTx)
 	if !ok {
 		return ctx, sdkerrors.Wrap(sdkerrors.ErrTxDecode, "invalid tx type")
 	}
@@ -101,14 +98,19 @@ func (cgts ConsumeTxSizeGasDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, sim
 	// simulate gas cost for signatures in simulate mode
 	if simulate {
 		// in simulate mode, each element should be a nil signature
-		sigs := sigTx.GetSignatures()
+		sigs, err := sigTx.GetSignaturesV2()
+		if err != nil {
+			return ctx, err
+		}
+		n := len(sigs)
+
 		for i, signer := range sigTx.GetSigners() {
 			// if signature is already filled in, no need to simulate gas cost
-			if sigs[i] != nil {
+			if i < n && !isIncompleteSignature(sigs[i].Data) {
 				continue
 			}
 
-			var pubkey crypto.PubKey
+			var pubkey cryptotypes.PubKey
 
 			acc := cgts.ak.GetAccount(ctx, signer)
 
@@ -120,17 +122,17 @@ func (cgts ConsumeTxSizeGasDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, sim
 			}
 
 			// use stdsignature to mock the size of a full signature
-			simSig := types.StdSignature{ //nolint:staticcheck // this will be removed when proto is ready
+			simSig := legacytx.StdSignature{ //nolint:staticcheck // this will be removed when proto is ready
 				Signature: simSecp256k1Sig[:],
 				PubKey:    pubkey,
 			}
 
-			sigBz := legacy.Cdc.MustMarshalBinaryBare(simSig)
+			sigBz := legacy.Cdc.MustMarshal(simSig)
 			cost := sdk.Gas(len(sigBz) + 6)
 
 			// If the pubkey is a multi-signature pubkey, then we estimate for the maximum
 			// number of signers.
-			if _, ok := pubkey.(multisig.PubKeyMultisigThreshold); ok {
+			if _, ok := pubkey.(*multisig.LegacyAminoPubKey); ok {
 				cost *= params.TxSigLimit
 			}
 
@@ -139,6 +141,29 @@ func (cgts ConsumeTxSizeGasDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, sim
 	}
 
 	return next(ctx, tx, simulate)
+}
+
+// isIncompleteSignature tests whether SignatureData is fully filled in for simulation purposes
+func isIncompleteSignature(data signing.SignatureData) bool {
+	if data == nil {
+		return true
+	}
+
+	switch data := data.(type) {
+	case *signing.SingleSignatureData:
+		return len(data.Signature) == 0
+	case *signing.MultiSignatureData:
+		if len(data.Signatures) == 0 {
+			return true
+		}
+		for _, s := range data.Signatures {
+			if isIncompleteSignature(s) {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 type (
@@ -154,6 +179,12 @@ type (
 		GetTimeoutHeight() uint64
 	}
 )
+
+// TxTimeoutHeightDecorator defines an AnteHandler decorator that checks for a
+// tx height timeout.
+func NewTxTimeoutHeightDecorator() TxTimeoutHeightDecorator {
+	return TxTimeoutHeightDecorator{}
+}
 
 // AnteHandle implements an AnteHandler decorator for the TxHeightTimeoutDecorator
 // type where the current block height is checked against the tx's height timeout.

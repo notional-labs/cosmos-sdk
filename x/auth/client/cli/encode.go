@@ -2,7 +2,6 @@ package cli
 
 import (
 	"encoding/base64"
-	"fmt"
 
 	"github.com/spf13/cobra"
 
@@ -18,7 +17,7 @@ func GetEncodeCommand() *cobra.Command {
 		Use:   "encode [file]",
 		Short: "Encode transactions generated offline",
 		Long: `Encode transactions created with the --generate-only flag and signed with the sign command.
-Read a transaction from <file>, serialize it to the Amino wire protocol, and output it as base64.
+Read a transaction from <file>, serialize it to the Protobuf wire protocol, and output it as base64.
 If you supply a dash (-) argument in place of an input filename, the command reads from standard input.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -38,7 +37,7 @@ If you supply a dash (-) argument in place of an input filename, the command rea
 			// base64 encode the encoded tx bytes
 			txBytesBase64 := base64.StdEncoding.EncodeToString(txBytes)
 
-			return clientCtx.PrintString(fmt.Sprintf("%s\n", txBytesBase64))
+			return clientCtx.PrintString(txBytesBase64 + "\n")
 		},
 	}
 

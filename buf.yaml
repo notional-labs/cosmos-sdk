@@ -1,9 +1,11 @@
+version: v1beta1
+
 build:
   roots:
     - proto
     - third_party/proto
   excludes:
-    - third_party/proto/google
+    - third_party/proto/google/protobuf
 lint:
   use:
     - DEFAULT
@@ -14,10 +16,12 @@ lint:
     - COMMENT_FIELD
     - SERVICE_SUFFIX
     - PACKAGE_VERSION_SUFFIX
+    - RPC_REQUEST_STANDARD_NAME
   ignore:
     - tendermint
     - gogoproto
     - cosmos_proto
+    - google
     - confio
 breaking:
   use:
@@ -26,3 +30,5 @@ breaking:
     - tendermint
     - gogoproto
     - cosmos_proto
+    - google
+    - confio

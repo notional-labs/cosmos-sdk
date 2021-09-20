@@ -8,20 +8,24 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/tendermint/tendermint/crypto/secp256k1"
+	tmjson "github.com/tendermint/tendermint/libs/json"
 	tmtypes "github.com/tendermint/tendermint/types"
 
 	"github.com/cosmos/cosmos-sdk/codec"
-	simapparams "github.com/cosmos/cosmos-sdk/simapp/params"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
+	simappparams "github.com/cosmos/cosmos-sdk/simapp/params"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
 // AppStateFn returns the initial application state using a genesis or the simulation parameters.
 // It panics if the user provides files for both of them.
 // If a file is not given for the genesis or the sim params, it creates a randomized one.
-func AppStateFn(cdc *codec.LegacyAmino, simManager *module.SimulationManager) simtypes.AppStateFn {
+func AppStateFn(cdc codec.JSONCodec, simManager *module.SimulationManager) simtypes.AppStateFn {
 	return func(r *rand.Rand, accs []simtypes.Account, config simtypes.Config,
 	) (appState json.RawMessage, simAccs []simtypes.Account, chainID string, genesisTimestamp time.Time) {
 
@@ -56,7 +60,10 @@ func AppStateFn(cdc *codec.LegacyAmino, simManager *module.SimulationManager) si
 				panic(err)
 			}
 
-			cdc.MustUnmarshalJSON(bz, &appParams)
+			err = json.Unmarshal(bz, &appParams)
+			if err != nil {
+				panic(err)
+			}
 			appState, simAccs = AppStateRandomizedFn(simManager, r, cdc, accs, genesisTimestamp, appParams)
 
 		default:
@@ -64,6 +71,67 @@ func AppStateFn(cdc *codec.LegacyAmino, simManager *module.SimulationManager) si
 			appState, simAccs = AppStateRandomizedFn(simManager, r, cdc, accs, genesisTimestamp, appParams)
 		}
 
+		rawState := make(map[string]json.RawMessage)
+		err := json.Unmarshal(appState, &rawState)
+		if err != nil {
+			panic(err)
+		}
+
+		stakingStateBz, ok := rawState[stakingtypes.ModuleName]
+		if !ok {
+			panic("staking genesis state is missing")
+		}
+
+		stakingState := new(stakingtypes.GenesisState)
+		err = cdc.UnmarshalJSON(stakingStateBz, stakingState)
+		if err != nil {
+			panic(err)
+		}
+		// compute not bonded balance
+		notBondedTokens := sdk.ZeroInt()
+		for _, val := range stakingState.Validators {
+			if val.Status != stakingtypes.Unbonded {
+				continue
+			}
+			notBondedTokens = notBondedTokens.Add(val.GetTokens())
+		}
+		notBondedCoins := sdk.NewCoin(stakingState.Params.BondDenom, notBondedTokens)
+		// edit bank state to make it have the not bonded pool tokens
+		bankStateBz, ok := rawState[banktypes.ModuleName]
+		// TODO(fdymylja/jonathan): should we panic in this case
+		if !ok {
+			panic("bank genesis state is missing")
+		}
+		bankState := new(banktypes.GenesisState)
+		err = cdc.UnmarshalJSON(bankStateBz, bankState)
+		if err != nil {
+			panic(err)
+		}
+
+		stakingAddr := authtypes.NewModuleAddress(stakingtypes.NotBondedPoolName).String()
+		var found bool
+		for _, balance := range bankState.Balances {
+			if balance.Address == stakingAddr {
+				found = true
+				break
+			}
+		}
+		if !found {
+			bankState.Balances = append(bankState.Balances, banktypes.Balance{
+				Address: stakingAddr,
+				Coins:   sdk.NewCoins(notBondedCoins),
+			})
+		}
+
+		// change appState back
+		rawState[stakingtypes.ModuleName] = cdc.MustMarshalJSON(stakingState)
+		rawState[banktypes.ModuleName] = cdc.MustMarshalJSON(bankState)
+
+		// replace appstate
+		appState, err = json.Marshal(rawState)
+		if err != nil {
+			panic(err)
+		}
 		return appState, simAccs, chainID, genesisTimestamp
 	}
 }
@@ -71,21 +139,21 @@ func AppStateFn(cdc *codec.LegacyAmino, simManager *module.SimulationManager) si
 // AppStateRandomizedFn creates calls each module's GenesisState generator function
 // and creates the simulation params
 func AppStateRandomizedFn(
-	simManager *module.SimulationManager, r *rand.Rand, cdc *codec.LegacyAmino,
+	simManager *module.SimulationManager, r *rand.Rand, cdc codec.JSONCodec,
 	accs []simtypes.Account, genesisTimestamp time.Time, appParams simtypes.AppParams,
 ) (json.RawMessage, []simtypes.Account) {
 	numAccs := int64(len(accs))
-	genesisState := NewDefaultGenesisState()
+	genesisState := NewDefaultGenesisState(cdc)
 
 	// generate a random amount of initial stake coins and a random initial
 	// number of bonded accounts
 	var initialStake, numInitiallyBonded int64
 	appParams.GetOrGenerate(
-		cdc, simapparams.StakePerAccount, &initialStake, r,
+		cdc, simappparams.StakePerAccount, &initialStake, r,
 		func(r *rand.Rand) { initialStake = r.Int63n(1e12) },
 	)
 	appParams.GetOrGenerate(
-		cdc, simapparams.InitiallyBondedValidators, &numInitiallyBonded, r,
+		cdc, simappparams.InitiallyBondedValidators, &numInitiallyBonded, r,
 		func(r *rand.Rand) { numInitiallyBonded = int64(r.Intn(300)) },
 	)
 
@@ -115,7 +183,7 @@ func AppStateRandomizedFn(
 
 	simManager.GenerateGenesisStates(simState)
 
-	appState, err := cdc.MarshalJSON(genesisState)
+	appState, err := json.Marshal(genesisState)
 	if err != nil {
 		panic(err)
 	}
@@ -125,17 +193,24 @@ func AppStateRandomizedFn(
 
 // AppStateFromGenesisFileFn util function to generate the genesis AppState
 // from a genesis.json file.
-func AppStateFromGenesisFileFn(r io.Reader, cdc *codec.LegacyAmino, genesisFile string) (tmtypes.GenesisDoc, []simtypes.Account) {
+func AppStateFromGenesisFileFn(r io.Reader, cdc codec.JSONCodec, genesisFile string) (tmtypes.GenesisDoc, []simtypes.Account) {
 	bytes, err := ioutil.ReadFile(genesisFile)
 	if err != nil {
 		panic(err)
 	}
 
 	var genesis tmtypes.GenesisDoc
-	cdc.MustUnmarshalJSON(bytes, &genesis)
+	// NOTE: Tendermint uses a custom JSON decoder for GenesisDoc
+	err = tmjson.Unmarshal(bytes, &genesis)
+	if err != nil {
+		panic(err)
+	}
 
 	var appState GenesisState
-	cdc.MustUnmarshalJSON(genesis.AppState, &appState)
+	err = json.Unmarshal(genesis.AppState, &appState)
+	if err != nil {
+		panic(err)
+	}
 
 	var authGenesis authtypes.GenesisState
 	if appState[authtypes.ModuleName] != nil {
@@ -152,7 +227,7 @@ func AppStateFromGenesisFileFn(r io.Reader, cdc *codec.LegacyAmino, genesisFile 
 			panic(err)
 		}
 
-		privKey := secp256k1.GenPrivKeySecp256k1(privkeySeed)
+		privKey := secp256k1.GenPrivKeyFromSecret(privkeySeed)
 
 		a, ok := acc.GetCachedValue().(authtypes.AccountI)
 		if !ok {

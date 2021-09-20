@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -44,19 +43,18 @@ func GetCmdQueryParams() *cobra.Command {
 		Args:  cobra.NoArgs,
 		Short: "Query distribution params",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			clientCtx := client.GetClientContextFromCmd(cmd)
-			clientCtx, err := client.ReadQueryCommandFlags(clientCtx, cmd.Flags())
+			clientCtx, err := client.GetClientQueryContext(cmd)
 			if err != nil {
 				return err
 			}
 			queryClient := types.NewQueryClient(clientCtx)
 
-			res, err := queryClient.Params(context.Background(), &types.QueryParamsRequest{})
+			res, err := queryClient.Params(cmd.Context(), &types.QueryParamsRequest{})
 			if err != nil {
 				return err
 			}
 
-			return clientCtx.PrintOutput(res.GetParams())
+			return clientCtx.PrintProto(&res.Params)
 		},
 	}
 
@@ -67,6 +65,8 @@ func GetCmdQueryParams() *cobra.Command {
 // GetCmdQueryValidatorOutstandingRewards implements the query validator
 // outstanding rewards command.
 func GetCmdQueryValidatorOutstandingRewards() *cobra.Command {
+	bech32PrefixValAddr := sdk.GetConfig().GetBech32ValidatorAddrPrefix()
+
 	cmd := &cobra.Command{
 		Use:   "validator-outstanding-rewards [validator]",
 		Args:  cobra.ExactArgs(1),
@@ -75,14 +75,13 @@ func GetCmdQueryValidatorOutstandingRewards() *cobra.Command {
 			fmt.Sprintf(`Query distribution outstanding (un-withdrawn) rewards for a validator and all their delegations.
 
 Example:
-$ %s query distribution validator-outstanding-rewards cosmosvaloper1lwjmdnks33xwnmfayc64ycprww49n33mtm92ne
+$ %s query distribution validator-outstanding-rewards %s1lwjmdnks33xwnmfayc64ycprww49n33mtm92ne
 `,
-				version.AppName,
+				version.AppName, bech32PrefixValAddr,
 			),
 		),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			clientCtx := client.GetClientContextFromCmd(cmd)
-			clientCtx, err := client.ReadQueryCommandFlags(clientCtx, cmd.Flags())
+			clientCtx, err := client.GetClientQueryContext(cmd)
 			if err != nil {
 				return err
 			}
@@ -94,14 +93,14 @@ $ %s query distribution validator-outstanding-rewards cosmosvaloper1lwjmdnks33xw
 			}
 
 			res, err := queryClient.ValidatorOutstandingRewards(
-				context.Background(),
-				&types.QueryValidatorOutstandingRewardsRequest{ValidatorAddress: validatorAddr},
+				cmd.Context(),
+				&types.QueryValidatorOutstandingRewardsRequest{ValidatorAddress: validatorAddr.String()},
 			)
 			if err != nil {
 				return err
 			}
 
-			return clientCtx.PrintOutput(res.GetRewards())
+			return clientCtx.PrintProto(&res.Rewards)
 		},
 	}
 
@@ -111,6 +110,8 @@ $ %s query distribution validator-outstanding-rewards cosmosvaloper1lwjmdnks33xw
 
 // GetCmdQueryValidatorCommission implements the query validator commission command.
 func GetCmdQueryValidatorCommission() *cobra.Command {
+	bech32PrefixValAddr := sdk.GetConfig().GetBech32ValidatorAddrPrefix()
+
 	cmd := &cobra.Command{
 		Use:   "commission [validator]",
 		Args:  cobra.ExactArgs(1),
@@ -119,14 +120,13 @@ func GetCmdQueryValidatorCommission() *cobra.Command {
 			fmt.Sprintf(`Query validator commission rewards from delegators to that validator.
 
 Example:
-$ %s query distribution commission cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj
+$ %s query distribution commission %s1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj
 `,
-				version.AppName,
+				version.AppName, bech32PrefixValAddr,
 			),
 		),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			clientCtx := client.GetClientContextFromCmd(cmd)
-			clientCtx, err := client.ReadQueryCommandFlags(clientCtx, cmd.Flags())
+			clientCtx, err := client.GetClientQueryContext(cmd)
 			if err != nil {
 				return err
 			}
@@ -138,14 +138,14 @@ $ %s query distribution commission cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fxs9l
 			}
 
 			res, err := queryClient.ValidatorCommission(
-				context.Background(),
-				&types.QueryValidatorCommissionRequest{ValidatorAddress: validatorAddr},
+				cmd.Context(),
+				&types.QueryValidatorCommissionRequest{ValidatorAddress: validatorAddr.String()},
 			)
 			if err != nil {
 				return err
 			}
 
-			return clientCtx.PrintOutput(res.GetCommission())
+			return clientCtx.PrintProto(&res.Commission)
 		},
 	}
 
@@ -155,6 +155,8 @@ $ %s query distribution commission cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fxs9l
 
 // GetCmdQueryValidatorSlashes implements the query validator slashes command.
 func GetCmdQueryValidatorSlashes() *cobra.Command {
+	bech32PrefixValAddr := sdk.GetConfig().GetBech32ValidatorAddrPrefix()
+
 	cmd := &cobra.Command{
 		Use:   "slashes [validator] [start-height] [end-height]",
 		Args:  cobra.ExactArgs(3),
@@ -163,14 +165,13 @@ func GetCmdQueryValidatorSlashes() *cobra.Command {
 			fmt.Sprintf(`Query all slashes of a validator for a given block range.
 
 Example:
-$ %s query distribution slashes cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj 0 100
+$ %s query distribution slashes %svaloper1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj 0 100
 `,
-				version.AppName,
+				version.AppName, bech32PrefixValAddr,
 			),
 		),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			clientCtx := client.GetClientContextFromCmd(cmd)
-			clientCtx, err := client.ReadQueryCommandFlags(clientCtx, cmd.Flags())
+			clientCtx, err := client.GetClientQueryContext(cmd)
 			if err != nil {
 				return err
 			}
@@ -197,9 +198,9 @@ $ %s query distribution slashes cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fxs9ldmq
 			}
 
 			res, err := queryClient.ValidatorSlashes(
-				context.Background(),
+				cmd.Context(),
 				&types.QueryValidatorSlashesRequest{
-					ValidatorAddress: validatorAddr,
+					ValidatorAddress: validatorAddr.String(),
 					StartingHeight:   startHeight,
 					EndingHeight:     endHeight,
 					Pagination:       pageReq,
@@ -209,7 +210,7 @@ $ %s query distribution slashes cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fxs9ldmq
 				return err
 			}
 
-			return clientCtx.PrintOutput(res)
+			return clientCtx.PrintProto(res)
 		},
 	}
 
@@ -220,6 +221,9 @@ $ %s query distribution slashes cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fxs9ldmq
 
 // GetCmdQueryDelegatorRewards implements the query delegator rewards command.
 func GetCmdQueryDelegatorRewards() *cobra.Command {
+	bech32PrefixAccAddr := sdk.GetConfig().GetBech32AccountAddrPrefix()
+	bech32PrefixValAddr := sdk.GetConfig().GetBech32ValidatorAddrPrefix()
+
 	cmd := &cobra.Command{
 		Use:   "rewards [delegator-addr] [validator-addr]",
 		Args:  cobra.RangeArgs(1, 2),
@@ -228,15 +232,14 @@ func GetCmdQueryDelegatorRewards() *cobra.Command {
 			fmt.Sprintf(`Query all rewards earned by a delegator, optionally restrict to rewards from a single validator.
 
 Example:
-$ %s query distribution rewards cosmos1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p
-$ %s query distribution rewards cosmos1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj
+$ %s query distribution rewards %s1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p
+$ %s query distribution rewards %s1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p %s1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj
 `,
-				version.AppName, version.AppName,
+				version.AppName, bech32PrefixAccAddr, version.AppName, bech32PrefixAccAddr, bech32PrefixValAddr,
 			),
 		),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			clientCtx := client.GetClientContextFromCmd(cmd)
-			clientCtx, err := client.ReadQueryCommandFlags(clientCtx, cmd.Flags())
+			clientCtx, err := client.GetClientQueryContext(cmd)
 			if err != nil {
 				return err
 			}
@@ -248,6 +251,7 @@ $ %s query distribution rewards cosmos1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p co
 			}
 
 			// query for rewards from a particular delegation
+			ctx := cmd.Context()
 			if len(args) == 2 {
 				validatorAddr, err := sdk.ValAddressFromBech32(args[1])
 				if err != nil {
@@ -255,25 +259,25 @@ $ %s query distribution rewards cosmos1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p co
 				}
 
 				res, err := queryClient.DelegationRewards(
-					context.Background(),
-					&types.QueryDelegationRewardsRequest{DelegatorAddress: delegatorAddr, ValidatorAddress: validatorAddr},
+					ctx,
+					&types.QueryDelegationRewardsRequest{DelegatorAddress: delegatorAddr.String(), ValidatorAddress: validatorAddr.String()},
 				)
 				if err != nil {
 					return err
 				}
 
-				return clientCtx.PrintOutput(res.GetRewards())
+				return clientCtx.PrintProto(res)
 			}
 
 			res, err := queryClient.DelegationTotalRewards(
-				context.Background(),
-				&types.QueryDelegationTotalRewardsRequest{DelegatorAddress: delegatorAddr},
+				ctx,
+				&types.QueryDelegationTotalRewardsRequest{DelegatorAddress: delegatorAddr.String()},
 			)
 			if err != nil {
 				return err
 			}
 
-			return clientCtx.PrintOutput(res)
+			return clientCtx.PrintProto(res)
 		},
 	}
 
@@ -297,19 +301,18 @@ $ %s query distribution community-pool
 			),
 		),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			clientCtx := client.GetClientContextFromCmd(cmd)
-			clientCtx, err := client.ReadQueryCommandFlags(clientCtx, cmd.Flags())
+			clientCtx, err := client.GetClientQueryContext(cmd)
 			if err != nil {
 				return err
 			}
 			queryClient := types.NewQueryClient(clientCtx)
 
-			res, err := queryClient.CommunityPool(context.Background(), &types.QueryCommunityPoolRequest{})
+			res, err := queryClient.CommunityPool(cmd.Context(), &types.QueryCommunityPoolRequest{})
 			if err != nil {
 				return err
 			}
 
-			return clientCtx.PrintOutput(res.GetPool())
+			return clientCtx.PrintProto(res)
 		},
 	}
 

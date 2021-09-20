@@ -8,61 +8,66 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/server"
-	"github.com/cosmos/cosmos-sdk/testutil"
+	"github.com/cosmos/cosmos-sdk/simapp"
 	"github.com/cosmos/cosmos-sdk/types"
 )
 
 func TestGenerateCoinKey(t *testing.T) {
 	t.Parallel()
-	addr, mnemonic, err := server.GenerateCoinKey()
+	cdc := simapp.MakeTestEncodingConfig().Codec
+	addr, mnemonic, err := server.GenerateCoinKey(hd.Secp256k1, cdc)
 	require.NoError(t, err)
 
 	// Test creation
-	info, err := keyring.NewInMemory().NewAccount("xxx", mnemonic, "", hd.NewFundraiserParams(0, types.GetConfig().GetCoinType(), 0).String(), hd.Secp256k1)
+	k, err := keyring.NewInMemory(cdc).NewAccount("xxx", mnemonic, "", hd.NewFundraiserParams(0, types.GetConfig().GetCoinType(), 0).String(), hd.Secp256k1)
 	require.NoError(t, err)
-	require.Equal(t, addr, info.GetAddress())
+	addr1, err := k.GetAddress()
+	require.NoError(t, err)
+	require.Equal(t, addr, addr1)
 }
 
 func TestGenerateSaveCoinKey(t *testing.T) {
 	t.Parallel()
-	dir, cleanup := testutil.NewTestCaseDir(t)
-	t.Cleanup(cleanup)
 
-	kb, err := keyring.New(t.Name(), "test", dir, nil)
+	encCfg := simapp.MakeTestEncodingConfig()
+	kb, err := keyring.New(t.Name(), "test", t.TempDir(), nil, encCfg.Codec)
 	require.NoError(t, err)
 
-	addr, mnemonic, err := server.GenerateSaveCoinKey(kb, "keyname", "012345678", false)
+	addr, mnemonic, err := server.GenerateSaveCoinKey(kb, "keyname", false, hd.Secp256k1)
 	require.NoError(t, err)
 
 	// Test key was actually saved
-	info, err := kb.Key("keyname")
+	k, err := kb.Key("keyname")
 	require.NoError(t, err)
-	require.Equal(t, addr, info.GetAddress())
+	addr1, err := k.GetAddress()
+	require.NoError(t, err)
+	require.Equal(t, addr, addr1)
 
 	// Test in-memory recovery
-	info, err = keyring.NewInMemory().NewAccount("xxx", mnemonic, "", hd.NewFundraiserParams(0, types.GetConfig().GetCoinType(), 0).String(), hd.Secp256k1)
+	k, err = keyring.NewInMemory(encCfg.Codec).NewAccount("xxx", mnemonic, "", hd.NewFundraiserParams(0, types.GetConfig().GetCoinType(), 0).String(), hd.Secp256k1)
 	require.NoError(t, err)
-	require.Equal(t, addr, info.GetAddress())
+	addr1, err = k.GetAddress()
+	require.NoError(t, err)
+	require.Equal(t, addr, addr1)
 }
 
 func TestGenerateSaveCoinKeyOverwriteFlag(t *testing.T) {
 	t.Parallel()
-	dir, cleanup := testutil.NewTestCaseDir(t)
-	t.Cleanup(cleanup)
 
-	kb, err := keyring.New(t.Name(), "test", dir, nil)
+	encCfg := simapp.MakeTestEncodingConfig()
+	kb, err := keyring.New(t.Name(), "test", t.TempDir(), nil, encCfg.Codec)
 	require.NoError(t, err)
 
 	keyname := "justakey"
-	addr1, _, err := server.GenerateSaveCoinKey(kb, keyname, "012345678", false)
+	addr1, _, err := server.GenerateSaveCoinKey(kb, keyname, false, hd.Secp256k1)
 	require.NoError(t, err)
 
 	// Test overwrite with overwrite=false
-	_, _, err = server.GenerateSaveCoinKey(kb, keyname, "012345678", false)
+	_, _, err = server.GenerateSaveCoinKey(kb, keyname, false, hd.Secp256k1)
 	require.Error(t, err)
 
 	// Test overwrite with overwrite=true
-	addr2, _, err := server.GenerateSaveCoinKey(kb, keyname, "012345678", true)
+	addr2, _, err := server.GenerateSaveCoinKey(kb, keyname, true, hd.Secp256k1)
 	require.NoError(t, err)
 
 	require.NotEqual(t, addr1, addr2)

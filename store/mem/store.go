@@ -7,6 +7,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/store/cachekv"
 	"github.com/cosmos/cosmos-sdk/store/dbadapter"
+	"github.com/cosmos/cosmos-sdk/store/listenkv"
 	"github.com/cosmos/cosmos-sdk/store/tracekv"
 	"github.com/cosmos/cosmos-sdk/store/types"
 )
@@ -35,7 +36,7 @@ func (s Store) GetStoreType() types.StoreType {
 	return types.StoreTypeMemory
 }
 
-// CacheWrap cache wraps the underlying store.
+// CacheWrap branches the underlying store.
 func (s Store) CacheWrap() types.CacheWrap {
 	return cachekv.NewStore(s)
 }
@@ -45,8 +46,18 @@ func (s Store) CacheWrapWithTrace(w io.Writer, tc types.TraceContext) types.Cach
 	return cachekv.NewStore(tracekv.NewStore(s, w, tc))
 }
 
+// CacheWrapWithListeners implements the CacheWrapper interface.
+func (s Store) CacheWrapWithListeners(storeKey types.StoreKey, listeners []types.WriteListener) types.CacheWrap {
+	return cachekv.NewStore(listenkv.NewStore(s, storeKey, listeners))
+}
+
 // Commit performs a no-op as entries are persistent between commitments.
 func (s *Store) Commit() (id types.CommitID) { return }
 
 func (s *Store) SetPruning(pruning types.PruningOptions) {}
-func (s Store) LastCommitID() (id types.CommitID)        { return }
+
+// GetPruning is a no-op as pruning options cannot be directly set on this store.
+// They must be set on the root commit multi-store.
+func (s *Store) GetPruning() types.PruningOptions { return types.PruningOptions{} }
+
+func (s Store) LastCommitID() (id types.CommitID) { return }

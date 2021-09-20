@@ -5,8 +5,6 @@ import (
 	"io/ioutil"
 
 	"github.com/cosmos/cosmos-sdk/codec"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/types/rest"
 	"github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 )
 
@@ -31,17 +29,6 @@ type (
 		Changes     ParamChangesJSON `json:"changes" yaml:"changes"`
 		Deposit     string           `json:"deposit" yaml:"deposit"`
 	}
-
-	// ParamChangeProposalReq defines a parameter change proposal request body.
-	ParamChangeProposalReq struct {
-		BaseReq rest.BaseReq `json:"base_req" yaml:"base_req"`
-
-		Title       string           `json:"title" yaml:"title"`
-		Description string           `json:"description" yaml:"description"`
-		Changes     ParamChangesJSON `json:"changes" yaml:"changes"`
-		Proposer    sdk.AccAddress   `json:"proposer" yaml:"proposer"`
-		Deposit     sdk.Coins        `json:"deposit" yaml:"deposit"`
-	}
 )
 
 func NewParamChangeJSON(subspace, key string, value json.RawMessage) ParamChangeJSON {
@@ -65,7 +52,7 @@ func (pcj ParamChangesJSON) ToParamChanges() []proposal.ParamChange {
 
 // ParseParamChangeProposalJSON reads and parses a ParamChangeProposalJSON from
 // file.
-func ParseParamChangeProposalJSON(cdc codec.JSONMarshaler, proposalFile string) (ParamChangeProposalJSON, error) {
+func ParseParamChangeProposalJSON(cdc *codec.LegacyAmino, proposalFile string) (ParamChangeProposalJSON, error) {
 	proposal := ParamChangeProposalJSON{}
 
 	contents, err := ioutil.ReadFile(proposalFile)

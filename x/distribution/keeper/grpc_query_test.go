@@ -6,14 +6,16 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/suite"
-	abci "github.com/tendermint/tendermint/abci/types"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/simapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
+	"github.com/cosmos/cosmos-sdk/x/bank/testutil"
 	"github.com/cosmos/cosmos-sdk/x/distribution/types"
 	"github.com/cosmos/cosmos-sdk/x/staking"
+	"github.com/cosmos/cosmos-sdk/x/staking/teststaking"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
@@ -28,8 +30,8 @@ type KeeperTestSuite struct {
 }
 
 func (suite *KeeperTestSuite) SetupTest() {
-	app := simapp.Setup(false)
-	ctx := app.BaseApp.NewContext(false, abci.Header{})
+	app := simapp.Setup(suite.T(), false)
+	ctx := app.BaseApp.NewContext(false, tmproto.Header{})
 
 	queryHelper := baseapp.NewQueryServerTestHelper(ctx, app.InterfaceRegistry())
 	types.RegisterQueryServer(queryHelper, app.DistrKeeper)
@@ -128,7 +130,7 @@ func (suite *KeeperTestSuite) TestGRPCValidatorOutstandingRewards() {
 		}, {
 			"valid request",
 			func() {
-				req = &types.QueryValidatorOutstandingRewardsRequest{ValidatorAddress: valAddrs[0]}
+				req = &types.QueryValidatorOutstandingRewardsRequest{ValidatorAddress: valAddrs[0].String()}
 			},
 			true,
 		},
@@ -175,7 +177,7 @@ func (suite *KeeperTestSuite) TestGRPCValidatorCommission() {
 		{
 			"valid request",
 			func() {
-				req = &types.QueryValidatorCommissionRequest{ValidatorAddress: valAddrs[0]}
+				req = &types.QueryValidatorCommissionRequest{ValidatorAddress: valAddrs[0].String()}
 			},
 			true,
 		},
@@ -235,7 +237,7 @@ func (suite *KeeperTestSuite) TestGRPCValidatorSlashes() {
 			"Ending height lesser than start height request",
 			func() {
 				req = &types.QueryValidatorSlashesRequest{
-					ValidatorAddress: valAddrs[1],
+					ValidatorAddress: valAddrs[1].String(),
 					StartingHeight:   10,
 					EndingHeight:     1,
 				}
@@ -247,7 +249,7 @@ func (suite *KeeperTestSuite) TestGRPCValidatorSlashes() {
 			"no slash event validator request",
 			func() {
 				req = &types.QueryValidatorSlashesRequest{
-					ValidatorAddress: valAddrs[1],
+					ValidatorAddress: valAddrs[1].String(),
 					StartingHeight:   1,
 					EndingHeight:     10,
 				}
@@ -264,7 +266,7 @@ func (suite *KeeperTestSuite) TestGRPCValidatorSlashes() {
 				}
 
 				req = &types.QueryValidatorSlashesRequest{
-					ValidatorAddress: valAddrs[0],
+					ValidatorAddress: valAddrs[0].String(),
 					StartingHeight:   1,
 					EndingHeight:     10,
 					Pagination:       pageReq,
@@ -285,7 +287,7 @@ func (suite *KeeperTestSuite) TestGRPCValidatorSlashes() {
 				}
 
 				req = &types.QueryValidatorSlashesRequest{
-					ValidatorAddress: valAddrs[0],
+					ValidatorAddress: valAddrs[0].String(),
 					StartingHeight:   1,
 					EndingHeight:     10,
 					Pagination:       pageReq,
@@ -306,7 +308,7 @@ func (suite *KeeperTestSuite) TestGRPCValidatorSlashes() {
 				}
 
 				req = &types.QueryValidatorSlashesRequest{
-					ValidatorAddress: valAddrs[0],
+					ValidatorAddress: valAddrs[0].String(),
 					StartingHeight:   1,
 					EndingHeight:     10,
 					Pagination:       pageReq,
@@ -340,15 +342,9 @@ func (suite *KeeperTestSuite) TestGRPCValidatorSlashes() {
 func (suite *KeeperTestSuite) TestGRPCDelegationRewards() {
 	app, ctx, addrs, valAddrs := suite.app, suite.ctx, suite.addrs, suite.valAddrs
 
-	sh := staking.NewHandler(app.StakingKeeper)
-	comm := stakingtypes.NewCommissionRates(sdk.NewDecWithPrec(5, 1), sdk.NewDecWithPrec(5, 1), sdk.NewDec(0))
-	msg := stakingtypes.NewMsgCreateValidator(
-		valAddrs[0], valConsPk1, sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(100)), stakingtypes.Description{}, comm, sdk.OneInt(),
-	)
-
-	res, err := sh(ctx, msg)
-	suite.Require().NoError(err)
-	suite.Require().NotNil(res)
+	tstaking := teststaking.NewHelper(suite.T(), ctx, app.StakingKeeper)
+	tstaking.Commission = stakingtypes.NewCommissionRates(sdk.NewDecWithPrec(5, 1), sdk.NewDecWithPrec(5, 1), sdk.NewDec(0))
+	tstaking.CreateValidator(valAddrs[0], valConsPk1, sdk.NewInt(100), true)
 
 	staking.EndBlocker(ctx, app.StakingKeeper)
 	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + 1)
@@ -385,8 +381,8 @@ func (suite *KeeperTestSuite) TestGRPCDelegationRewards() {
 			"empty delegator request",
 			func() {
 				req = &types.QueryDelegationRewardsRequest{
-					DelegatorAddress: nil,
-					ValidatorAddress: valAddrs[0],
+					DelegatorAddress: "",
+					ValidatorAddress: valAddrs[0].String(),
 				}
 			},
 			false,
@@ -395,8 +391,8 @@ func (suite *KeeperTestSuite) TestGRPCDelegationRewards() {
 			"empty validator request",
 			func() {
 				req = &types.QueryDelegationRewardsRequest{
-					DelegatorAddress: addrs[1],
-					ValidatorAddress: nil,
+					DelegatorAddress: addrs[1].String(),
+					ValidatorAddress: "",
 				}
 			},
 			false,
@@ -405,8 +401,8 @@ func (suite *KeeperTestSuite) TestGRPCDelegationRewards() {
 			"request with wrong delegator and validator",
 			func() {
 				req = &types.QueryDelegationRewardsRequest{
-					DelegatorAddress: addrs[1],
-					ValidatorAddress: valAddrs[1],
+					DelegatorAddress: addrs[1].String(),
+					ValidatorAddress: valAddrs[1].String(),
 				}
 			},
 			false,
@@ -415,8 +411,8 @@ func (suite *KeeperTestSuite) TestGRPCDelegationRewards() {
 			"valid request",
 			func() {
 				req = &types.QueryDelegationRewardsRequest{
-					DelegatorAddress: addrs[0],
-					ValidatorAddress: valAddrs[0],
+					DelegatorAddress: addrs[0].String(),
+					ValidatorAddress: valAddrs[0].String(),
 				}
 
 				expRes = &types.QueryDelegationRewardsResponse{
@@ -465,7 +461,7 @@ func (suite *KeeperTestSuite) TestGRPCDelegationRewards() {
 			"valid total delegation rewards",
 			func() {
 				totalRewardsReq = &types.QueryDelegationTotalRewardsRequest{
-					DelegatorAddress: addrs[0],
+					DelegatorAddress: addrs[0].String(),
 				}
 
 				expectedDelReward := types.NewDelegationDelegatorReward(valAddrs[0],
@@ -519,7 +515,7 @@ func (suite *KeeperTestSuite) TestGRPCDelegationRewards() {
 			"request no delegations address",
 			func() {
 				delegatorValidatorsReq = &types.QueryDelegatorValidatorsRequest{
-					DelegatorAddress: addrs[1],
+					DelegatorAddress: addrs[1].String(),
 				}
 
 				expDelegatorValidatorsRes = &types.QueryDelegatorValidatorsResponse{}
@@ -530,10 +526,10 @@ func (suite *KeeperTestSuite) TestGRPCDelegationRewards() {
 			"valid request",
 			func() {
 				delegatorValidatorsReq = &types.QueryDelegatorValidatorsRequest{
-					DelegatorAddress: addrs[0],
+					DelegatorAddress: addrs[0].String(),
 				}
 				expDelegatorValidatorsRes = &types.QueryDelegatorValidatorsResponse{
-					Validators: valAddrs[:1],
+					Validators: []string{valAddrs[0].String()},
 				}
 			},
 			true,
@@ -548,7 +544,7 @@ func (suite *KeeperTestSuite) TestGRPCDelegationRewards() {
 
 			if testCase.expPass {
 				suite.Require().NoError(err)
-				suite.Require().Equal(validators, expDelegatorValidatorsRes)
+				suite.Require().Equal(expDelegatorValidatorsRes, validators)
 			} else {
 				suite.Require().Error(err)
 				suite.Require().Nil(validators)
@@ -580,7 +576,7 @@ func (suite *KeeperTestSuite) TestGRPCDelegatorWithdrawAddress() {
 		{
 			"valid request",
 			func() {
-				req = &types.QueryDelegatorWithdrawAddressRequest{DelegatorAddress: addrs[0]}
+				req = &types.QueryDelegatorWithdrawAddressRequest{DelegatorAddress: addrs[0].String()}
 			},
 			true,
 		},
@@ -594,7 +590,7 @@ func (suite *KeeperTestSuite) TestGRPCDelegatorWithdrawAddress() {
 
 			if testCase.expPass {
 				suite.Require().NoError(err)
-				suite.Require().Equal(withdrawAddress.WithdrawAddress, addrs[1])
+				suite.Require().Equal(withdrawAddress.WithdrawAddress, addrs[1].String())
 			} else {
 				suite.Require().Error(err)
 				suite.Require().Nil(withdrawAddress)
@@ -628,7 +624,7 @@ func (suite *KeeperTestSuite) TestGRPCCommunityPool() {
 			"valid request",
 			func() {
 				amount := sdk.NewCoins(sdk.NewInt64Coin("stake", 100))
-				suite.Require().NoError(app.BankKeeper.SetBalances(ctx, addrs[0], amount))
+				suite.Require().NoError(testutil.FundAccount(app.BankKeeper, ctx, addrs[0], amount))
 
 				err := app.DistrKeeper.FundCommunityPool(ctx, amount, addrs[0])
 				suite.Require().Nil(err)

@@ -4,16 +4,18 @@ import (
 	"crypto/rand"
 	"testing"
 
+	"github.com/cosmos/cosmos-sdk/store/cachekv"
+
+	"github.com/stretchr/testify/require"
+	dbm "github.com/tendermint/tm-db"
+
+	tiavl "github.com/cosmos/iavl"
+
 	"github.com/cosmos/cosmos-sdk/store/dbadapter"
 	"github.com/cosmos/cosmos-sdk/store/gaskv"
 	"github.com/cosmos/cosmos-sdk/store/iavl"
 	"github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-
-	"github.com/stretchr/testify/require"
-
-	tiavl "github.com/tendermint/iavl"
-	dbm "github.com/tendermint/tm-db"
 )
 
 // copied from iavl/store_test.go
@@ -425,4 +427,18 @@ func TestPrefixDBReverseIterator4(t *testing.T) {
 	itr := pstore.ReverseIterator(bz(""), bz(""))
 	checkInvalid(t, itr)
 	itr.Close()
+}
+
+func TestCacheWraps(t *testing.T) {
+	db := dbm.NewMemDB()
+	store := dbadapter.Store{DB: db}
+
+	cacheWrapper := store.CacheWrap()
+	require.IsType(t, &cachekv.Store{}, cacheWrapper)
+
+	cacheWrappedWithTrace := store.CacheWrapWithTrace(nil, nil)
+	require.IsType(t, &cachekv.Store{}, cacheWrappedWithTrace)
+
+	cacheWrappedWithListeners := store.CacheWrapWithListeners(nil, nil)
+	require.IsType(t, &cachekv.Store{}, cacheWrappedWithListeners)
 }

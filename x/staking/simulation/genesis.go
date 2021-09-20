@@ -3,11 +3,10 @@ package simulation
 // DONTCOVER
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"time"
-
-	"github.com/cosmos/cosmos-sdk/codec"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
@@ -22,18 +21,18 @@ const (
 	historicalEntries = "historical_entries"
 )
 
-// GenUnbondingTime randomized UnbondingTime
-func GenUnbondingTime(r *rand.Rand) (ubdTime time.Duration) {
+// genUnbondingTime returns randomized UnbondingTime
+func genUnbondingTime(r *rand.Rand) (ubdTime time.Duration) {
 	return time.Duration(simulation.RandIntBetween(r, 60, 60*60*24*3*2)) * time.Second
 }
 
-// GenMaxValidators randomized MaxValidators
-func GenMaxValidators(r *rand.Rand) (maxValidators uint32) {
+// genMaxValidators returns randomized MaxValidators
+func genMaxValidators(r *rand.Rand) (maxValidators uint32) {
 	return uint32(r.Intn(250) + 1)
 }
 
-// GetHistEntries randomized HistoricalEntries between 0-100.
-func GetHistEntries(r *rand.Rand) uint32 {
+// getHistEntries returns randomized HistoricalEntries between 0-100.
+func getHistEntries(r *rand.Rand) uint32 {
 	return uint32(r.Intn(int(types.DefaultHistoricalEntries + 1)))
 }
 
@@ -48,17 +47,17 @@ func RandomizedGenState(simState *module.SimulationState) {
 
 	simState.AppParams.GetOrGenerate(
 		simState.Cdc, unbondingTime, &unbondTime, simState.Rand,
-		func(r *rand.Rand) { unbondTime = GenUnbondingTime(r) },
+		func(r *rand.Rand) { unbondTime = genUnbondingTime(r) },
 	)
 
 	simState.AppParams.GetOrGenerate(
 		simState.Cdc, maxValidators, &maxVals, simState.Rand,
-		func(r *rand.Rand) { maxVals = GenMaxValidators(r) },
+		func(r *rand.Rand) { maxVals = genMaxValidators(r) },
 	)
 
 	simState.AppParams.GetOrGenerate(
 		simState.Cdc, historicalEntries, &histEntries, simState.Rand,
-		func(r *rand.Rand) { histEntries = GetHistEntries(r) },
+		func(r *rand.Rand) { histEntries = getHistEntries(r) },
 	)
 
 	// NOTE: the slashing module need to be defined after the staking module on the
@@ -85,7 +84,10 @@ func RandomizedGenState(simState *module.SimulationState) {
 			simulation.RandomDecAmount(simState.Rand, maxCommission),
 		)
 
-		validator := types.NewValidator(valAddr, simState.Accounts[i].PubKey, types.Description{})
+		validator, err := types.NewValidator(valAddr, simState.Accounts[i].ConsKey.PubKey(), types.Description{})
+		if err != nil {
+			panic(err)
+		}
 		validator.Tokens = sdk.NewInt(simState.InitialStake)
 		validator.DelegatorShares = sdk.NewDec(simState.InitialStake)
 		validator.Commission = commission
@@ -98,6 +100,10 @@ func RandomizedGenState(simState *module.SimulationState) {
 
 	stakingGenesis := types.NewGenesisState(params, validators, delegations)
 
-	fmt.Printf("Selected randomly generated staking parameters:\n%s\n", codec.MustMarshalJSONIndent(types.ModuleCdc, stakingGenesis.Params))
+	bz, err := json.MarshalIndent(&stakingGenesis.Params, "", " ")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Selected randomly generated staking parameters:\n%s\n", bz)
 	simState.GenState[types.ModuleName] = simState.Cdc.MustMarshalJSON(stakingGenesis)
 }

@@ -23,7 +23,7 @@ const (
 
 // WeightedOperations returns all the operations from the module with their respective weights
 func WeightedOperations(
-	appParams simtypes.AppParams, cdc *codec.LegacyAmino, ak types.AccountKeeper,
+	appParams simtypes.AppParams, cdc codec.JSONCodec, ak types.AccountKeeper,
 	bk types.BankKeeper, k keeper.Keeper, sk stakingkeeper.Keeper,
 ) simulation.WeightedOperations {
 
@@ -43,7 +43,6 @@ func WeightedOperations(
 }
 
 // SimulateMsgUnjail generates a MsgUnjail with random values
-// nolint: interfacer
 func SimulateMsgUnjail(ak types.AccountKeeper, bk types.BankKeeper, k keeper.Keeper, sk stakingkeeper.Keeper) simtypes.Operation {
 	return func(
 		r *rand.Rand, app *baseapp.BaseApp, ctx sdk.Context,
@@ -65,7 +64,10 @@ func SimulateMsgUnjail(ak types.AccountKeeper, bk types.BankKeeper, k keeper.Kee
 			return simtypes.NoOpMsg(types.ModuleName, types.TypeMsgUnjail, "validator is not jailed"), nil, nil
 		}
 
-		consAddr := sdk.ConsAddress(validator.GetConsPubKey().Address())
+		consAddr, err := validator.GetConsAddr()
+		if err != nil {
+			return simtypes.NoOpMsg(types.ModuleName, types.TypeMsgUnjail, "unable to get validator consensus key"), nil, err
+		}
 		info, found := k.GetValidatorSigningInfo(ctx, consAddr)
 		if !found {
 			return simtypes.NoOpMsg(types.ModuleName, types.TypeMsgUnjail, "unable to find validator signing info"), nil, nil // skip
@@ -86,7 +88,7 @@ func SimulateMsgUnjail(ak types.AccountKeeper, bk types.BankKeeper, k keeper.Kee
 
 		msg := types.NewMsgUnjail(validator.GetOperator())
 
-		txGen := simappparams.MakeEncodingConfig().TxConfig
+		txGen := simappparams.MakeTestEncodingConfig().TxConfig
 		tx, err := helpers.GenTx(
 			txGen,
 			[]sdk.Msg{msg},
@@ -101,7 +103,7 @@ func SimulateMsgUnjail(ak types.AccountKeeper, bk types.BankKeeper, k keeper.Kee
 			return simtypes.NoOpMsg(types.ModuleName, msg.Type(), "unable to generate mock tx"), nil, err
 		}
 
-		_, res, err := app.Deliver(tx)
+		_, res, err := app.SimDeliver(txGen.TxEncoder(), tx)
 
 		// result should fail if:
 		// - validator cannot be unjailed due to tombstone
@@ -112,23 +114,23 @@ func SimulateMsgUnjail(ak types.AccountKeeper, bk types.BankKeeper, k keeper.Kee
 			validator.TokensFromShares(selfDel.GetShares()).TruncateInt().LT(validator.GetMinSelfDelegation()) {
 			if res != nil && err == nil {
 				if info.Tombstoned {
-					return simtypes.NewOperationMsg(msg, true, ""), nil, errors.New("validator should not have been unjailed if validator tombstoned")
+					return simtypes.NewOperationMsg(msg, true, "", nil), nil, errors.New("validator should not have been unjailed if validator tombstoned")
 				}
 				if ctx.BlockHeader().Time.Before(info.JailedUntil) {
-					return simtypes.NewOperationMsg(msg, true, ""), nil, errors.New("validator unjailed while validator still in jail period")
+					return simtypes.NewOperationMsg(msg, true, "", nil), nil, errors.New("validator unjailed while validator still in jail period")
 				}
 				if validator.TokensFromShares(selfDel.GetShares()).TruncateInt().LT(validator.GetMinSelfDelegation()) {
-					return simtypes.NewOperationMsg(msg, true, ""), nil, errors.New("validator unjailed even though self-delegation too low")
+					return simtypes.NewOperationMsg(msg, true, "", nil), nil, errors.New("validator unjailed even though self-delegation too low")
 				}
 			}
 			// msg failed as expected
-			return simtypes.NewOperationMsg(msg, false, ""), nil, nil
+			return simtypes.NewOperationMsg(msg, false, "", nil), nil, nil
 		}
 
 		if err != nil {
 			return simtypes.NoOpMsg(types.ModuleName, msg.Type(), "unable to deliver tx"), nil, errors.New(res.Log)
 		}
 
-		return simtypes.NewOperationMsg(msg, true, ""), nil, nil
+		return simtypes.NewOperationMsg(msg, true, "", nil), nil, nil
 	}
 }

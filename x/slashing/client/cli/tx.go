@@ -31,21 +31,16 @@ func NewUnjailTxCmd() *cobra.Command {
 		Short: "unjail validator previously jailed for downtime",
 		Long: `unjail a jailed validator:
 
-$ <appcli> tx slashing unjail --from mykey
+$ <appd> tx slashing unjail --from mykey
 `,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			clientCtx := client.GetClientContextFromCmd(cmd)
-			clientCtx, err := client.ReadTxCommandFlags(clientCtx, cmd.Flags())
+			clientCtx, err := client.GetClientTxContext(cmd)
 			if err != nil {
 				return err
 			}
-
 			valAddr := clientCtx.GetFromAddress()
 
 			msg := types.NewMsgUnjail(sdk.ValAddress(valAddr))
-			if err := msg.ValidateBasic(); err != nil {
-				return err
-			}
 
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},

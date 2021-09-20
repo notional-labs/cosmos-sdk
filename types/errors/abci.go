@@ -67,8 +67,8 @@ func ResponseDeliverTx(err error, gw, gu uint64, debug bool) abci.ResponseDelive
 
 // QueryResult returns a ResponseQuery from an error. It will try to parse ABCI
 // info from the error.
-func QueryResult(err error) abci.ResponseQuery {
-	space, code, log := ABCIInfo(err, false)
+func QueryResult(err error, debug bool) abci.ResponseQuery {
+	space, code, log := ABCIInfo(err, debug)
 	return abci.ResponseQuery{
 		Codespace: space,
 		Code:      code,
@@ -151,12 +151,14 @@ func errIsNil(err error) bool {
 	return false
 }
 
+var errPanicWithMsg = Wrapf(ErrPanic, "panic message redacted to hide potentially sensitive system info")
+
 // Redact replaces an error that is not initialized as an ABCI Error with a
 // generic internal error instance. If the error is an ABCI Error, that error is
 // simply returned.
 func Redact(err error) error {
 	if ErrPanic.Is(err) {
-		return ErrPanic
+		return errPanicWithMsg
 	}
 	if abciCode(err) == internalABCICode {
 		return errInternal

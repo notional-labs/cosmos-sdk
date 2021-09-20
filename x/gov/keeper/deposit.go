@@ -16,7 +16,7 @@ func (keeper Keeper) GetDeposit(ctx sdk.Context, proposalID uint64, depositorAdd
 		return deposit, false
 	}
 
-	keeper.cdc.MustUnmarshalBinaryBare(bz, &deposit)
+	keeper.cdc.MustUnmarshal(bz, &deposit)
 
 	return deposit, true
 }
@@ -24,8 +24,13 @@ func (keeper Keeper) GetDeposit(ctx sdk.Context, proposalID uint64, depositorAdd
 // SetDeposit sets a Deposit to the gov store
 func (keeper Keeper) SetDeposit(ctx sdk.Context, deposit types.Deposit) {
 	store := ctx.KVStore(keeper.storeKey)
-	bz := keeper.cdc.MustMarshalBinaryBare(&deposit)
-	store.Set(types.DepositKey(deposit.ProposalID, deposit.Depositor), bz)
+	bz := keeper.cdc.MustMarshal(&deposit)
+	depositor, err := sdk.AccAddressFromBech32(deposit.Depositor)
+	if err != nil {
+		panic(err)
+	}
+
+	store.Set(types.DepositKey(deposit.ProposalId, depositor), bz)
 }
 
 // GetAllDeposits returns all the deposits from the store
@@ -48,8 +53,8 @@ func (keeper Keeper) GetDeposits(ctx sdk.Context, proposalID uint64) (deposits t
 	return
 }
 
-// DeleteDeposits deletes all the deposits on a specific proposal without refunding them
-func (keeper Keeper) DeleteDeposits(ctx sdk.Context, proposalID uint64) {
+// DeleteAndBurnDeposits deletes and burn all the deposits on a specific proposal.
+func (keeper Keeper) DeleteAndBurnDeposits(ctx sdk.Context, proposalID uint64) {
 	store := ctx.KVStore(keeper.storeKey)
 
 	keeper.IterateDeposits(ctx, proposalID, func(deposit types.Deposit) bool {
@@ -58,7 +63,11 @@ func (keeper Keeper) DeleteDeposits(ctx sdk.Context, proposalID uint64) {
 			panic(err)
 		}
 
-		store.Delete(types.DepositKey(proposalID, deposit.Depositor))
+		depositor, err := sdk.AccAddressFromBech32(deposit.Depositor)
+		if err != nil {
+			panic(err)
+		}
+		store.Delete(types.DepositKey(proposalID, depositor))
 		return false
 	})
 }
@@ -73,7 +82,7 @@ func (keeper Keeper) IterateAllDeposits(ctx sdk.Context, cb func(deposit types.D
 	for ; iterator.Valid(); iterator.Next() {
 		var deposit types.Deposit
 
-		keeper.cdc.MustUnmarshalBinaryBare(iterator.Value(), &deposit)
+		keeper.cdc.MustUnmarshal(iterator.Value(), &deposit)
 
 		if cb(deposit) {
 			break
@@ -91,7 +100,7 @@ func (keeper Keeper) IterateDeposits(ctx sdk.Context, proposalID uint64, cb func
 	for ; iterator.Valid(); iterator.Next() {
 		var deposit types.Deposit
 
-		keeper.cdc.MustUnmarshalBinaryBare(iterator.Value(), &deposit)
+		keeper.cdc.MustUnmarshal(iterator.Value(), &deposit)
 
 		if cb(deposit) {
 			break
@@ -141,6 +150,9 @@ func (keeper Keeper) AddDeposit(ctx sdk.Context, proposalID uint64, depositorAdd
 		deposit = types.NewDeposit(proposalID, depositorAddr, depositAmount)
 	}
 
+	// called when deposit has been added to a proposal, however the proposal may not be active
+	keeper.AfterProposalDeposit(ctx, proposalID, depositorAddr)
+
 	ctx.EventManager().EmitEvent(
 		sdk.NewEvent(
 			types.EventTypeProposalDeposit,
@@ -154,17 +166,22 @@ func (keeper Keeper) AddDeposit(ctx sdk.Context, proposalID uint64, depositorAdd
 	return activatedVotingPeriod, nil
 }
 
-// RefundDeposits refunds and deletes all the deposits on a specific proposal
-func (keeper Keeper) RefundDeposits(ctx sdk.Context, proposalID uint64) {
+// RefundAndDeleteDeposits refunds and deletes all the deposits on a specific proposal.
+func (keeper Keeper) RefundAndDeleteDeposits(ctx sdk.Context, proposalID uint64) {
 	store := ctx.KVStore(keeper.storeKey)
 
 	keeper.IterateDeposits(ctx, proposalID, func(deposit types.Deposit) bool {
-		err := keeper.bankKeeper.SendCoinsFromModuleToAccount(ctx, types.ModuleName, deposit.Depositor, deposit.Amount)
+		depositor, err := sdk.AccAddressFromBech32(deposit.Depositor)
 		if err != nil {
 			panic(err)
 		}
 
-		store.Delete(types.DepositKey(proposalID, deposit.Depositor))
+		err = keeper.bankKeeper.SendCoinsFromModuleToAccount(ctx, types.ModuleName, depositor, deposit.Amount)
+		if err != nil {
+			panic(err)
+		}
+
+		store.Delete(types.DepositKey(proposalID, depositor))
 		return false
 	})
 }

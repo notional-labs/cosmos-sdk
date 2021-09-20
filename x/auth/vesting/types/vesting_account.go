@@ -6,12 +6,10 @@ import (
 
 	yaml "gopkg.in/yaml.v2"
 
-	"github.com/cosmos/cosmos-sdk/codec/legacy"
+	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	vestexported "github.com/cosmos/cosmos-sdk/x/auth/vesting/exported"
-
-	"github.com/tendermint/tendermint/crypto"
 )
 
 // Compile-time type assertions
@@ -22,7 +20,6 @@ var (
 	_ vestexported.VestingAccount = (*DelayedVestingAccount)(nil)
 )
 
-//-----------------------------------------------------------------------------
 // Base Vesting Account
 
 // NewBaseVestingAccount creates a new BaseVestingAccount object. It is the
@@ -179,21 +176,6 @@ type vestingAccountYAML struct {
 	VestingPeriods Periods `json:"vesting_periods,omitempty" yaml:"vesting_periods,omitempty"`
 }
 
-type vestingAccountJSON struct {
-	Address          sdk.AccAddress `json:"address" yaml:"address"`
-	PubKey           crypto.PubKey  `json:"public_key" yaml:"public_key"`
-	AccountNumber    uint64         `json:"account_number" yaml:"account_number"`
-	Sequence         uint64         `json:"sequence" yaml:"sequence"`
-	OriginalVesting  sdk.Coins      `json:"original_vesting" yaml:"original_vesting"`
-	DelegatedFree    sdk.Coins      `json:"delegated_free" yaml:"delegated_free"`
-	DelegatedVesting sdk.Coins      `json:"delegated_vesting" yaml:"delegated_vesting"`
-	EndTime          int64          `json:"end_time" yaml:"end_time"`
-
-	// custom fields based on concrete vesting type which can be omitted
-	StartTime      int64   `json:"start_time,omitempty" yaml:"start_time,omitempty"`
-	VestingPeriods Periods `json:"vesting_periods,omitempty" yaml:"vesting_periods,omitempty"`
-}
-
 func (bva BaseVestingAccount) String() string {
 	out, _ := bva.MarshalYAML()
 	return out.(string)
@@ -201,67 +183,24 @@ func (bva BaseVestingAccount) String() string {
 
 // MarshalYAML returns the YAML representation of a BaseVestingAccount.
 func (bva BaseVestingAccount) MarshalYAML() (interface{}, error) {
-	alias := vestingAccountYAML{
-		Address:          bva.Address,
-		AccountNumber:    bva.AccountNumber,
-		Sequence:         bva.Sequence,
-		OriginalVesting:  bva.OriginalVesting,
-		DelegatedFree:    bva.DelegatedFree,
-		DelegatedVesting: bva.DelegatedVesting,
-		EndTime:          bva.EndTime,
-	}
-
-	pk := bva.GetPubKey()
-	if pk != nil {
-		pks, err := sdk.Bech32ifyPubKey(sdk.Bech32PubKeyTypeAccPub, pk)
-		if err != nil {
-			return nil, err
-		}
-
-		alias.PubKey = pks
-	}
-
-	bz, err := yaml.Marshal(alias)
+	accAddr, err := sdk.AccAddressFromBech32(bva.Address)
 	if err != nil {
 		return nil, err
 	}
 
-	return string(bz), err
-}
-
-// MarshalJSON returns the JSON representation of a BaseVestingAccount.
-func (bva BaseVestingAccount) MarshalJSON() ([]byte, error) {
-	alias := vestingAccountJSON{
-		Address:          bva.Address,
-		PubKey:           bva.GetPubKey(),
+	out := vestingAccountYAML{
+		Address:          accAddr,
 		AccountNumber:    bva.AccountNumber,
+		PubKey:           getPKString(bva),
 		Sequence:         bva.Sequence,
 		OriginalVesting:  bva.OriginalVesting,
 		DelegatedFree:    bva.DelegatedFree,
 		DelegatedVesting: bva.DelegatedVesting,
 		EndTime:          bva.EndTime,
 	}
-
-	return legacy.Cdc.MarshalJSON(alias)
+	return marshalYaml(out)
 }
 
-// UnmarshalJSON unmarshals raw JSON bytes into a BaseVestingAccount.
-func (bva *BaseVestingAccount) UnmarshalJSON(bz []byte) error {
-	var alias vestingAccountJSON
-	if err := legacy.Cdc.UnmarshalJSON(bz, &alias); err != nil {
-		return err
-	}
-
-	bva.BaseAccount = authtypes.NewBaseAccount(alias.Address, alias.PubKey, alias.AccountNumber, alias.Sequence)
-	bva.OriginalVesting = alias.OriginalVesting
-	bva.DelegatedFree = alias.DelegatedFree
-	bva.DelegatedVesting = alias.DelegatedVesting
-	bva.EndTime = alias.EndTime
-
-	return nil
-}
-
-//-----------------------------------------------------------------------------
 // Continuous Vesting Account
 
 var _ vestexported.VestingAccount = (*ContinuousVestingAccount)(nil)
@@ -322,7 +261,8 @@ func (cva ContinuousVestingAccount) GetVestingCoins(blockTime time.Time) sdk.Coi
 	return cva.OriginalVesting.Sub(cva.GetVestedCoins(blockTime))
 }
 
-// LockedCoins returns the set of coins that are not spendable (i.e. locked).
+// LockedCoins returns the set of coins that are not spendable (i.e. locked),
+// defined as the vesting coins that are not delegated.
 func (cva ContinuousVestingAccount) LockedCoins(blockTime time.Time) sdk.Coins {
 	return cva.BaseVestingAccount.LockedCoinsFromVesting(cva.GetVestingCoins(blockTime))
 }
@@ -356,41 +296,15 @@ func (cva ContinuousVestingAccount) String() string {
 
 // MarshalYAML returns the YAML representation of a ContinuousVestingAccount.
 func (cva ContinuousVestingAccount) MarshalYAML() (interface{}, error) {
-	alias := vestingAccountYAML{
-		Address:          cva.Address,
-		AccountNumber:    cva.AccountNumber,
-		Sequence:         cva.Sequence,
-		OriginalVesting:  cva.OriginalVesting,
-		DelegatedFree:    cva.DelegatedFree,
-		DelegatedVesting: cva.DelegatedVesting,
-		EndTime:          cva.EndTime,
-		StartTime:        cva.StartTime,
-	}
-
-	pk := cva.GetPubKey()
-	if pk != nil {
-		pks, err := sdk.Bech32ifyPubKey(sdk.Bech32PubKeyTypeAccPub, pk)
-		if err != nil {
-			return nil, err
-		}
-
-		alias.PubKey = pks
-	}
-
-	bz, err := yaml.Marshal(alias)
+	accAddr, err := sdk.AccAddressFromBech32(cva.Address)
 	if err != nil {
 		return nil, err
 	}
 
-	return string(bz), err
-}
-
-// MarshalJSON returns the JSON representation of a ContinuousVestingAccount.
-func (cva ContinuousVestingAccount) MarshalJSON() ([]byte, error) {
-	alias := vestingAccountJSON{
-		Address:          cva.Address,
-		PubKey:           cva.GetPubKey(),
+	out := vestingAccountYAML{
+		Address:          accAddr,
 		AccountNumber:    cva.AccountNumber,
+		PubKey:           getPKString(cva),
 		Sequence:         cva.Sequence,
 		OriginalVesting:  cva.OriginalVesting,
 		DelegatedFree:    cva.DelegatedFree,
@@ -398,30 +312,9 @@ func (cva ContinuousVestingAccount) MarshalJSON() ([]byte, error) {
 		EndTime:          cva.EndTime,
 		StartTime:        cva.StartTime,
 	}
-
-	return legacy.Cdc.MarshalJSON(alias)
+	return marshalYaml(out)
 }
 
-// UnmarshalJSON unmarshals raw JSON bytes into a ContinuousVestingAccount.
-func (cva *ContinuousVestingAccount) UnmarshalJSON(bz []byte) error {
-	var alias vestingAccountJSON
-	if err := legacy.Cdc.UnmarshalJSON(bz, &alias); err != nil {
-		return err
-	}
-
-	cva.BaseVestingAccount = &BaseVestingAccount{
-		BaseAccount:      authtypes.NewBaseAccount(alias.Address, alias.PubKey, alias.AccountNumber, alias.Sequence),
-		OriginalVesting:  alias.OriginalVesting,
-		DelegatedFree:    alias.DelegatedFree,
-		DelegatedVesting: alias.DelegatedVesting,
-		EndTime:          alias.EndTime,
-	}
-	cva.StartTime = alias.StartTime
-
-	return nil
-}
-
-//-----------------------------------------------------------------------------
 // Periodic Vesting Account
 
 var _ vestexported.VestingAccount = (*PeriodicVestingAccount)(nil)
@@ -494,7 +387,8 @@ func (pva PeriodicVestingAccount) GetVestingCoins(blockTime time.Time) sdk.Coins
 	return pva.OriginalVesting.Sub(pva.GetVestedCoins(blockTime))
 }
 
-// LockedCoins returns the set of coins that are not spendable (i.e. locked).
+// LockedCoins returns the set of coins that are not spendable (i.e. locked),
+// defined as the vesting coins that are not delegated.
 func (pva PeriodicVestingAccount) LockedCoins(blockTime time.Time) sdk.Coins {
 	return pva.BaseVestingAccount.LockedCoinsFromVesting(pva.GetVestingCoins(blockTime))
 }
@@ -545,42 +439,15 @@ func (pva PeriodicVestingAccount) String() string {
 
 // MarshalYAML returns the YAML representation of a PeriodicVestingAccount.
 func (pva PeriodicVestingAccount) MarshalYAML() (interface{}, error) {
-	alias := vestingAccountYAML{
-		Address:          pva.Address,
-		AccountNumber:    pva.AccountNumber,
-		Sequence:         pva.Sequence,
-		OriginalVesting:  pva.OriginalVesting,
-		DelegatedFree:    pva.DelegatedFree,
-		DelegatedVesting: pva.DelegatedVesting,
-		EndTime:          pva.EndTime,
-		StartTime:        pva.StartTime,
-		VestingPeriods:   pva.VestingPeriods,
-	}
-
-	pk := pva.GetPubKey()
-	if pk != nil {
-		pks, err := sdk.Bech32ifyPubKey(sdk.Bech32PubKeyTypeAccPub, pk)
-		if err != nil {
-			return nil, err
-		}
-
-		alias.PubKey = pks
-	}
-
-	bz, err := yaml.Marshal(alias)
+	accAddr, err := sdk.AccAddressFromBech32(pva.Address)
 	if err != nil {
 		return nil, err
 	}
 
-	return string(bz), err
-}
-
-// MarshalJSON returns the JSON representation of a PeriodicVestingAccount.
-func (pva PeriodicVestingAccount) MarshalJSON() ([]byte, error) {
-	alias := vestingAccountJSON{
-		Address:          pva.Address,
-		PubKey:           pva.GetPubKey(),
+	out := vestingAccountYAML{
+		Address:          accAddr,
 		AccountNumber:    pva.AccountNumber,
+		PubKey:           getPKString(pva),
 		Sequence:         pva.Sequence,
 		OriginalVesting:  pva.OriginalVesting,
 		DelegatedFree:    pva.DelegatedFree,
@@ -589,31 +456,9 @@ func (pva PeriodicVestingAccount) MarshalJSON() ([]byte, error) {
 		StartTime:        pva.StartTime,
 		VestingPeriods:   pva.VestingPeriods,
 	}
-
-	return legacy.Cdc.MarshalJSON(alias)
+	return marshalYaml(out)
 }
 
-// UnmarshalJSON unmarshals raw JSON bytes into a PeriodicVestingAccount.
-func (pva *PeriodicVestingAccount) UnmarshalJSON(bz []byte) error {
-	var alias vestingAccountJSON
-	if err := legacy.Cdc.UnmarshalJSON(bz, &alias); err != nil {
-		return err
-	}
-
-	pva.BaseVestingAccount = &BaseVestingAccount{
-		BaseAccount:      authtypes.NewBaseAccount(alias.Address, alias.PubKey, alias.AccountNumber, alias.Sequence),
-		OriginalVesting:  alias.OriginalVesting,
-		DelegatedFree:    alias.DelegatedFree,
-		DelegatedVesting: alias.DelegatedVesting,
-		EndTime:          alias.EndTime,
-	}
-	pva.StartTime = alias.StartTime
-	pva.VestingPeriods = alias.VestingPeriods
-
-	return nil
-}
-
-//-----------------------------------------------------------------------------
 // Delayed Vesting Account
 
 var _ vestexported.VestingAccount = (*DelayedVestingAccount)(nil)
@@ -653,7 +498,8 @@ func (dva DelayedVestingAccount) GetVestingCoins(blockTime time.Time) sdk.Coins 
 	return dva.OriginalVesting.Sub(dva.GetVestedCoins(blockTime))
 }
 
-// LockedCoins returns the set of coins that are not spendable (i.e. locked).
+// LockedCoins returns the set of coins that are not spendable (i.e. locked),
+// defined as the vesting coins that are not delegated.
 func (dva DelayedVestingAccount) LockedCoins(blockTime time.Time) sdk.Coins {
 	return dva.BaseVestingAccount.LockedCoinsFromVesting(dva.GetVestingCoins(blockTime))
 }
@@ -680,36 +526,88 @@ func (dva DelayedVestingAccount) String() string {
 	return out.(string)
 }
 
-// MarshalJSON returns the JSON representation of a DelayedVestingAccount.
-func (dva DelayedVestingAccount) MarshalJSON() ([]byte, error) {
-	alias := vestingAccountJSON{
-		Address:          dva.Address,
-		PubKey:           dva.GetPubKey(),
-		AccountNumber:    dva.AccountNumber,
-		Sequence:         dva.Sequence,
-		OriginalVesting:  dva.OriginalVesting,
-		DelegatedFree:    dva.DelegatedFree,
-		DelegatedVesting: dva.DelegatedVesting,
-		EndTime:          dva.EndTime,
+//-----------------------------------------------------------------------------
+// Permanent Locked Vesting Account
+
+var _ vestexported.VestingAccount = (*PermanentLockedAccount)(nil)
+var _ authtypes.GenesisAccount = (*PermanentLockedAccount)(nil)
+
+// NewPermanentLockedAccount returns a PermanentLockedAccount
+func NewPermanentLockedAccount(baseAcc *authtypes.BaseAccount, coins sdk.Coins) *PermanentLockedAccount {
+	baseVestingAcc := &BaseVestingAccount{
+		BaseAccount:     baseAcc,
+		OriginalVesting: coins,
+		EndTime:         0, // ensure EndTime is set to 0, as PermanentLockedAccount's do not have an EndTime
 	}
 
-	return legacy.Cdc.MarshalJSON(alias)
+	return &PermanentLockedAccount{baseVestingAcc}
 }
 
-// UnmarshalJSON unmarshals raw JSON bytes into a DelayedVestingAccount.
-func (dva *DelayedVestingAccount) UnmarshalJSON(bz []byte) error {
-	var alias vestingAccountJSON
-	if err := legacy.Cdc.UnmarshalJSON(bz, &alias); err != nil {
-		return err
-	}
-
-	dva.BaseVestingAccount = &BaseVestingAccount{
-		BaseAccount:      authtypes.NewBaseAccount(alias.Address, alias.PubKey, alias.AccountNumber, alias.Sequence),
-		OriginalVesting:  alias.OriginalVesting,
-		DelegatedFree:    alias.DelegatedFree,
-		DelegatedVesting: alias.DelegatedVesting,
-		EndTime:          alias.EndTime,
-	}
-
+// GetVestedCoins returns the total amount of vested coins for a permanent locked vesting
+// account. All coins are only vested once the schedule has elapsed.
+func (plva PermanentLockedAccount) GetVestedCoins(_ time.Time) sdk.Coins {
 	return nil
+}
+
+// GetVestingCoins returns the total number of vesting coins for a permanent locked
+// vesting account.
+func (plva PermanentLockedAccount) GetVestingCoins(_ time.Time) sdk.Coins {
+	return plva.OriginalVesting
+}
+
+// LockedCoins returns the set of coins that are not spendable (i.e. locked),
+// defined as the vesting coins that are not delegated.
+func (plva PermanentLockedAccount) LockedCoins(_ time.Time) sdk.Coins {
+	return plva.BaseVestingAccount.LockedCoinsFromVesting(plva.OriginalVesting)
+}
+
+// TrackDelegation tracks a desired delegation amount by setting the appropriate
+// values for the amount of delegated vesting, delegated free, and reducing the
+// overall amount of base coins.
+func (plva *PermanentLockedAccount) TrackDelegation(blockTime time.Time, balance, amount sdk.Coins) {
+	plva.BaseVestingAccount.TrackDelegation(balance, plva.OriginalVesting, amount)
+}
+
+// GetStartTime returns zero since a permanent locked vesting account has no start time.
+func (plva PermanentLockedAccount) GetStartTime() int64 {
+	return 0
+}
+
+// GetEndTime returns a vesting account's end time, we return 0 to denote that
+// a permanently locked vesting account has no end time.
+func (plva PermanentLockedAccount) GetEndTime() int64 {
+	return 0
+}
+
+// Validate checks for errors on the account fields
+func (plva PermanentLockedAccount) Validate() error {
+	if plva.EndTime > 0 {
+		return errors.New("permanently vested accounts cannot have an end-time")
+	}
+
+	return plva.BaseVestingAccount.Validate()
+}
+
+func (plva PermanentLockedAccount) String() string {
+	out, _ := plva.MarshalYAML()
+	return out.(string)
+}
+
+type getPK interface {
+	GetPubKey() cryptotypes.PubKey
+}
+
+func getPKString(g getPK) string {
+	if pk := g.GetPubKey(); pk != nil {
+		return pk.String()
+	}
+	return ""
+}
+
+func marshalYaml(i interface{}) (interface{}, error) {
+	bz, err := yaml.Marshal(i)
+	if err != nil {
+		return nil, err
+	}
+	return string(bz), nil
 }

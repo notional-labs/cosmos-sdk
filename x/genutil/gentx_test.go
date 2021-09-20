@@ -5,19 +5,19 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/stretchr/testify/suite"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+
+	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	"github.com/cosmos/cosmos-sdk/simapp"
 	"github.com/cosmos/cosmos-sdk/simapp/helpers"
 	simappparams "github.com/cosmos/cosmos-sdk/simapp/params"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-
-	"github.com/stretchr/testify/suite"
-	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/crypto/secp256k1"
-
+	"github.com/cosmos/cosmos-sdk/x/bank/testutil"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/cosmos/cosmos-sdk/x/genutil"
 	"github.com/cosmos/cosmos-sdk/x/genutil/types"
-	staking "github.com/cosmos/cosmos-sdk/x/staking"
+	"github.com/cosmos/cosmos-sdk/x/staking"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
@@ -30,10 +30,6 @@ var (
 	addr2 = sdk.AccAddress(pk2.Address())
 	desc  = stakingtypes.NewDescription("testname", "", "", "", "")
 	comm  = stakingtypes.CommissionRates{}
-	msg1  = stakingtypes.NewMsgCreateValidator(sdk.ValAddress(pk1.Address()), pk1,
-		sdk.NewInt64Coin(sdk.DefaultBondDenom, 50), desc, comm, sdk.OneInt())
-	msg2 = stakingtypes.NewMsgCreateValidator(sdk.ValAddress(pk2.Address()), pk1,
-		sdk.NewInt64Coin(sdk.DefaultBondDenom, 50), desc, comm, sdk.OneInt())
 )
 
 // GenTxTestSuite is a test suite to be used with gentx tests.
@@ -43,24 +39,33 @@ type GenTxTestSuite struct {
 	ctx            sdk.Context
 	app            *simapp.SimApp
 	encodingConfig simappparams.EncodingConfig
+
+	msg1, msg2 *stakingtypes.MsgCreateValidator
 }
 
 func (suite *GenTxTestSuite) SetupTest() {
 	checkTx := false
-	app := simapp.Setup(checkTx)
-	suite.ctx = app.BaseApp.NewContext(checkTx, abci.Header{})
+	app := simapp.Setup(suite.T(), checkTx)
+	suite.ctx = app.BaseApp.NewContext(checkTx, tmproto.Header{})
 	suite.app = app
+	suite.encodingConfig = simapp.MakeTestEncodingConfig()
 
-	suite.encodingConfig = simapp.MakeEncodingConfig()
+	var err error
+	amount := sdk.NewInt64Coin(sdk.DefaultBondDenom, 50)
+	one := sdk.OneInt()
+	suite.msg1, err = stakingtypes.NewMsgCreateValidator(
+		sdk.ValAddress(pk1.Address()), pk1, amount, desc, comm, one)
+	suite.NoError(err)
+	suite.msg2, err = stakingtypes.NewMsgCreateValidator(
+		sdk.ValAddress(pk2.Address()), pk1, amount, desc, comm, one)
+	suite.NoError(err)
 }
 
 func (suite *GenTxTestSuite) setAccountBalance(addr sdk.AccAddress, amount int64) json.RawMessage {
 	acc := suite.app.AccountKeeper.NewAccountWithAddress(suite.ctx, addr)
 	suite.app.AccountKeeper.SetAccount(suite.ctx, acc)
 
-	err := suite.app.BankKeeper.SetBalances(
-		suite.ctx, addr, sdk.Coins{sdk.NewInt64Coin(sdk.DefaultBondDenom, 25)},
-	)
+	err := testutil.FundAccount(suite.app.BankKeeper, suite.ctx, addr, sdk.Coins{sdk.NewInt64Coin(sdk.DefaultBondDenom, 25)})
 	suite.Require().NoError(err)
 
 	bankGenesisState := suite.app.BankKeeper.ExportGenesis(suite.ctx)
@@ -84,7 +89,7 @@ func (suite *GenTxTestSuite) TestSetGenTxsInAppGenesisState() {
 		{
 			"one genesis transaction",
 			func() {
-				err := txBuilder.SetMsgs(msg1)
+				err := txBuilder.SetMsgs(suite.msg1)
 				suite.Require().NoError(err)
 				tx := txBuilder.GetTx()
 				genTxs = []sdk.Tx{tx}
@@ -94,7 +99,7 @@ func (suite *GenTxTestSuite) TestSetGenTxsInAppGenesisState() {
 		{
 			"two genesis transactions",
 			func() {
-				err := txBuilder.SetMsgs(msg1, msg2)
+				err := txBuilder.SetMsgs(suite.msg1, suite.msg2)
 				suite.Require().NoError(err)
 				tx := txBuilder.GetTx()
 				genTxs = []sdk.Tx{tx}
@@ -106,7 +111,7 @@ func (suite *GenTxTestSuite) TestSetGenTxsInAppGenesisState() {
 	for _, tc := range testCases {
 		suite.Run(fmt.Sprintf("Case %s", tc.msg), func() {
 			suite.SetupTest()
-			cdc := suite.encodingConfig.Marshaler
+			cdc := suite.encodingConfig.Codec
 			txJSONEncoder := suite.encodingConfig.TxConfig.TxJSONEncoder()
 
 			tc.malleate()
@@ -173,7 +178,7 @@ func (suite *GenTxTestSuite) TestValidateAccountInGenesis() {
 	for _, tc := range testCases {
 		suite.Run(fmt.Sprintf("Case %s", tc.msg), func() {
 			suite.SetupTest()
-			cdc := suite.encodingConfig.Marshaler
+			cdc := suite.encodingConfig.Codec
 
 			suite.app.StakingKeeper.SetParams(suite.ctx, stakingtypes.DefaultParams())
 			stakingGenesisState := staking.ExportGenesis(suite.ctx, suite.app.StakingKeeper)
@@ -212,7 +217,7 @@ func (suite *GenTxTestSuite) TestDeliverGenTxs() {
 		{
 			"no signature supplied",
 			func() {
-				err := txBuilder.SetMsgs(msg1)
+				err := txBuilder.SetMsgs(suite.msg1)
 				suite.Require().NoError(err)
 
 				genTxs = make([]json.RawMessage, 1)

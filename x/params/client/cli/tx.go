@@ -57,13 +57,11 @@ Where proposal.json contains:
 			),
 		),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			clientCtx := client.GetClientContextFromCmd(cmd)
-			clientCtx, err := client.ReadTxCommandFlags(clientCtx, cmd.Flags())
+			clientCtx, err := client.GetClientTxContext(cmd)
 			if err != nil {
 				return err
 			}
-
-			proposal, err := paramscutils.ParseParamChangeProposalJSON(clientCtx.JSONMarshaler, args[0])
+			proposal, err := paramscutils.ParseParamChangeProposalJSON(clientCtx.LegacyAmino, args[0])
 			if err != nil {
 				return err
 			}
@@ -73,16 +71,13 @@ Where proposal.json contains:
 				proposal.Title, proposal.Description, proposal.Changes.ToParamChanges(),
 			)
 
-			deposit, err := sdk.ParseCoins(proposal.Deposit)
+			deposit, err := sdk.ParseCoinsNormalized(proposal.Deposit)
 			if err != nil {
 				return err
 			}
 
 			msg, err := govtypes.NewMsgSubmitProposal(content, deposit, from)
 			if err != nil {
-				return err
-			}
-			if err := msg.ValidateBasic(); err != nil {
 				return err
 			}
 

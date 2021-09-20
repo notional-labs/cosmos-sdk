@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	abci "github.com/tendermint/tendermint/abci/types"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/simapp"
@@ -26,8 +26,8 @@ type KeeperTestSuite struct {
 }
 
 func (suite *KeeperTestSuite) SetupTest() {
-	app := simapp.Setup(false)
-	ctx := app.BaseApp.NewContext(false, abci.Header{})
+	app := simapp.Setup(suite.T(), false)
+	ctx := app.BaseApp.NewContext(false, tmproto.Header{})
 
 	querier := keeper.Querier{Keeper: app.StakingKeeper}
 
@@ -35,20 +35,24 @@ func (suite *KeeperTestSuite) SetupTest() {
 	types.RegisterQueryServer(queryHelper, querier)
 	queryClient := types.NewQueryClient(queryHelper)
 
-	addrs, _, validators := createValidators(ctx, app, []int64{9, 8, 7})
-	header := abci.Header{
+	addrs, _, validators := createValidators(suite.T(), ctx, app, []int64{9, 8, 7})
+	header := tmproto.Header{
 		ChainID: "HelloChain",
 		Height:  5,
 	}
 
-	hi := types.NewHistoricalInfo(header, validators)
-	app.StakingKeeper.SetHistoricalInfo(ctx, 5, hi)
+	// sort a copy of the validators, so that original validators does not
+	// have its order changed
+	sortedVals := make([]types.Validator, len(validators))
+	copy(sortedVals, validators)
+	hi := types.NewHistoricalInfo(header, sortedVals, app.StakingKeeper.PowerReduction(ctx))
+	app.StakingKeeper.SetHistoricalInfo(ctx, 5, &hi)
 
 	suite.app, suite.ctx, suite.queryClient, suite.addrs, suite.vals = app, ctx, queryClient, addrs, validators
 }
 func TestParams(t *testing.T) {
-	app := simapp.Setup(false)
-	ctx := app.BaseApp.NewContext(false, abci.Header{})
+	app := simapp.Setup(t, false)
+	ctx := app.BaseApp.NewContext(false, tmproto.Header{})
 
 	expParams := types.DefaultParams()
 

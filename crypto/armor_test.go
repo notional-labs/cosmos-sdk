@@ -11,13 +11,15 @@ import (
 	"github.com/tendermint/crypto/bcrypt"
 	tmcrypto "github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/crypto/armor"
-	"github.com/tendermint/tendermint/crypto/secp256k1"
 	"github.com/tendermint/tendermint/crypto/xsalsa20symmetric"
 
+	"github.com/cosmos/cosmos-sdk/codec/legacy"
 	"github.com/cosmos/cosmos-sdk/crypto"
-	cryptoAmino "github.com/cosmos/cosmos-sdk/crypto/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
+	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
+	"github.com/cosmos/cosmos-sdk/simapp"
 	"github.com/cosmos/cosmos-sdk/types"
 )
 
@@ -45,12 +47,12 @@ func TestArmorUnarmorPrivKey(t *testing.T) {
 	require.Contains(t, err.Error(), "unrecognized armor type")
 
 	// armor key manually
-	encryptPrivKeyFn := func(privKey tmcrypto.PrivKey, passphrase string) (saltBytes []byte, encBytes []byte) {
+	encryptPrivKeyFn := func(privKey cryptotypes.PrivKey, passphrase string) (saltBytes []byte, encBytes []byte) {
 		saltBytes = tmcrypto.CRandBytes(16)
 		key, err := bcrypt.GenerateFromPassword(saltBytes, []byte(passphrase), crypto.BcryptSecurityParameter)
 		require.NoError(t, err)
 		key = tmcrypto.Sha256(key) // get 32 bytes
-		privKeyBytes := privKey.Bytes()
+		privKeyBytes := legacy.Cdc.Amino.MustMarshalBinaryBare(privKey)
 		return saltBytes, xsalsa20symmetric.EncryptSymmetric(privKeyBytes, key)
 	}
 	saltBytes, encBytes := encryptPrivKeyFn(priv, "passphrase")
@@ -69,26 +71,29 @@ func TestArmorUnarmorPrivKey(t *testing.T) {
 
 func TestArmorUnarmorPubKey(t *testing.T) {
 	// Select the encryption and storage for your cryptostore
-	cstore := keyring.NewInMemory()
+	encCfg := simapp.MakeTestEncodingConfig()
+	cstore := keyring.NewInMemory(encCfg.Codec)
 
 	// Add keys and see they return in alphabetical order
-	info, _, err := cstore.NewMnemonic("Bob", keyring.English, types.FullFundraiserPath, hd.Secp256k1)
+	k, _, err := cstore.NewMnemonic("Bob", keyring.English, types.FullFundraiserPath, keyring.DefaultBIP39Passphrase, hd.Secp256k1)
 	require.NoError(t, err)
-	armored := crypto.ArmorPubKeyBytes(info.GetPubKey().Bytes(), "")
+	key, err := k.GetPubKey()
+	require.NoError(t, err)
+	armored := crypto.ArmorPubKeyBytes(legacy.Cdc.Amino.MustMarshalBinaryBare(key), "")
 	pubBytes, algo, err := crypto.UnarmorPubKeyBytes(armored)
 	require.NoError(t, err)
-	pub, err := cryptoAmino.PubKeyFromBytes(pubBytes)
+	pub, err := legacy.PubKeyFromBytes(pubBytes)
 	require.NoError(t, err)
 	require.Equal(t, string(hd.Secp256k1Type), algo)
-	require.True(t, pub.Equals(info.GetPubKey()))
+	require.True(t, pub.Equals(key))
 
-	armored = crypto.ArmorPubKeyBytes(info.GetPubKey().Bytes(), "unknown")
+	armored = crypto.ArmorPubKeyBytes(legacy.Cdc.Amino.MustMarshalBinaryBare(key), "unknown")
 	pubBytes, algo, err = crypto.UnarmorPubKeyBytes(armored)
 	require.NoError(t, err)
-	pub, err = cryptoAmino.PubKeyFromBytes(pubBytes)
+	pub, err = legacy.PubKeyFromBytes(pubBytes)
 	require.NoError(t, err)
 	require.Equal(t, "unknown", algo)
-	require.True(t, pub.Equals(info.GetPubKey()))
+	require.True(t, pub.Equals(key))
 
 	armored, err = cstore.ExportPrivKeyArmor("Bob", "passphrase")
 	require.NoError(t, err)
@@ -161,6 +166,7 @@ func BenchmarkBcryptGenerateFromPassword(b *testing.B) {
 	for securityParam := 9; securityParam < 16; securityParam++ {
 		param := securityParam
 		b.Run(fmt.Sprintf("benchmark-security-param-%d", param), func(b *testing.B) {
+			b.ReportAllocs()
 			saltBytes := tmcrypto.CRandBytes(16)
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {

@@ -1,27 +1,29 @@
 package server
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net"
 	"os"
 	"os/signal"
+	"path"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	tmcfg "github.com/tendermint/tendermint/config"
-	tmcli "github.com/tendermint/tendermint/libs/cli"
-	tmflags "github.com/tendermint/tendermint/libs/cli/flags"
-	"github.com/tendermint/tendermint/libs/log"
+	tmlog "github.com/tendermint/tendermint/libs/log"
 	dbm "github.com/tendermint/tm-db"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
-	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/cosmos/cosmos-sdk/server/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -38,47 +40,117 @@ const ServerContextKey = sdk.ContextKey("server.context")
 type Context struct {
 	Viper  *viper.Viper
 	Config *tmcfg.Config
-	Logger log.Logger
+	Logger tmlog.Logger
+}
+
+// ErrorCode contains the exit code for server exit.
+type ErrorCode struct {
+	Code int
+}
+
+func (e ErrorCode) Error() string {
+	return strconv.Itoa(e.Code)
 }
 
 func NewDefaultContext() *Context {
-	return NewContext(viper.New(), tmcfg.DefaultConfig(), log.NewTMLogger(log.NewSyncWriter(os.Stdout)))
+	return NewContext(
+		viper.New(),
+		tmcfg.DefaultConfig(),
+		ZeroLogWrapper{log.Logger},
+	)
 }
 
-func NewContext(v *viper.Viper, config *tmcfg.Config, logger log.Logger) *Context {
+func NewContext(v *viper.Viper, config *tmcfg.Config, logger tmlog.Logger) *Context {
 	return &Context{v, config, logger}
+}
+
+func bindFlags(basename string, cmd *cobra.Command, v *viper.Viper) (err error) {
+	defer func() {
+		recover()
+	}()
+
+	cmd.Flags().VisitAll(func(f *pflag.Flag) {
+		// Environment variables can't have dashes in them, so bind them to their equivalent
+		// keys with underscores, e.g. --favorite-color to STING_FAVORITE_COLOR
+		err = v.BindEnv(f.Name, fmt.Sprintf("%s_%s", basename, strings.ToUpper(strings.ReplaceAll(f.Name, "-", "_"))))
+		if err != nil {
+			panic(err)
+		}
+
+		err = v.BindPFlag(f.Name, f)
+		if err != nil {
+			panic(err)
+		}
+
+		// Apply the viper config value to the flag when the flag is not set and viper has a value
+		if !f.Changed && v.IsSet(f.Name) {
+			val := v.Get(f.Name)
+			err = cmd.Flags().Set(f.Name, fmt.Sprintf("%v", val))
+			if err != nil {
+				panic(err)
+			}
+		}
+	})
+
+	return
 }
 
 // InterceptConfigsPreRunHandler performs a pre-run function for the root daemon
 // application command. It will create a Viper literal and a default server
 // Context. The server Tendermint configuration will either be read and parsed
 // or created and saved to disk, where the server Context is updated to reflect
-// the Tendermint configuration. The Viper literal is used to read and parse
-// the application configuration. Command handlers can fetch the server Context
-// to get the Tendermint configuration or to get access to Viper.
-func InterceptConfigsPreRunHandler(cmd *cobra.Command) error {
-	rootViper := viper.New()
-	rootViper.BindPFlags(cmd.Flags())
-	rootViper.BindPFlags(cmd.PersistentFlags())
-
+// the Tendermint configuration. It takes custom app config template and config
+// settings to create a custom Tendermint configuration. If the custom template
+// is empty, it uses default-template provided by the server. The Viper literal
+// is used to read and parse the application configuration. Command handlers can
+// fetch the server Context to get the Tendermint configuration or to get access
+// to Viper.
+func InterceptConfigsPreRunHandler(cmd *cobra.Command, customAppConfigTemplate string, customAppConfig interface{}) error {
 	serverCtx := NewDefaultContext()
-	config, err := interceptConfigs(serverCtx, rootViper)
+
+	// Get the executable name and configure the viper instance so that environmental
+	// variables are checked based off that name. The underscore character is used
+	// as a separator
+	executableName, err := os.Executable()
 	if err != nil {
 		return err
 	}
 
-	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
-	logger, err = tmflags.ParseLogLevel(config.LogLevel, logger, tmcfg.DefaultLogLevel())
+	basename := path.Base(executableName)
+
+	// Configure the viper instance
+	serverCtx.Viper.BindPFlags(cmd.Flags())
+	serverCtx.Viper.BindPFlags(cmd.PersistentFlags())
+	serverCtx.Viper.SetEnvPrefix(basename)
+	serverCtx.Viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
+	serverCtx.Viper.AutomaticEnv()
+
+	// intercept configuration files, using both Viper instances separately
+	config, err := interceptConfigs(serverCtx.Viper, customAppConfigTemplate, customAppConfig)
 	if err != nil {
 		return err
 	}
 
-	if rootViper.GetBool(tmcli.TraceFlag) {
-		logger = log.NewTracingLogger(logger)
-	}
-
+	// return value is a tendermint configuration object
 	serverCtx.Config = config
-	serverCtx.Logger = logger.With("module", "main")
+	if err = bindFlags(basename, cmd, serverCtx.Viper); err != nil {
+		return err
+	}
+
+	var logWriter io.Writer
+	if strings.ToLower(serverCtx.Viper.GetString(flags.FlagLogFormat)) == tmcfg.LogFormatPlain {
+		logWriter = zerolog.ConsoleWriter{Out: os.Stderr}
+	} else {
+		logWriter = os.Stderr
+	}
+
+	logLvlStr := serverCtx.Viper.GetString(flags.FlagLogLevel)
+	logLvl, err := zerolog.ParseLevel(logLvlStr)
+	if err != nil {
+		return fmt.Errorf("failed to parse log level (%s): %w", logLvlStr, err)
+	}
+
+	serverCtx.Logger = ZeroLogWrapper{zerolog.New(logWriter).Level(logLvl).With().Timestamp().Logger()}
 
 	return SetCmdServerContext(cmd, serverCtx)
 }
@@ -112,63 +184,82 @@ func SetCmdServerContext(cmd *cobra.Command, serverCtx *Context) error {
 // configuration file. The Tendermint configuration file is parsed given a root
 // Viper object, whereas the application is parsed with the private package-aware
 // viperCfg object.
-func interceptConfigs(ctx *Context, rootViper *viper.Viper) (*tmcfg.Config, error) {
+func interceptConfigs(rootViper *viper.Viper, customAppTemplate string, customConfig interface{}) (*tmcfg.Config, error) {
 	rootDir := rootViper.GetString(flags.FlagHome)
 	configPath := filepath.Join(rootDir, "config")
-	configFile := filepath.Join(configPath, "config.toml")
+	tmCfgFile := filepath.Join(configPath, "config.toml")
 
 	conf := tmcfg.DefaultConfig()
 
-	if _, err := os.Stat(configFile); os.IsNotExist(err) {
+	switch _, err := os.Stat(tmCfgFile); {
+	case os.IsNotExist(err):
 		tmcfg.EnsureRoot(rootDir)
 
 		if err = conf.ValidateBasic(); err != nil {
 			return nil, fmt.Errorf("error in config file: %v", err)
 		}
 
-		conf.ProfListenAddress = "localhost:6060"
+		conf.RPC.PprofListenAddress = "localhost:6060"
 		conf.P2P.RecvRate = 5120000
 		conf.P2P.SendRate = 5120000
-		conf.TxIndex.IndexAllKeys = true
 		conf.Consensus.TimeoutCommit = 5 * time.Second
-		tmcfg.WriteConfigFile(configFile, conf)
-	} else {
+		tmcfg.WriteConfigFile(tmCfgFile, conf)
+
+	case err != nil:
+		return nil, err
+
+	default:
 		rootViper.SetConfigType("toml")
 		rootViper.SetConfigName("config")
 		rootViper.AddConfigPath(configPath)
-		if err := rootViper.ReadInConfig(); err != nil {
-			return nil, fmt.Errorf("failed to read in app.toml: %w", err)
-		}
 
-		if err := rootViper.Unmarshal(conf); err != nil {
-			return nil, err
+		if err := rootViper.ReadInConfig(); err != nil {
+			return nil, fmt.Errorf("failed to read in %s: %w", tmCfgFile, err)
 		}
+	}
+
+	// Read into the configuration whatever data the viper instance has for it.
+	// This may come from the configuration file above but also any of the other
+	// sources viper uses.
+	if err := rootViper.Unmarshal(conf); err != nil {
+		return nil, err
 	}
 
 	conf.SetRoot(rootDir)
 
-	appConfigFilePath := filepath.Join(configPath, "app.toml")
-	if _, err := os.Stat(appConfigFilePath); os.IsNotExist(err) {
-		appConf, err := config.ParseConfig(ctx.Viper)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse app.toml: %w", err)
-		}
+	appCfgFilePath := filepath.Join(configPath, "app.toml")
+	if _, err := os.Stat(appCfgFilePath); os.IsNotExist(err) {
+		if customAppTemplate != "" {
+			config.SetConfigTemplate(customAppTemplate)
 
-		config.WriteConfigFile(appConfigFilePath, appConf)
+			if err = rootViper.Unmarshal(&customConfig); err != nil {
+				return nil, fmt.Errorf("failed to parse %s: %w", appCfgFilePath, err)
+			}
+
+			config.WriteConfigFile(appCfgFilePath, customConfig)
+		} else {
+			appConf, err := config.ParseConfig(rootViper)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse %s: %w", appCfgFilePath, err)
+			}
+
+			config.WriteConfigFile(appCfgFilePath, appConf)
+		}
 	}
 
-	ctx.Viper.SetConfigType("toml")
-	ctx.Viper.SetConfigName("app")
-	ctx.Viper.AddConfigPath(configPath)
-	if err := ctx.Viper.ReadInConfig(); err != nil {
-		return nil, fmt.Errorf("failed to read in app.toml: %w", err)
+	rootViper.SetConfigType("toml")
+	rootViper.SetConfigName("app")
+	rootViper.AddConfigPath(configPath)
+
+	if err := rootViper.MergeInConfig(); err != nil {
+		return nil, fmt.Errorf("failed to merge configuration: %w", err)
 	}
 
 	return conf, nil
 }
 
 // add server commands
-func AddCommands(rootCmd *cobra.Command, defaultNodeHome string, appCreator types.AppCreator, appExport types.AppExporter) {
+func AddCommands(rootCmd *cobra.Command, defaultNodeHome string, appCreator types.AppCreator, appExport types.AppExporter, addStartFlags types.ModuleInitFlags) {
 	tendermintCmd := &cobra.Command{
 		Use:   "tendermint",
 		Short: "Tendermint subcommands",
@@ -180,34 +271,16 @@ func AddCommands(rootCmd *cobra.Command, defaultNodeHome string, appCreator type
 		ShowAddressCmd(),
 		VersionCmd(),
 	)
+	startCmd := StartCmd(appCreator, defaultNodeHome)
+	addStartFlags(startCmd)
 
 	rootCmd.AddCommand(
-		StartCmd(appCreator, defaultNodeHome),
+		startCmd,
 		UnsafeResetAllCmd(),
-		flags.LineBreak,
 		tendermintCmd,
 		ExportCmd(appExport, defaultNodeHome),
-		flags.LineBreak,
 		version.NewVersionCommand(),
 	)
-}
-
-// InsertKeyJSON inserts a new JSON field/key with a given value to an existing
-// JSON message. An error is returned if any serialization operation fails.
-//
-// NOTE: The ordering of the keys returned as the resulting JSON message is
-// non-deterministic, so the client should not rely on key ordering.
-func InsertKeyJSON(cdc codec.JSONMarshaler, baseJSON []byte, key string, value json.RawMessage) ([]byte, error) {
-	var jsonMap map[string]json.RawMessage
-
-	if err := cdc.UnmarshalJSON(baseJSON, &jsonMap); err != nil {
-		return nil, err
-	}
-
-	jsonMap[key] = value
-	bz, err := codec.MarshalJSONIndent(cdc, jsonMap)
-
-	return json.RawMessage(bz), err
 }
 
 // https://stackoverflow.com/questions/23558425/how-do-i-get-the-local-ip-address-in-go
@@ -264,6 +337,14 @@ func TrapSignal(cleanupFunc func()) {
 
 		os.Exit(exitCode)
 	}()
+}
+
+// WaitForQuitSignals waits for SIGINT and SIGTERM and returns.
+func WaitForQuitSignals() ErrorCode {
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	sig := <-sigs
+	return ErrorCode{Code: int(sig.(syscall.Signal)) + 128}
 }
 
 func skipInterface(iface net.Interface) bool {

@@ -2,43 +2,58 @@ package keyring
 
 import (
 	"encoding/hex"
+	"fmt"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/tendermint/tendermint/crypto/secp256k1"
+	"github.com/stretchr/testify/require"
 
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 func Test_writeReadLedgerInfo(t *testing.T) {
-	var tmpKey secp256k1.PubKeySecp256k1
-	bz, _ := hex.DecodeString("035AD6810A47F073553FF30D2FCC7E0D3B1C0B74B61A1AAA2582344037151E143A")
+	tmpKey := make([]byte, secp256k1.PubKeySize)
+	hexPK := "035AD6810A47F073553FF30D2FCC7E0D3B1C0B74B61A1AAA2582344037151E143A"
+	bz, err := hex.DecodeString(hexPK)
+	require.NoError(t, err)
 	copy(tmpKey[:], bz)
 
-	lInfo := newLedgerInfo("some_name", tmpKey, *hd.NewFundraiserParams(5, sdk.CoinType, 1), hd.Secp256k1Type)
-	assert.Equal(t, TypeLedger, lInfo.GetType())
+	pk := &secp256k1.PubKey{Key: tmpKey}
+	path := hd.NewFundraiserParams(5, sdk.CoinType, 1)
+	k, err := NewLedgerRecord("some_name", pk, path)
+	require.NoError(t, err)
 
-	path, err := lInfo.GetPath()
-	assert.NoError(t, err)
-	assert.Equal(t, "44'/118'/5'/0/1", path.String())
-	assert.Equal(t,
-		"cosmospub1addwnpepqddddqg2glc8x4fl7vxjlnr7p5a3czm5kcdp4239sg6yqdc4rc2r5wmxv8p",
-		sdk.MustBech32ifyPubKey(sdk.Bech32PubKeyTypeAccPub, lInfo.GetPubKey()))
+	l := k.GetLedger()
+	require.NotNil(t, l)
+	path = l.Path
+	require.Equal(t, "m/44'/118'/5'/0/1", path.String())
+	pubKey, err := k.GetPubKey()
+	require.NoError(t, err)
+	require.Equal(t,
+		fmt.Sprintf("PubKeySecp256k1{%s}", hexPK),
+		pubKey.String())
 
 	// Serialize and restore
-	serialized := marshalInfo(lInfo)
-	restoredInfo, err := unmarshalInfo(serialized)
-	assert.NoError(t, err)
-	assert.NotNil(t, restoredInfo)
+	cdc := getCodec()
+	serialized, err := cdc.Marshal(k)
+	require.NoError(t, err)
+	var restoredRecord Record
+	err = cdc.Unmarshal(serialized, &restoredRecord)
+	require.NoError(t, err)
+	require.NotNil(t, restoredRecord)
 
 	// Check both keys match
-	assert.Equal(t, lInfo.GetName(), restoredInfo.GetName())
-	assert.Equal(t, lInfo.GetType(), restoredInfo.GetType())
-	assert.Equal(t, lInfo.GetPubKey(), restoredInfo.GetPubKey())
+	require.Equal(t, k.Name, restoredRecord.Name)
+	require.Equal(t, k.GetType(), restoredRecord.GetType())
 
-	restoredPath, err := restoredInfo.GetPath()
-	assert.NoError(t, err)
+	restoredPubKey, err := restoredRecord.GetPubKey()
+	require.NoError(t, err)
+	require.Equal(t, pubKey, restoredPubKey)
 
-	assert.Equal(t, path, restoredPath)
+	l = restoredRecord.GetLedger()
+	require.NotNil(t, l)
+	restoredPath := l.GetPath()
+	require.NoError(t, err)
+	require.Equal(t, path, restoredPath)
 }

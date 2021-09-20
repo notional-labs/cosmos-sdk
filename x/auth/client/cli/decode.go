@@ -3,7 +3,6 @@ package cli
 import (
 	"encoding/base64"
 	"encoding/hex"
-	"fmt"
 
 	"github.com/spf13/cobra"
 
@@ -17,8 +16,8 @@ const flagHex = "hex"
 // it into a JSON-encoded transaction.
 func GetDecodeCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "decode [amino-byte-string]",
-		Short: "Decode an binary encoded transaction string.",
+		Use:   "decode [protobuf-byte-string]",
+		Short: "Decode a binary encoded transaction string",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
 			clientCtx := client.GetClientContextFromCmd(cmd)
@@ -43,7 +42,7 @@ func GetDecodeCommand() *cobra.Command {
 				return err
 			}
 
-			return clientCtx.PrintString(fmt.Sprintf("%s\n", json))
+			return clientCtx.PrintBytes(json)
 		},
 	}
 

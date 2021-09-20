@@ -2,11 +2,8 @@ package keys
 
 import (
 	"github.com/spf13/cobra"
-	"github.com/tendermint/tendermint/libs/cli"
 
-	"github.com/cosmos/cosmos-sdk/client/flags"
-	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/client"
 )
 
 const flagListNames = "list-names"
@@ -26,28 +23,23 @@ along with their associated name and address.`,
 }
 
 func runListCmd(cmd *cobra.Command, _ []string) error {
-	backend, _ := cmd.Flags().GetString(flags.FlagKeyringBackend)
-	homeDir, _ := cmd.Flags().GetString(flags.FlagHome)
-	kb, err := keyring.New(sdk.KeyringServiceName(), backend, homeDir, cmd.InOrStdin())
+	clientCtx, err := client.GetClientQueryContext(cmd)
 	if err != nil {
 		return err
 	}
 
-	infos, err := kb.List()
+	records, err := clientCtx.Keyring.List()
 	if err != nil {
 		return err
 	}
-
-	cmd.SetOut(cmd.OutOrStdout())
 
 	if ok, _ := cmd.Flags().GetBool(flagListNames); !ok {
-		output, _ := cmd.Flags().GetString(cli.OutputFlag)
-		printInfos(cmd.OutOrStdout(), infos, output)
+		printKeyringRecords(cmd.OutOrStdout(), records, clientCtx.OutputFormat)
 		return nil
 	}
 
-	for _, info := range infos {
-		cmd.Println(info.GetName())
+	for _, k := range records {
+		cmd.Println(k.Name)
 	}
 
 	return nil

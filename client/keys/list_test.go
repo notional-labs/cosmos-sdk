@@ -1,15 +1,18 @@
 package keys
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 
+	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	"github.com/cosmos/cosmos-sdk/simapp"
 	"github.com/cosmos/cosmos-sdk/testutil"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -18,17 +21,18 @@ func Test_runListCmd(t *testing.T) {
 	cmd := ListKeysCmd()
 	cmd.Flags().AddFlagSet(Commands("home").PersistentFlags())
 
-	kbHome1, cleanUp1 := testutil.NewTestCaseDir(t)
-	t.Cleanup(cleanUp1)
-
-	kbHome2, cleanUp2 := testutil.NewTestCaseDir(t)
-	t.Cleanup(cleanUp2)
+	kbHome1 := t.TempDir()
+	kbHome2 := t.TempDir()
 
 	mockIn := testutil.ApplyMockIODiscardOutErr(cmd)
-	kb, err := keyring.New(sdk.KeyringServiceName(), keyring.BackendTest, kbHome2, mockIn)
+	encCfg := simapp.MakeTestEncodingConfig()
+	kb, err := keyring.New(sdk.KeyringServiceName(), keyring.BackendTest, kbHome2, mockIn, encCfg.Codec)
 	require.NoError(t, err)
 
-	path := "" //sdk.GetConfig().GetFullFundraiserPath()
+	clientCtx := client.Context{}.WithKeyring(kb)
+	ctx := context.WithValue(context.Background(), client.ClientContextKey, &clientCtx)
+
+	path := "" //sdk.GetConfig().GetFullBIP44Path()
 	_, err = kb.NewAccount("something", testutil.TestMnemonic, "", path, hd.Secp256k1)
 	require.NoError(t, err)
 
@@ -58,7 +62,7 @@ func Test_runListCmd(t *testing.T) {
 				fmt.Sprintf("--%s=%s", flags.FlagKeyringBackend, keyring.BackendTest),
 			})
 
-			if err := cmd.Execute(); (err != nil) != tt.wantErr {
+			if err := cmd.ExecuteContext(ctx); (err != nil) != tt.wantErr {
 				t.Errorf("runListCmd() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
@@ -68,7 +72,7 @@ func Test_runListCmd(t *testing.T) {
 				fmt.Sprintf("--%s=%s", flags.FlagKeyringBackend, keyring.BackendTest),
 			})
 
-			if err := cmd.Execute(); (err != nil) != tt.wantErr {
+			if err := cmd.ExecuteContext(ctx); (err != nil) != tt.wantErr {
 				t.Errorf("runListCmd() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

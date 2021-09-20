@@ -6,6 +6,7 @@ import (
 	"io"
 
 	"github.com/cosmos/cosmos-sdk/store/cachekv"
+	"github.com/cosmos/cosmos-sdk/store/listenkv"
 	"github.com/cosmos/cosmos-sdk/store/tracekv"
 	"github.com/cosmos/cosmos-sdk/store/types"
 )
@@ -55,6 +56,11 @@ func (s Store) CacheWrap() types.CacheWrap {
 // CacheWrapWithTrace implements the KVStore interface.
 func (s Store) CacheWrapWithTrace(w io.Writer, tc types.TraceContext) types.CacheWrap {
 	return cachekv.NewStore(tracekv.NewStore(s, w, tc))
+}
+
+// CacheWrapWithListeners implements the CacheWrapper interface.
+func (s Store) CacheWrapWithListeners(storeKey types.StoreKey, listeners []types.WriteListener) types.CacheWrap {
+	return cachekv.NewStore(listenkv.NewStore(s, storeKey, listeners))
 }
 
 // Implements KVStore
@@ -178,8 +184,8 @@ func (pi *prefixIterator) Value() []byte {
 }
 
 // Implements Iterator
-func (pi *prefixIterator) Close() {
-	pi.iter.Close()
+func (pi *prefixIterator) Close() error {
+	return pi.iter.Close()
 }
 
 // Error returns an error if the prefixIterator is invalid defined by the Valid

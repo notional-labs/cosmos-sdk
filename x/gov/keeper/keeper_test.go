@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	abci "github.com/tendermint/tendermint/abci/types"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/simapp"
@@ -23,8 +23,8 @@ type KeeperTestSuite struct {
 }
 
 func (suite *KeeperTestSuite) SetupTest() {
-	app := simapp.Setup(false)
-	ctx := app.BaseApp.NewContext(false, abci.Header{})
+	app := simapp.Setup(suite.T(), false)
+	ctx := app.BaseApp.NewContext(false, tmproto.Header{})
 
 	queryHelper := baseapp.NewQueryServerTestHelper(ctx, app.InterfaceRegistry())
 	types.RegisterQueryServer(queryHelper, app.GovKeeper)
@@ -37,8 +37,8 @@ func (suite *KeeperTestSuite) SetupTest() {
 }
 
 func TestIncrementProposalNumber(t *testing.T) {
-	app := simapp.Setup(false)
-	ctx := app.BaseApp.NewContext(false, abci.Header{})
+	app := simapp.Setup(t, false)
+	ctx := app.BaseApp.NewContext(false, tmproto.Header{})
 
 	tp := TestProposal
 	_, err := app.GovKeeper.SubmitProposal(ctx, tp)
@@ -54,12 +54,12 @@ func TestIncrementProposalNumber(t *testing.T) {
 	proposal6, err := app.GovKeeper.SubmitProposal(ctx, tp)
 	require.NoError(t, err)
 
-	require.Equal(t, uint64(6), proposal6.ProposalID)
+	require.Equal(t, uint64(6), proposal6.ProposalId)
 }
 
 func TestProposalQueues(t *testing.T) {
-	app := simapp.Setup(false)
-	ctx := app.BaseApp.NewContext(false, abci.Header{})
+	app := simapp.Setup(t, false)
+	ctx := app.BaseApp.NewContext(false, tmproto.Header{})
 
 	// create test proposals
 	tp := TestProposal
@@ -70,19 +70,19 @@ func TestProposalQueues(t *testing.T) {
 	require.True(t, inactiveIterator.Valid())
 
 	proposalID := types.GetProposalIDFromBytes(inactiveIterator.Value())
-	require.Equal(t, proposalID, proposal.ProposalID)
+	require.Equal(t, proposalID, proposal.ProposalId)
 	inactiveIterator.Close()
 
 	app.GovKeeper.ActivateVotingPeriod(ctx, proposal)
 
-	proposal, ok := app.GovKeeper.GetProposal(ctx, proposal.ProposalID)
+	proposal, ok := app.GovKeeper.GetProposal(ctx, proposal.ProposalId)
 	require.True(t, ok)
 
 	activeIterator := app.GovKeeper.ActiveProposalQueueIterator(ctx, proposal.VotingEndTime)
 	require.True(t, activeIterator.Valid())
 
 	proposalID, _ = types.SplitActiveProposalQueueKey(activeIterator.Key())
-	require.Equal(t, proposalID, proposal.ProposalID)
+	require.Equal(t, proposalID, proposal.ProposalId)
 
 	activeIterator.Close()
 }

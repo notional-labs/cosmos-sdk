@@ -9,15 +9,15 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/tx"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authclient "github.com/cosmos/cosmos-sdk/x/auth/client"
 )
 
 const (
-	flagMultisig = "multisig"
-	flagAppend   = "append"
-	flagSigOnly  = "signature-only"
+	flagMultisig        = "multisig"
+	flagOverwrite       = "overwrite"
+	flagSigOnly         = "signature-only"
+	flagAmino           = "amino"
+	flagNoAutoIncrement = "no-auto-increment"
 )
 
 // GetSignBatchCommand returns the transaction sign-batch command.
@@ -28,16 +28,18 @@ func GetSignBatchCommand() *cobra.Command {
 		Long: `Sign batch files of transactions generated with --generate-only.
 The command processes list of transactions from file (one StdTx each line), generate
 signed transactions or signatures and print their JSON encoding, delimited by '\n'.
-As the signatures are generated, the command updates the sequence number accordingly.
+As the signatures are generated, the command updates the account and sequence number accordingly.
 
-If the flag --signature-only flag is set, it will output a JSON representation
-of the generated signature only.
+If the --signature-only flag is set, it will output the signature parts only.
 
 The --offline flag makes sure that the client will not reach out to full node.
 As a result, the account and the sequence number queries will not be performed and
 it is required to set such parameters manually. Note, invalid values will cause
 the transaction to fail. The sequence will be incremented automatically for each
 transaction that is signed.
+
+If --account-number or --sequence flag is used when offline=false, they are ignored and 
+overwritten by the default flag values.
 
 The --multisig=<multisig_key> flag generates a signature on behalf of a multisig
 account key. It implies --signature-only.
@@ -47,7 +49,7 @@ account key. It implies --signature-only.
 		Args:   cobra.ExactArgs(1),
 	}
 
-	cmd.Flags().String(flagMultisig, "", "Address of the multisig account on behalf of which the transaction shall be signed")
+	cmd.Flags().String(flagMultisig, "", "Address or key name of the multisig account on behalf of which the transaction shall be signed")
 	cmd.Flags().String(flags.FlagOutputDocument, "", "The document will be written to the given file instead of STDOUT")
 	cmd.Flags().Bool(flagSigOnly, true, "Print only the generated signature, then exit")
 	cmd.Flags().String(flags.FlagChainID, "", "network chain ID")
@@ -59,27 +61,18 @@ account key. It implies --signature-only.
 
 func makeSignBatchCmd() func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
-		clientCtx := client.GetClientContextFromCmd(cmd)
-		clientCtx, err := client.ReadTxCommandFlags(clientCtx, cmd.Flags())
+		clientCtx, err := client.GetClientTxContext(cmd)
 		if err != nil {
 			return err
 		}
 		txFactory := tx.NewFactoryCLI(clientCtx, cmd.Flags())
-
 		txCfg := clientCtx.TxConfig
-		generateSignatureOnly, _ := cmd.Flags().GetBool(flagSigOnly)
+		printSignatureOnly, _ := cmd.Flags().GetBool(flagSigOnly)
+		infile := os.Stdin
 
-		var (
-			multisigAddr sdk.AccAddress
-			infile       = os.Stdin
-		)
-
-		// validate multisig address if there's any
-		if ms, _ := cmd.Flags().GetString(flagMultisig); ms != "" {
-			multisigAddr, err = sdk.AccAddressFromBech32(ms)
-			if err != nil {
-				return err
-			}
+		ms, err := cmd.Flags().GetString(flagMultisig)
+		if err != nil {
+			return err
 		}
 
 		// prepare output document
@@ -99,6 +92,10 @@ func makeSignBatchCmd() func(cmd *cobra.Command, args []string) error {
 		}
 		scanner := authclient.NewBatchScanner(txCfg, infile)
 
+		if !clientCtx.Offline {
+			txFactory = txFactory.WithAccountNumber(0).WithSequence(0)
+		}
+
 		for sequence := txFactory.Sequence(); scanner.Scan(); sequence++ {
 			unsignedStdTx := scanner.Tx()
 			txFactory = txFactory.WithSequence(sequence)
@@ -106,25 +103,33 @@ func makeSignBatchCmd() func(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				return err
 			}
-			if multisigAddr.Empty() {
+			if ms == "" {
 				from, _ := cmd.Flags().GetString(flags.FlagFrom)
-				_, fromName, err := client.GetFromFields(txFactory.Keybase(), from, clientCtx.GenerateOnly)
+				_, fromName, _, err := client.GetFromFields(txFactory.Keybase(), from, clientCtx.GenerateOnly)
 				if err != nil {
 					return fmt.Errorf("error getting account from keybase: %w", err)
 				}
-				err = authclient.SignTx(txFactory, clientCtx, fromName, txBuilder, true)
+				err = authclient.SignTx(txFactory, clientCtx, fromName, txBuilder, true, true)
 				if err != nil {
 					return err
 				}
 			} else {
-				err = authclient.SignTxWithSignerAddress(txFactory, clientCtx, multisigAddr, clientCtx.GetFromName(), txBuilder, true)
+				multisigAddr, _, _, err := client.GetFromFields(txFactory.Keybase(), ms, clientCtx.GenerateOnly)
+				if err != nil {
+					return fmt.Errorf("error getting account from keybase: %w", err)
+				}
+				err = authclient.SignTxWithSignerAddress(
+					txFactory, clientCtx, multisigAddr, clientCtx.GetFromName(), txBuilder, clientCtx.Offline, true)
+				if err != nil {
+					return err
+				}
 			}
 
 			if err != nil {
 				return err
 			}
 
-			json, err := marshalSignatureJSON(txCfg, txBuilder, generateSignatureOnly)
+			json, err := marshalSignatureJSON(txCfg, txBuilder, printSignatureOnly)
 			if err != nil {
 				return err
 			}
@@ -136,14 +141,13 @@ func makeSignBatchCmd() func(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		return scanner.Err()
+		return scanner.UnmarshalErr()
 	}
 }
 
 func setOutputFile(cmd *cobra.Command) (func(), error) {
 	outputDoc, _ := cmd.Flags().GetString(flags.FlagOutputDocument)
 	if outputDoc == "" {
-		cmd.SetOut(cmd.OutOrStdout())
 		return func() {}, nil
 	}
 
@@ -161,12 +165,11 @@ func setOutputFile(cmd *cobra.Command) (func(), error) {
 func GetSignCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "sign [file]",
-		Short: "Sign transactions generated offline",
-		Long: `Sign transactions created with the --generate-only flag.
+		Short: "Sign a transaction generated offline",
+		Long: `Sign a transaction created with the --generate-only flag.
 It will read a transaction from [file], sign it, and print its JSON encoding.
 
-If the flag --signature-only flag is set, it will output a JSON representation
-of the generated signature only.
+If the --signature-only flag is set, it will output the signature parts only.
 
 The --offline flag makes sure that the client will not reach out to full node.
 As a result, the account and sequence number queries will not be performed and
@@ -182,11 +185,12 @@ be generated via the 'multisign' command.
 		Args:   cobra.ExactArgs(1),
 	}
 
-	cmd.Flags().String(flagMultisig, "", "Address of the multisig account on behalf of which the transaction shall be signed")
-	cmd.Flags().Bool(flagAppend, true, "Append the signature to the existing ones. If disabled, old signatures would be overwritten. Ignored if --multisig is on")
-	cmd.Flags().Bool(flagSigOnly, false, "Print only the generated signature, then exit")
+	cmd.Flags().String(flagMultisig, "", "Address or key name of the multisig account on behalf of which the transaction shall be signed")
+	cmd.Flags().Bool(flagOverwrite, false, "Overwrite existing signatures with a new one. If disabled, new signature will be appended")
+	cmd.Flags().Bool(flagSigOnly, false, "Print only the signatures")
 	cmd.Flags().String(flags.FlagOutputDocument, "", "The document will be written to the given file instead of STDOUT")
 	cmd.Flags().String(flags.FlagChainID, "", "The network chain ID")
+	cmd.Flags().Bool(flagAmino, false, "Generate Amino encoded JSON suitable for submiting to the txs REST endpoint")
 	cmd.MarkFlagRequired(flags.FlagFrom)
 	flags.AddTxFlagsToCmd(cmd)
 
@@ -203,63 +207,81 @@ func preSignCmd(cmd *cobra.Command, _ []string) {
 }
 
 func makeSignCmd() func(cmd *cobra.Command, args []string) error {
-	return func(cmd *cobra.Command, args []string) error {
-		clientCtx := client.GetClientContextFromCmd(cmd)
-		clientCtx, err := client.ReadTxCommandFlags(clientCtx, cmd.Flags())
+	return func(cmd *cobra.Command, args []string) (err error) {
+		var clientCtx client.Context
+
+		clientCtx, err = client.GetClientTxContext(cmd)
 		if err != nil {
 			return err
 		}
-		txFactory := tx.NewFactoryCLI(clientCtx, cmd.Flags())
+		f := cmd.Flags()
 
 		clientCtx, txF, newTx, err := readTxAndInitContexts(clientCtx, cmd, args[0])
 		if err != nil {
 			return err
 		}
-		if txF.SignMode() == signing.SignMode_SIGN_MODE_UNSPECIFIED {
-			txF = txF.WithSignMode(signing.SignMode_SIGN_MODE_LEGACY_AMINO_JSON)
-		}
+
+		txFactory := tx.NewFactoryCLI(clientCtx, cmd.Flags())
 		txCfg := clientCtx.TxConfig
 		txBuilder, err := txCfg.WrapTxBuilder(newTx)
 		if err != nil {
 			return err
 		}
 
-		// if --signature-only is on, then override --append
-		generateSignatureOnly, _ := cmd.Flags().GetBool(flagSigOnly)
-		multisigAddrStr, _ := cmd.Flags().GetString(flagMultisig)
-
+		printSignatureOnly, _ := cmd.Flags().GetBool(flagSigOnly)
+		multisig, _ := cmd.Flags().GetString(flagMultisig)
+		if err != nil {
+			return err
+		}
 		from, _ := cmd.Flags().GetString(flags.FlagFrom)
-		_, fromName, err := client.GetFromFields(txFactory.Keybase(), from, clientCtx.GenerateOnly)
+		_, fromName, _, err := client.GetFromFields(txF.Keybase(), from, clientCtx.GenerateOnly)
 		if err != nil {
 			return fmt.Errorf("error getting account from keybase: %w", err)
 		}
 
-		if multisigAddrStr != "" {
-			var multisigAddr sdk.AccAddress
-
-			multisigAddr, err = sdk.AccAddressFromBech32(multisigAddrStr)
+		overwrite, _ := f.GetBool(flagOverwrite)
+		if multisig != "" {
+			multisigAddr, _, _, err := client.GetFromFields(txFactory.Keybase(), multisig, clientCtx.GenerateOnly)
+			if err != nil {
+				return fmt.Errorf("error getting account from keybase: %w", err)
+			}
+			err = authclient.SignTxWithSignerAddress(
+				txF, clientCtx, multisigAddr, fromName, txBuilder, clientCtx.Offline, overwrite)
 			if err != nil {
 				return err
 			}
-
-			err = authclient.SignTxWithSignerAddress(
-				txF, clientCtx, multisigAddr, fromName, txBuilder, clientCtx.Offline,
-			)
-			generateSignatureOnly = true
+			printSignatureOnly = true
 		} else {
-			flagAppend, _ := cmd.Flags().GetBool(flagAppend)
-			appendSig := flagAppend && !generateSignatureOnly
-			if appendSig {
-				err = authclient.SignTx(txF, clientCtx, clientCtx.GetFromName(), txBuilder, clientCtx.Offline)
-			}
+			err = authclient.SignTx(txF, clientCtx, clientCtx.GetFromName(), txBuilder, clientCtx.Offline, overwrite)
 		}
 		if err != nil {
 			return err
 		}
 
-		json, err := marshalSignatureJSON(txCfg, txBuilder, generateSignatureOnly)
+		aminoJSON, err := f.GetBool(flagAmino)
 		if err != nil {
 			return err
+		}
+
+		var json []byte
+		if aminoJSON {
+			stdTx, err := tx.ConvertTxToStdTx(clientCtx.LegacyAmino, txBuilder.GetTx())
+			if err != nil {
+				return err
+			}
+			req := BroadcastReq{
+				Tx:   stdTx,
+				Mode: "block|sync|async",
+			}
+			json, err = clientCtx.LegacyAmino.MarshalJSON(req)
+			if err != nil {
+				return err
+			}
+		} else {
+			json, err = marshalSignatureJSON(txCfg, txBuilder, printSignatureOnly)
+			if err != nil {
+				return err
+			}
 		}
 
 		outputDoc, _ := cmd.Flags().GetString(flags.FlagOutputDocument)
@@ -272,16 +294,21 @@ func makeSignCmd() func(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		defer fp.Close()
+		defer func() {
+			err2 := fp.Close()
+			if err == nil {
+				err = err2
+			}
+		}()
 
-		return clientCtx.PrintString(fmt.Sprintf("%s\n", json))
+		_, err = fp.Write(append(json, '\n'))
+		return err
 	}
 }
 
-func marshalSignatureJSON(txConfig client.TxConfig, txBldr client.TxBuilder, generateSignatureOnly bool) ([]byte, error) {
+func marshalSignatureJSON(txConfig client.TxConfig, txBldr client.TxBuilder, signatureOnly bool) ([]byte, error) {
 	parsedTx := txBldr.GetTx()
-
-	if generateSignatureOnly {
+	if signatureOnly {
 		sigs, err := parsedTx.GetSignaturesV2()
 		if err != nil {
 			return nil, err
