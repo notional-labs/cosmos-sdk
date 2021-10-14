@@ -1,9 +1,9 @@
 package v040
 
 import (
-	v039auth "github.com/cosmos/cosmos-sdk/x/auth/migrations/v039"
-	v036supply "github.com/cosmos/cosmos-sdk/x/bank/migrations/v036"
-	v038bank "github.com/cosmos/cosmos-sdk/x/bank/migrations/v038"
+	v039auth "github.com/cosmos/cosmos-sdk/x/auth/legacy/v039"
+	v036supply "github.com/cosmos/cosmos-sdk/x/bank/legacy/v036"
+	v038bank "github.com/cosmos/cosmos-sdk/x/bank/legacy/v038"
 	"github.com/cosmos/cosmos-sdk/x/bank/types"
 )
 

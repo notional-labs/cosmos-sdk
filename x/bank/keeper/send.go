@@ -2,11 +2,8 @@ package keeper
 
 import (
 	"github.com/cosmos/cosmos-sdk/codec"
-	"github.com/cosmos/cosmos-sdk/store/prefix"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/types/address"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/bank/types"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
@@ -38,7 +35,7 @@ type BaseSendKeeper struct {
 
 	cdc        codec.BinaryCodec
 	ak         types.AccountKeeper
-	storeKey   storetypes.StoreKey
+	storeKey   sdk.StoreKey
 	paramSpace paramtypes.Subspace
 
 	// list of addresses that are restricted from receiving transactions
@@ -46,7 +43,7 @@ type BaseSendKeeper struct {
 }
 
 func NewBaseSendKeeper(
-	cdc codec.BinaryCodec, storeKey storetypes.StoreKey, ak types.AccountKeeper, paramSpace paramtypes.Subspace, blockedAddrs map[string]bool,
+	cdc codec.BinaryCodec, storeKey sdk.StoreKey, ak types.AccountKeeper, paramSpace paramtypes.Subspace, blockedAddrs map[string]bool,
 ) BaseSendKeeper {
 
 	return BaseSendKeeper{
@@ -121,8 +118,8 @@ func (k BaseSendKeeper) InputOutputCoins(ctx sdk.Context, inputs []types.Input, 
 		//
 		// NOTE: This should ultimately be removed in favor a more flexible approach
 		// such as delegated fee messages.
-		accExists := k.ak.HasAccount(ctx, outAddress)
-		if !accExists {
+		acc := k.ak.GetAccount(ctx, outAddress)
+		if acc == nil {
 			defer telemetry.IncrCounter(1, "new", "account")
 			k.ak.SetAccount(ctx, k.ak.NewAccountWithAddress(ctx, outAddress))
 		}
@@ -148,8 +145,8 @@ func (k BaseSendKeeper) SendCoins(ctx sdk.Context, fromAddr sdk.AccAddress, toAd
 	//
 	// NOTE: This should ultimately be removed in favor a more flexible approach
 	// such as delegated fee messages.
-	accExists := k.ak.HasAccount(ctx, toAddr)
-	if !accExists {
+	acc := k.ak.GetAccount(ctx, toAddr)
+	if acc == nil {
 		defer telemetry.IncrCounter(1, "new", "account")
 		k.ak.SetAccount(ctx, k.ak.NewAccountWithAddress(ctx, toAddr))
 	}
@@ -234,34 +231,16 @@ func (k BaseSendKeeper) addCoins(ctx sdk.Context, addr sdk.AccAddress, amt sdk.C
 // An error is returned upon failure.
 func (k BaseSendKeeper) initBalances(ctx sdk.Context, addr sdk.AccAddress, balances sdk.Coins) error {
 	accountStore := k.getAccountStore(ctx, addr)
-	denomPrefixStores := make(map[string]prefix.Store) // memoize prefix stores
-
 	for i := range balances {
 		balance := balances[i]
 		if !balance.IsValid() {
 			return sdkerrors.Wrap(sdkerrors.ErrInvalidCoins, balance.String())
 		}
 
-		// x/bank invariants prohibit persistence of zero balances
+		// Bank invariants require to not store zero balances.
 		if !balance.IsZero() {
-			amount, err := balance.Amount.Marshal()
-			if err != nil {
-				return err
-			}
-			accountStore.Set([]byte(balance.Denom), amount)
-
-			denomPrefixStore, ok := denomPrefixStores[balance.Denom]
-			if !ok {
-				denomPrefixStore = k.getDenomAddressPrefixStore(ctx, balance.Denom)
-				denomPrefixStores[balance.Denom] = denomPrefixStore
-			}
-
-			// Store a reverse index from denomination to account address with a
-			// sentinel value.
-			denomAddrKey := address.MustLengthPrefix(addr)
-			if !denomPrefixStore.Has(denomAddrKey) {
-				denomPrefixStore.Set(denomAddrKey, []byte{0})
-			}
+			bz := k.cdc.MustMarshal(&balance)
+			accountStore.Set([]byte(balance.Denom), bz)
 		}
 	}
 
@@ -275,25 +254,13 @@ func (k BaseSendKeeper) setBalance(ctx sdk.Context, addr sdk.AccAddress, balance
 	}
 
 	accountStore := k.getAccountStore(ctx, addr)
-	denomPrefixStore := k.getDenomAddressPrefixStore(ctx, balance.Denom)
 
-	// x/bank invariants prohibit persistence of zero balances
+	// Bank invariants require to not store zero balances.
 	if balance.IsZero() {
 		accountStore.Delete([]byte(balance.Denom))
-		denomPrefixStore.Delete(address.MustLengthPrefix(addr))
 	} else {
-		amount, err := balance.Amount.Marshal()
-		if err != nil {
-			return err
-		}
-		accountStore.Set([]byte(balance.Denom), amount)
-
-		// Store a reverse index from denomination to account address with a
-		// sentinel value.
-		denomAddrKey := address.MustLengthPrefix(addr)
-		if !denomPrefixStore.Has(denomAddrKey) {
-			denomPrefixStore.Set(denomAddrKey, []byte{0})
-		}
+		bz := k.cdc.MustMarshal(&balance)
+		accountStore.Set([]byte(balance.Denom), bz)
 	}
 
 	return nil

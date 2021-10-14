@@ -3,10 +3,9 @@ package v043
 import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/store/prefix"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	v040auth "github.com/cosmos/cosmos-sdk/x/auth/migrations/v040"
-	v040bank "github.com/cosmos/cosmos-sdk/x/bank/migrations/v040"
+	v040auth "github.com/cosmos/cosmos-sdk/x/auth/legacy/v040"
+	v040bank "github.com/cosmos/cosmos-sdk/x/bank/legacy/v040"
 	"github.com/cosmos/cosmos-sdk/x/bank/types"
 )
 
@@ -29,7 +28,7 @@ func migrateSupply(store sdk.KVStore, cdc codec.BinaryCodec) error {
 	}
 
 	// We add a new key for each denom
-	supplyStore := prefix.NewStore(store, SupplyKey)
+	supplyStore := prefix.NewStore(store, types.SupplyKey)
 
 	// We're sure that SupplyI is a Supply struct, there's no other
 	// implementation.
@@ -62,7 +61,7 @@ func migrateBalanceKeys(store sdk.KVStore) {
 	for ; oldStoreIter.Valid(); oldStoreIter.Next() {
 		addr := v040bank.AddressFromBalancesStore(oldStoreIter.Key())
 		denom := oldStoreIter.Key()[v040auth.AddrLen:]
-		newStoreKey := append(CreateAccountBalancesPrefix(addr), denom...)
+		newStoreKey := append(types.CreateAccountBalancesPrefix(addr), denom...)
 
 		// Set new key on store. Values don't change.
 		store.Set(newStoreKey, oldStoreIter.Value())
@@ -77,7 +76,7 @@ func migrateBalanceKeys(store sdk.KVStore) {
 // - Change balances prefix to 1 byte
 // - Change supply to be indexed by denom
 // - Prune balances & supply with zero coins (ref: https://github.com/cosmos/cosmos-sdk/pull/9229)
-func MigrateStore(ctx sdk.Context, storeKey storetypes.StoreKey, cdc codec.BinaryCodec) error {
+func MigrateStore(ctx sdk.Context, storeKey sdk.StoreKey, cdc codec.BinaryCodec) error {
 	store := ctx.KVStore(storeKey)
 	migrateBalanceKeys(store)
 

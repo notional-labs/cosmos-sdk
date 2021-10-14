@@ -8,11 +8,11 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/simapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	v038auth "github.com/cosmos/cosmos-sdk/x/auth/migrations/v038"
-	v039auth "github.com/cosmos/cosmos-sdk/x/auth/migrations/v039"
-	v036supply "github.com/cosmos/cosmos-sdk/x/bank/migrations/v036"
-	v038bank "github.com/cosmos/cosmos-sdk/x/bank/migrations/v038"
-	v040bank "github.com/cosmos/cosmos-sdk/x/bank/migrations/v040"
+	v038auth "github.com/cosmos/cosmos-sdk/x/auth/legacy/v038"
+	v039auth "github.com/cosmos/cosmos-sdk/x/auth/legacy/v039"
+	v036supply "github.com/cosmos/cosmos-sdk/x/bank/legacy/v036"
+	v038bank "github.com/cosmos/cosmos-sdk/x/bank/legacy/v038"
+	v040bank "github.com/cosmos/cosmos-sdk/x/bank/legacy/v040"
 )
 
 func TestMigrate(t *testing.T) {
@@ -21,7 +21,7 @@ func TestMigrate(t *testing.T) {
 		WithInterfaceRegistry(encodingConfig.InterfaceRegistry).
 		WithTxConfig(encodingConfig.TxConfig).
 		WithLegacyAmino(encodingConfig.Amino).
-		WithCodec(encodingConfig.Codec)
+		WithJSONCodec(encodingConfig.Marshaler)
 
 	coins := sdk.NewCoins(sdk.NewInt64Coin("stake", 50))
 	addr1, _ := sdk.AccAddressFromBech32("cosmos1xxkueklal9vejv9unqu80w9vptyepfa95pd53u")
