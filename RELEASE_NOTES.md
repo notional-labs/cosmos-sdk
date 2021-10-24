@@ -1,25 +1,15 @@
-# Cosmos SDK v0.42.5 "Stargate" Release Notes
+# Cosmos SDK v0.42.10 "Stargate" Release Notes
 
-This release includes various minor bugfixes and improvments, including:
+This release includes a new `AnteHandler` that rejects redundant IBC transactions to save relayers fees. This is a backport of [ibc-go \#235](https://github.com/cosmos/ibc-go/pull/235).
 
-- Fix support for building the Cosmos SDK on ARM architectures,
-- Fix the `[appd] keys show/list` CLI subcommands for multisigs,
-- Internal code performance improvment.
+v0.42.10 also includes multiple performance improvements, such as:
 
-It also introduces one new feature: adding the `[appd] config` subcommand back to the SDK.
+- improve ABCI performance under concurrent load via [Tendermint v0.34.13](https://github.com/tendermint/tendermint/blob/master/CHANGELOG.md#v03413),
+- improve CacheKVStore datastructures / algorithms, to no longer take O(N^2) time when interleaving iterators and insertions.
+- bump IAVL to v0.17.1 which includes performance improvements on a batch load.
 
-See the [Cosmos SDK v0.42.5 milestone](https://github.com/cosmos/cosmos-sdk/milestone/44?closed=1) on our issue tracker for the exhaustive list of all changes.
+We fixed the keyring to use pre-configured data for `add-genesis-account` command.
 
-### The `config` Subcommand
+Finally, when using the `client.Context`, we modified ABCI queries to use `abci.QueryRequest`'s `Height` field if it is non-zero, otherwise continue using `client.Context`'s height. This is a minor client-breaking change for users of the `client.Context`.
 
-One new feature introduced in the Stargate series was the merging of the two CLI binaries `[appd]` and `[appcli]` into one single application binary. In this process, the `[appcli] config` subcommand, which was used to save client-side configuration into a TOML file, was removed.
-
-Due to [popular demand](https://github.com/cosmos/cosmos-sdk/issues/8529), we have introduced this feature back to the SDK, under the `[appd] config` subcommand. The functionality is as follows:
-
-- `[appd] config`: Output all client-side configuration.
-- `[appd] config [config-name]`: Get the given configuration (e.g. `keyring-backend` or `node-id`).
-- `[appd] config [config-name] [config-value]`: Set and persist the given configuration with the new value.
-
-All configurations are persisted to the filesystem, under the path `$APP_HOME/config/client.toml`. For the list of all possible client-side configurations, please have a look at this `client.toml` file, as it is heavily commented.
-
-Environment variables binding to client-side configuration also works. For example, the command `KEYRING_BACKEND=os [appd] tx bank send ...` will bind ENV variable to the `keyring-backend` config. The order or precedence for config is: `flags > env vars > client.toml file`.
+See the [Cosmos SDK v0.42.10 milestone](https://github.com/cosmos/cosmos-sdk/milestone/55?closed=1) on our issue tracker for the exhaustive list of all changes.
