@@ -14,7 +14,6 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/store/prefix"
-	store "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/types/module"
@@ -415,8 +414,8 @@ func (k Keeper) getHomeDir() string {
 // written to disk by the old binary when panicking. An error is returned if
 // the upgrade path directory cannot be created or if the file exists and
 // cannot be read or if the upgrade info fails to unmarshal.
-func (k Keeper) ReadUpgradeInfoFromDisk() (store.UpgradeInfo, error) {
-	var upgradeInfo store.UpgradeInfo
+func (k Keeper) ReadUpgradeInfoFromDisk() (upgradeInfo, error) {
+	var upgradeInfo upgradeInfo
 
 	upgradeInfoPath, err := k.GetUpgradeInfoPath()
 	if err != nil {
