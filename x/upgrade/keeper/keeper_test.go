@@ -49,12 +49,14 @@ func (s *KeeperTestSuite) TestReadUpgradeInfoFromDisk() {
 	}
 
 	// create an upgrade info file
-	s.Require().NoError(s.app.UpgradeKeeper.DumpUpgradeInfoToDisk(101, expected))
+	s.Require().NoError(s.app.UpgradeKeeper.DumpUpgradeInfoToDisk(101, expected.Name))
 
 	ui, err := s.app.UpgradeKeeper.ReadUpgradeInfoFromDisk()
 	s.Require().NoError(err)
 	expected.Height = 101
-	s.Require().Equal(expected, ui)
+	s.Require().Equal(expected.Height, ui.Height)
+	s.Require().Equal(expected.Name, ui.Name)
+	s.Require().Equal(expected.Info, ui.Info)
 }
 
 func (s *KeeperTestSuite) TestScheduleUpgrade() {
