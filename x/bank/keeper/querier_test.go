@@ -5,13 +5,10 @@ import (
 
 	abci "github.com/tendermint/tendermint/abci/types"
 
-	"github.com/cosmos/cosmos-sdk/simapp"
 	"github.com/cosmos/cosmos-sdk/testutil/testdata"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/types/query"
 	"github.com/cosmos/cosmos-sdk/x/bank/keeper"
 	"github.com/cosmos/cosmos-sdk/x/bank/types"
-	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
 )
 
 func (suite *IntegrationTestSuite) TestQuerier_QueryBalance() {
@@ -42,7 +39,7 @@ func (suite *IntegrationTestSuite) TestQuerier_QueryBalance() {
 	acc := app.AccountKeeper.NewAccountWithAddress(ctx, addr)
 
 	app.AccountKeeper.SetAccount(ctx, acc)
-	suite.Require().NoError(simapp.FundAccount(app.BankKeeper, ctx, acc.GetAddress(), origCoins))
+	suite.Require().NoError(app.BankKeeper.SetBalances(ctx, acc.GetAddress(), origCoins))
 
 	res, err = querier(ctx, []string{types.QueryBalance}, req)
 	suite.Require().NoError(err)
@@ -79,7 +76,8 @@ func (suite *IntegrationTestSuite) TestQuerier_QueryAllBalances() {
 	acc := app.AccountKeeper.NewAccountWithAddress(ctx, addr)
 
 	app.AccountKeeper.SetAccount(ctx, acc)
-	suite.Require().NoError(simapp.FundAccount(app.BankKeeper, ctx, acc.GetAddress(), origCoins))
+	suite.Require().NoError(app.BankKeeper.SetBalances(ctx, acc.GetAddress(), origCoins))
+
 	res, err = querier(ctx, []string{types.QueryAllBalances}, req)
 	suite.Require().NoError(err)
 	suite.Require().NotNil(res)
@@ -90,10 +88,8 @@ func (suite *IntegrationTestSuite) TestQuerier_QueryAllBalances() {
 func (suite *IntegrationTestSuite) TestQuerier_QueryTotalSupply() {
 	app, ctx := suite.app, suite.ctx
 	legacyAmino := app.LegacyAmino()
-	expectedTotalSupply := sdk.NewCoins(sdk.NewInt64Coin("test", 400000000))
-	suite.
-		Require().
-		NoError(app.BankKeeper.MintCoins(ctx, minttypes.ModuleName, expectedTotalSupply))
+	expectedTotalSupply := types.NewSupply(sdk.NewCoins(sdk.NewInt64Coin("test", 400000000)))
+	app.BankKeeper.SetSupply(ctx, expectedTotalSupply)
 
 	req := abci.RequestQuery{
 		Path: fmt.Sprintf("custom/%s/%s", types.ModuleName, types.QueryTotalSupply),
@@ -106,16 +102,14 @@ func (suite *IntegrationTestSuite) TestQuerier_QueryTotalSupply() {
 	suite.Require().NotNil(err)
 	suite.Require().Nil(res)
 
-	req.Data = legacyAmino.MustMarshalJSON(types.QueryTotalSupplyRequest{Pagination: &query.PageRequest{
-		Limit: 100,
-	}})
+	req.Data = legacyAmino.MustMarshalJSON(types.NewQueryTotalSupplyParams(1, 100))
 	res, err = querier(ctx, []string{types.QueryTotalSupply}, req)
 	suite.Require().NoError(err)
 	suite.Require().NotNil(res)
 
-	var resp types.QueryTotalSupplyResponse
+	var resp sdk.Coins
 	suite.Require().NoError(legacyAmino.UnmarshalJSON(res, &resp))
-	suite.Require().Equal(expectedTotalSupply, resp.Supply)
+	suite.Require().Equal(expectedTotalSupply.Total, resp)
 }
 
 func (suite *IntegrationTestSuite) TestQuerier_QueryTotalSupplyOf() {
@@ -123,10 +117,8 @@ func (suite *IntegrationTestSuite) TestQuerier_QueryTotalSupplyOf() {
 	legacyAmino := app.LegacyAmino()
 	test1Supply := sdk.NewInt64Coin("test1", 4000000)
 	test2Supply := sdk.NewInt64Coin("test2", 700000000)
-	expectedTotalSupply := sdk.NewCoins(test1Supply, test2Supply)
-	suite.
-		Require().
-		NoError(app.BankKeeper.MintCoins(ctx, minttypes.ModuleName, expectedTotalSupply))
+	expectedTotalSupply := types.NewSupply(sdk.NewCoins(test1Supply, test2Supply))
+	app.BankKeeper.SetSupply(ctx, expectedTotalSupply)
 
 	req := abci.RequestQuery{
 		Path: fmt.Sprintf("custom/%s/%s", types.ModuleName, types.QuerySupplyOf),

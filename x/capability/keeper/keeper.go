@@ -8,7 +8,6 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/store/prefix"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/capability/types"
@@ -28,9 +27,9 @@ type (
 	// The keeper allows the ability to create scoped sub-keepers which are tied to
 	// a single specific module.
 	Keeper struct {
-		cdc           codec.BinaryCodec
-		storeKey      storetypes.StoreKey
-		memKey        storetypes.StoreKey
+		cdc           codec.BinaryMarshaler
+		storeKey      sdk.StoreKey
+		memKey        sdk.StoreKey
 		capMap        map[uint64]*types.Capability
 		scopedModules map[string]struct{}
 		sealed        bool
@@ -43,9 +42,9 @@ type (
 	// by name, in addition to creating new capabilities & authenticating capabilities
 	// passed by other modules.
 	ScopedKeeper struct {
-		cdc      codec.BinaryCodec
-		storeKey storetypes.StoreKey
-		memKey   storetypes.StoreKey
+		cdc      codec.BinaryMarshaler
+		storeKey sdk.StoreKey
+		memKey   sdk.StoreKey
 		capMap   map[uint64]*types.Capability
 		module   string
 	}
@@ -53,7 +52,7 @@ type (
 
 // NewKeeper constructs a new CapabilityKeeper instance and initializes maps
 // for capability map and scopedModules map.
-func NewKeeper(cdc codec.BinaryCodec, storeKey, memKey storetypes.StoreKey) *Keeper {
+func NewKeeper(cdc codec.BinaryMarshaler, storeKey, memKey sdk.StoreKey) *Keeper {
 	return &Keeper{
 		cdc:           cdc,
 		storeKey:      storeKey,
@@ -90,9 +89,9 @@ func (k *Keeper) ScopeToModule(moduleName string) ScopedKeeper {
 	}
 }
 
-// Seal seals the keeper to prevent further modules from creating a scoped keeper.
-// Seal may be called during app initialization for applications that do not wish to create scoped keepers dynamically.
-func (k *Keeper) Seal() {
+// InitializeAndSeal seals the keeper to prevent further modules from creating
+// a scoped keeper. It also panics if the memory store is not of storetype `StoreTypeMemory`.
+func (k *Keeper) InitializeAndSeal(ctx sdk.Context) {
 	if k.sealed {
 		panic("cannot initialize and seal an already sealed capability keeper")
 	}
@@ -100,21 +99,21 @@ func (k *Keeper) Seal() {
 	k.sealed = true
 }
 
-// InitMemStore will assure that the module store is a memory store (it will panic if it's not)
-// and willl initialize it. The function is safe to be called multiple times.
+// InitMemStore will initialize the memory store if it hasn't been initialized yet.
+// The function is safe to be called multiple times.
 // InitMemStore must be called every time the app starts before the keeper is used (so
 // `BeginBlock` or `InitChain` - whichever is first). We need access to the store so we
 // can't initialize it in a constructor.
 func (k *Keeper) InitMemStore(ctx sdk.Context) {
-	memStore := ctx.KVStore(k.memKey)
-	memStoreType := memStore.GetStoreType()
-
-	if memStoreType != storetypes.StoreTypeMemory {
-		panic(fmt.Sprintf("invalid memory store type; got %s, expected: %s", memStoreType, storetypes.StoreTypeMemory))
-	}
-
 	// create context with no block gas meter to ensure we do not consume gas during local initialization logic.
 	noGasCtx := ctx.WithBlockGasMeter(sdk.NewInfiniteGasMeter())
+
+	memStore := noGasCtx.KVStore(k.memKey)
+	memStoreType := memStore.GetStoreType()
+
+	if memStoreType != sdk.StoreTypeMemory {
+		panic(fmt.Sprintf("invalid memory store type; got %s, expected: %s", memStoreType, sdk.StoreTypeMemory))
+	}
 
 	// check if memory store has not been initialized yet by checking if initialized flag is nil.
 	if !k.IsInitialized(noGasCtx) {
@@ -129,17 +128,16 @@ func (k *Keeper) InitMemStore(ctx sdk.Context) {
 
 			var capOwners types.CapabilityOwners
 
-			k.cdc.MustUnmarshal(iterator.Value(), &capOwners)
+			k.cdc.MustUnmarshalBinaryBare(iterator.Value(), &capOwners)
 			k.InitializeCapability(noGasCtx, index, capOwners)
 		}
 
 		// set the initialized flag so we don't rerun initialization logic
-		memStore := noGasCtx.KVStore(k.memKey)
 		memStore.Set(types.KeyMemInitialized, []byte{1})
 	}
 }
 
-// IsInitialized returns true if the keeper is properly initialized, and false otherwise.
+// IsInitialized returns true if the keeper is properly initialized, and false otherwise
 func (k *Keeper) IsInitialized(ctx sdk.Context) bool {
 	memStore := ctx.KVStore(k.memKey)
 	return memStore.Get(types.KeyMemInitialized) != nil
@@ -175,7 +173,7 @@ func (k Keeper) SetOwners(ctx sdk.Context, index uint64, owners types.Capability
 	indexKey := types.IndexToKey(index)
 
 	// set owners in persistent store
-	prefixStore.Set(indexKey, k.cdc.MustMarshal(&owners))
+	prefixStore.Set(indexKey, k.cdc.MustMarshalBinaryBare(&owners))
 }
 
 // GetOwners returns the capability owners with a given index.
@@ -189,7 +187,7 @@ func (k Keeper) GetOwners(ctx sdk.Context, index uint64) (types.CapabilityOwners
 		return types.CapabilityOwners{}, false
 	}
 	var owners types.CapabilityOwners
-	k.cdc.MustUnmarshal(ownerBytes, &owners)
+	k.cdc.MustUnmarshalBinaryBare(ownerBytes, &owners)
 	return owners, true
 }
 
@@ -354,7 +352,7 @@ func (sk ScopedKeeper) ReleaseCapability(ctx sdk.Context, cap *types.Capability)
 		delete(sk.capMap, cap.GetIndex())
 	} else {
 		// update capability owner set
-		prefixStore.Set(indexKey, sk.cdc.MustMarshal(capOwners))
+		prefixStore.Set(indexKey, sk.cdc.MustMarshalBinaryBare(capOwners))
 	}
 
 	return nil
@@ -424,7 +422,7 @@ func (sk ScopedKeeper) GetOwners(ctx sdk.Context, name string) (*types.Capabilit
 		return nil, false
 	}
 
-	sk.cdc.MustUnmarshal(bz, &capOwners)
+	sk.cdc.MustUnmarshalBinaryBare(bz, &capOwners)
 
 	return &capOwners, true
 }
@@ -466,7 +464,7 @@ func (sk ScopedKeeper) addOwner(ctx sdk.Context, cap *types.Capability, name str
 	}
 
 	// update capability owner set
-	prefixStore.Set(indexKey, sk.cdc.MustMarshal(capOwners))
+	prefixStore.Set(indexKey, sk.cdc.MustMarshalBinaryBare(capOwners))
 
 	return nil
 }
@@ -482,7 +480,7 @@ func (sk ScopedKeeper) getOwners(ctx sdk.Context, cap *types.Capability) *types.
 	}
 
 	var capOwners types.CapabilityOwners
-	sk.cdc.MustUnmarshal(bz, &capOwners)
+	sk.cdc.MustUnmarshalBinaryBare(bz, &capOwners)
 	return &capOwners
 }
 

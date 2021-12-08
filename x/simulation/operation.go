@@ -64,6 +64,8 @@ func (oe OperationEntry) MustMarshal() json.RawMessage {
 	return out
 }
 
+// ____________________________________________________________________
+
 // OperationQueue defines an object for a queue of operations
 type OperationQueue map[int][]simulation.Operation
 
@@ -104,6 +106,8 @@ func queueOperations(queuedOps OperationQueue, queuedTimeOps []simulation.Future
 		queuedTimeOps[index] = futureOp
 	}
 }
+
+// _______________________________________________________________________
 
 // WeightedOperation is an operation with associated weight.
 // This is used to bias the selection operation within the simulator.

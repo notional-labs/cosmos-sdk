@@ -21,8 +21,8 @@ var (
 )
 
 func TestDecodeStore(t *testing.T) {
-	app := simapp.Setup(t, false)
-	cdc := simapp.MakeTestEncodingConfig().Codec
+	app := simapp.Setup(false)
+	cdc, _ := simapp.MakeCodecs()
 	acc := types.NewBaseAccountWithAddress(delAddr1)
 	dec := simulation.NewDecodeStore(app.AccountKeeper)
 
@@ -39,7 +39,7 @@ func TestDecodeStore(t *testing.T) {
 			},
 			{
 				Key:   types.GlobalAccountNumberKey,
-				Value: cdc.MustMarshal(&globalAccNumber),
+				Value: cdc.MustMarshalBinaryBare(&globalAccNumber),
 			},
 			{
 				Key:   []byte{0x99},

@@ -18,7 +18,6 @@ import (
 var moduleAccAddr = authtypes.NewModuleAddress(stakingtypes.BondedPoolName)
 
 func BenchmarkOneBankSendTxPerBlock(b *testing.B) {
-	b.ReportAllocs()
 	// Add an account at genesis
 	acc := authtypes.BaseAccount{
 		Address: addr1.String(),
@@ -30,7 +29,8 @@ func BenchmarkOneBankSendTxPerBlock(b *testing.B) {
 	ctx := benchmarkApp.BaseApp.NewContext(false, tmproto.Header{})
 
 	// some value conceivably higher than the benchmarks would ever go
-	require.NoError(b, simapp.FundAccount(benchmarkApp.BankKeeper, ctx, addr1, sdk.NewCoins(sdk.NewInt64Coin("foocoin", 100000000000))))
+	err := benchmarkApp.BankKeeper.SetBalances(ctx, addr1, sdk.NewCoins(sdk.NewInt64Coin("foocoin", 100000000000)))
+	require.NoError(b, err)
 
 	benchmarkApp.Commit()
 	txGen := simappparams.MakeTestEncodingConfig().TxConfig
@@ -72,7 +72,8 @@ func BenchmarkOneBankMultiSendTxPerBlock(b *testing.B) {
 	ctx := benchmarkApp.BaseApp.NewContext(false, tmproto.Header{})
 
 	// some value conceivably higher than the benchmarks would ever go
-	require.NoError(b, simapp.FundAccount(benchmarkApp.BankKeeper, ctx, addr1, sdk.NewCoins(sdk.NewInt64Coin("foocoin", 100000000000))))
+	err := benchmarkApp.BankKeeper.SetBalances(ctx, addr1, sdk.NewCoins(sdk.NewInt64Coin("foocoin", 100000000000)))
+	require.NoError(b, err)
 
 	benchmarkApp.Commit()
 	txGen := simappparams.MakeTestEncodingConfig().TxConfig

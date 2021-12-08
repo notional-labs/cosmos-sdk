@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"math/rand"
 
-	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
 	"github.com/cosmos/cosmos-sdk/x/simulation"
+
+	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
 	"github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
@@ -17,17 +18,17 @@ func ParamChanges(r *rand.Rand) []simtypes.ParamChange {
 	return []simtypes.ParamChange{
 		simulation.NewSimParamChange(types.ModuleName, string(types.KeyMaxValidators),
 			func(r *rand.Rand) string {
-				return fmt.Sprintf("%d", genMaxValidators(r))
+				return fmt.Sprintf("%d", GenMaxValidators(r))
 			},
 		),
 		simulation.NewSimParamChange(types.ModuleName, string(types.KeyUnbondingTime),
 			func(r *rand.Rand) string {
-				return fmt.Sprintf("\"%d\"", genUnbondingTime(r))
+				return fmt.Sprintf("\"%d\"", GenUnbondingTime(r))
 			},
 		),
 		simulation.NewSimParamChange(types.ModuleName, string(types.KeyHistoricalEntries),
 			func(r *rand.Rand) string {
-				return fmt.Sprintf("%d", getHistEntries(r))
+				return fmt.Sprintf("%d", GetHistEntries(r))
 			},
 		),
 	}

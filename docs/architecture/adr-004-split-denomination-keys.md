@@ -7,9 +7,11 @@
 - 2020-01-14: Updates from review feedback
 - 2020-01-30: Updates from implementation
 
+
 ### Glossary
 
 * denom / denomination key -- unique token identifier.
+
 
 ## Context
 

@@ -8,10 +8,10 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 )
 
-func getNodeStatus(ctx context.Context, clientCtx client.Context) (*ctypes.ResultStatus, error) {
+func getNodeStatus(clientCtx client.Context) (*ctypes.ResultStatus, error) {
 	node, err := clientCtx.GetNode()
 	if err != nil {
 		return &ctypes.ResultStatus{}, err
 	}
-	return node.Status(ctx)
+	return node.Status(context.Background())
 }

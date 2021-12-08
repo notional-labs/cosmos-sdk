@@ -18,7 +18,7 @@ will run the following steps:
 
 - generate a transaction with one `Msg` (`x/bank`'s `MsgSend`), and print the generated transaction to the console.
 - ask the user for confirmation to send the transaction from the `$MY_VALIDATOR_ADDRESS` account.
-- fetch `$MY_VALIDATOR_ADDRESS` from the keyring. This is possible because we have [set up the CLI's keyring](./keyring.md) in a previous step.
+- fetch `$MY_VALIDATOR_ADDRESS` in the keyring. This is possible because we have [set up the CLI's keyring](./keyring.md) in a previous step.
 - sign the generated transaction with the keyring's account.
 - broadcast the signed transaction to the network. This is possible because the CLI connects to the node's Tendermint RPC endpoint.
 
@@ -52,7 +52,7 @@ Some useful flags to consider in the `tx sign` command:
 #### Signing with Multiple Signers
 
 ::: warning
-Please note that signing a transaction with multiple signers or with a multisig account, where at least one signer uses `SIGN_MODE_DIRECT`, is not yet possible. You may follow [this Github issue](https://github.com/cosmos/cosmos-sdk/issues/8141) for more info.
+Please note that signing a transaction with multiple signers or with a multisig account, where at least one signer uses `SIGN_MODE_DIRECT`, is not possible as of yet. You may follow [this Github issue](https://github.com/cosmos/cosmos-sdk/issues/8141) for more info.
 :::
 
 Signing with multiple signers is done with the `tx multisign` command. This command assumes that all signers use `SIGN_MODE_LEGACY_AMINO_JSON`. The flow is similar to the `tx sign` command flow, but instead of signing an unsigned transaction file, each signer signs the file signed by previous signer(s). The `tx multisign` command will append signatures to the existing transactions. It is important that signers sign the transaction **in the same order** as given by the transaction, which is retrievable using the `GetSigners()` method.
@@ -60,13 +60,14 @@ Signing with multiple signers is done with the `tx multisign` command. This comm
 For example, starting with the `unsigned_tx.json`, and assuming the transaction has 4 signers, we would run:
 
 ```bash
-# Let signer1 sign the unsigned tx.
-simd tx multisign unsigned_tx.json signer_key_1 --chain-id my-test-chain --keyring-backend test > partial_tx_1.json
-# Now signer1 will send the partial_tx_1.json to the signer2.
-# Signer2 appends their signature:
-simd tx multisign partial_tx_1.json signer_key_2 --chain-id my-test-chain --keyring-backend test > partial_tx_2.json
-# Signer2 sends the partial_tx_2.json file to signer3, and signer3 can append his signature:
-simd tx multisign partial_tx_2.json signer_key_3 --chain-id my-test-chain --keyring-backend test > partial_tx_3.json
+# Let signer 1 sign the unsigned tx.
+simd tx multisignsign unsigned_tx.json signer_key_1 --chain-id my-test-chain --keyring-backend test > partial_tx_1.json
+# Signer 2 appends their signature.
+simd tx multisignsign partial_tx_1.json signer_key_2 --chain-id my-test-chain --keyring-backend test > partial_tx_2.json
+# Signer 3 appends their signature.
+simd tx multisignsign partial_tx_2.json signer_key_3 --chain-id my-test-chain --keyring-backend test > partial_tx_3.json
+# Signer 4 appends their signature. The final output is the fully signed tx.
+simd tx multisignsign partial_tx_3.json signer_key_4 --chain-id my-test-chain --keyring-backend test > signed_tx.json
 ```
 
 ### Broadcasting a Transaction
@@ -83,37 +84,13 @@ You may optionally pass the `--broadcast-mode` flag to specify which response to
 - `sync`: the CLI waits for a CheckTx execution response only.
 - `async`: the CLI returns immediately (transaction might fail).
 
-### Encoding a Transaction
-
-In order to broadcast a transaction using the gRPC or REST endpoints, the transaction will need to be encoded first. This can be done using the CLI.
-
-Encoding a transaction is done using the following command:
-
-```bash
-simd tx encode tx_signed.json
-```
-
-This will read the transaction from the file, serialize it using Protobuf, and output the transaction bytes as base64 in the console.
-
-### Decoding a Transaction
-
-The CLI can also be used to decode transaction bytes.
-
-Decoding a transaction is done using the following command:
-
-```bash
-simd tx decode [protobuf-byte-string]
-```
-
-This will decode the transaction bytes and output the transaction as JSON in the console. You can also save the transaction to a file by appending `> tx.json` to the above command.
-
 ## Programmatically with Go
 
 It is possible to manipulate transactions programmatically via Go using the Cosmos SDK's `TxBuilder` interface.
 
 ### Generating a Transaction
 
-Before generating a transaction, a new instance of a `TxBuilder` needs to be created. Since the Cosmos SDK supports both Amino and Protobuf transactions, the first step would be to decide which encoding scheme to use. All the subsequent steps remain unchanged, whether you're using Amino or Protobuf, as `TxBuilder` abstracts the encoding mechanisms. In the following snippet, we will use Protobuf.
+Before generating a transaction, a new instance of a `TxBuilder` needs to be created. Since the SDK supports both Amino and Protobuf transactions, the first step would be to decide which encoding scheme to use. All the subsequent steps remain unchanged, whether you're using Amino or Protobuf, as `TxBuilder` abstracts the encoding mechanisms. In the following snippet, we will use Protobuf.
 
 ```go
 import (
@@ -177,7 +154,7 @@ At this point, `TxBuilder`'s underlying transaction is ready to be signed.
 
 ### Signing a Transaction
 
-We set encoding config to use Protobuf, which will use `SIGN_MODE_DIRECT` by default. As per [ADR-020](https://github.com/cosmos/cosmos-sdk/blob/v0.40.0-rc6/docs/architecture/adr-020-protobuf-transaction-encoding.md), each signer needs to sign the `SignerInfo`s of all other signers. This means that we need to perform two steps sequentially:
+We chose our encoding config to use Protobuf, which will use `SIGN_MODE_DIRECT` by default. As per [ADR-020](https://github.com/cosmos/cosmos-sdk/blob/v0.40.0-rc6/docs/architecture/adr-020-protobuf-transaction-encoding.md), each signer needs to sign the `SignerInfo`s of all other signers. This means that we need to perform two steps sequentially:
 
 - for each signer, populate the signer's `SignerInfo` inside `TxBuilder`,
 - once all `SignerInfo`s are populated, for each signer, sign the `SignDoc` (the payload to be signed).
@@ -277,13 +254,13 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/tx"
 )
 
-func sendTx(ctx context.Context) error {
+func sendTx() error {
     // --snip--
 
     // Create a connection to the gRPC server.
     grpcConn := grpc.Dial(
         "127.0.0.1:9090", // Or your gRPC server address.
-        grpc.WithInsecure(), // The Cosmos SDK doesn't support any transport security mechanism.
+        grpc.WithInsecure(), // The SDK doesn't support any transport security mechanism.
     )
     defer grpcConn.Close()
 
@@ -292,7 +269,7 @@ func sendTx(ctx context.Context) error {
     txClient := tx.NewServiceClient(grpcConn)
     // We then call the BroadcastTx method on this client.
     grpcRes, err := txClient.BroadcastTx(
-        ctx,
+        context.Background(),
         &tx.BroadcastTxRequest{
             Mode:    tx.BroadcastMode_BROADCAST_MODE_SYNC,
             TxBytes: txBytes, // Proto-binary of the signed transaction, see previous step.
@@ -329,13 +306,15 @@ func simulateTx() error {
     // Simulate the tx via gRPC. We create a new client for the Protobuf Tx
     // service.
     txClient := tx.NewServiceClient(grpcConn)
-    txBytes := /* Fill in with your signed transaction bytes. */
-
-    // We then call the Simulate method on this client.
+    // We then call the BroadcastTx method on this client.
+    protoTx := txBuilderToProtoTx(txBuilder)
+    if err != nil {
+        return err
+    }
     grpcRes, err := txClient.Simulate(
         context.Background(),
         &tx.SimulateRequest{
-            TxBytes: txBytes,
+            Tx: protoTx,
         },
     )
     if err != nil {
@@ -346,26 +325,21 @@ func simulateTx() error {
 
     return nil
 }
-```
 
-## Using gRPC
+// txBuilderToProtoTx converts a txBuilder into a proto tx.Tx.
+func txBuilderToProtoTx(txBuilder client.TxBuilder) (*tx.Tx, error) { // nolint
+	protoProvider, ok := txBuilder.(authtx.ProtoTxProvider)
+	if !ok {
+		return nil, fmt.Errorf("expected proto tx builder, got %T", txBuilder)
+	}
 
-It is not possible to generate or sign a transaction using gRPC, only to broadcast one. In order to broadcast a transaction using gRPC, you will need to generate, sign, and encode the transaction using either the CLI or programmatically with Go.
-
-### Broadcasting a Transaction
-
-Broadcasting a transaction using the gRPC endpoint can be done by sending a `BroadcastTx` request as follows, where the `txBytes` are the protobuf-encoded bytes of a signed transaction:
-
-```bash
-grpcurl -plaintext \
-    -d '{"tx_bytes":"{{txBytes}}","mode":"BROADCAST_MODE_SYNC"}' \
-    localhost:9090 \
-    cosmos.tx.v1beta1.Service/BroadcastTx
+	return protoProvider.GetProtoTx(), nil
+}
 ```
 
 ## Using REST
 
-It is not possible to generate or sign a transaction using REST, only to broadcast one. In order to broadcast a transaction using REST, you will need to generate, sign, and encode the transaction using either the CLI or programmatically with Go.
+It is not possible to generate or sign a transaction using REST, only to broadcast one.
 
 ### Broadcasting a Transaction
 
@@ -373,8 +347,8 @@ Broadcasting a transaction using the REST endpoint (served by `gRPC-gateway`) ca
 
 ```bash
 curl -X POST \
-    -H "Content-Type: application/json" \
-    -d'{"tx_bytes":"{{txBytes}}","mode":"BROADCAST_MODE_SYNC"}' \
+    -H "Content-Type: application/json"
+    -d'{"tx_bytes":"{{txBytes}}","mode":"BROADCAST_MODE_SYNC"}'
     localhost:1317/cosmos/tx/v1beta1/txs
 ```
 

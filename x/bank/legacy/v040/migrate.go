@@ -4,7 +4,7 @@ import (
 	v039auth "github.com/cosmos/cosmos-sdk/x/auth/legacy/v039"
 	v036supply "github.com/cosmos/cosmos-sdk/x/bank/legacy/v036"
 	v038bank "github.com/cosmos/cosmos-sdk/x/bank/legacy/v038"
-	"github.com/cosmos/cosmos-sdk/x/bank/types"
+	v040bank "github.com/cosmos/cosmos-sdk/x/bank/types"
 )
 
 // Migrate accepts exported v0.39 x/auth and v0.38 x/bank genesis state and
@@ -17,22 +17,22 @@ func Migrate(
 	bankGenState v038bank.GenesisState,
 	authGenState v039auth.GenesisState,
 	supplyGenState v036supply.GenesisState,
-) *types.GenesisState {
-	balances := make([]types.Balance, len(authGenState.Accounts))
+) *v040bank.GenesisState {
+	balances := make([]v040bank.Balance, len(authGenState.Accounts))
 	for i, acc := range authGenState.Accounts {
-		balances[i] = types.Balance{
+		balances[i] = v040bank.Balance{
 			Address: acc.GetAddress().String(),
 			Coins:   acc.GetCoins(),
 		}
 	}
 
-	return &types.GenesisState{
-		Params: types.Params{
-			SendEnabled:        []*types.SendEnabled{},
+	return &v040bank.GenesisState{
+		Params: v040bank.Params{
+			SendEnabled:        []*v040bank.SendEnabled{},
 			DefaultSendEnabled: bankGenState.SendEnabled,
 		},
 		Balances:      balances,
 		Supply:        supplyGenState.Supply,
-		DenomMetadata: []types.Metadata{},
+		DenomMetadata: []v040bank.Metadata{},
 	}
 }

@@ -33,13 +33,13 @@ type ViewKeeper interface {
 
 // BaseViewKeeper implements a read only keeper implementation of ViewKeeper.
 type BaseViewKeeper struct {
-	cdc      codec.BinaryCodec
+	cdc      codec.BinaryMarshaler
 	storeKey sdk.StoreKey
 	ak       types.AccountKeeper
 }
 
 // NewBaseViewKeeper returns a new BaseViewKeeper.
-func NewBaseViewKeeper(cdc codec.BinaryCodec, storeKey sdk.StoreKey, ak types.AccountKeeper) BaseViewKeeper {
+func NewBaseViewKeeper(cdc codec.BinaryMarshaler, storeKey sdk.StoreKey, ak types.AccountKeeper) BaseViewKeeper {
 	return BaseViewKeeper{
 		cdc:      cdc,
 		storeKey: storeKey,
@@ -97,7 +97,9 @@ func (k BaseViewKeeper) GetAccountsBalances(ctx sdk.Context) []types.Balance {
 // GetBalance returns the balance of a specific denomination for a given account
 // by address.
 func (k BaseViewKeeper) GetBalance(ctx sdk.Context, addr sdk.AccAddress, denom string) sdk.Coin {
-	accountStore := k.getAccountStore(ctx, addr)
+	store := ctx.KVStore(k.storeKey)
+	balancesStore := prefix.NewStore(store, types.BalancesPrefix)
+	accountStore := prefix.NewStore(balancesStore, addr.Bytes())
 
 	bz := accountStore.Get([]byte(denom))
 	if bz == nil {
@@ -105,7 +107,7 @@ func (k BaseViewKeeper) GetBalance(ctx sdk.Context, addr sdk.AccAddress, denom s
 	}
 
 	var balance sdk.Coin
-	k.cdc.MustUnmarshal(bz, &balance)
+	k.cdc.MustUnmarshalBinaryBare(bz, &balance)
 
 	return balance
 }
@@ -114,14 +116,16 @@ func (k BaseViewKeeper) GetBalance(ctx sdk.Context, addr sdk.AccAddress, denom s
 // provides the token balance to a callback. If true is returned from the
 // callback, iteration is halted.
 func (k BaseViewKeeper) IterateAccountBalances(ctx sdk.Context, addr sdk.AccAddress, cb func(sdk.Coin) bool) {
-	accountStore := k.getAccountStore(ctx, addr)
+	store := ctx.KVStore(k.storeKey)
+	balancesStore := prefix.NewStore(store, types.BalancesPrefix)
+	accountStore := prefix.NewStore(balancesStore, addr.Bytes())
 
 	iterator := accountStore.Iterator(nil, nil)
 	defer iterator.Close()
 
 	for ; iterator.Valid(); iterator.Next() {
 		var balance sdk.Coin
-		k.cdc.MustUnmarshal(iterator.Value(), &balance)
+		k.cdc.MustUnmarshalBinaryBare(iterator.Value(), &balance)
 
 		if cb(balance) {
 			break
@@ -140,16 +144,10 @@ func (k BaseViewKeeper) IterateAllBalances(ctx sdk.Context, cb func(sdk.AccAddre
 	defer iterator.Close()
 
 	for ; iterator.Valid(); iterator.Next() {
-		address, err := types.AddressFromBalancesStore(iterator.Key())
-		if err != nil {
-			k.Logger(ctx).With("key", iterator.Key(), "err", err).Error("failed to get address from balances store")
-			// TODO: revisit, for now, panic here to keep same behavior as in 0.42
-			// ref: https://github.com/cosmos/cosmos-sdk/issues/7409
-			panic(err)
-		}
+		address := types.AddressFromBalancesStore(iterator.Key())
 
 		var balance sdk.Coin
-		k.cdc.MustUnmarshal(iterator.Value(), &balance)
+		k.cdc.MustUnmarshalBinaryBare(iterator.Value(), &balance)
 
 		if cb(address, balance) {
 			break
@@ -177,23 +175,15 @@ func (k BaseViewKeeper) LockedCoins(ctx sdk.Context, addr sdk.AccAddress) sdk.Co
 // by address. If the account has no spendable coins, an empty Coins slice is
 // returned.
 func (k BaseViewKeeper) SpendableCoins(ctx sdk.Context, addr sdk.AccAddress) sdk.Coins {
-	spendable, _ := k.spendableCoins(ctx, addr)
-	return spendable
-}
-
-// spendableCoins returns the coins the given address can spend alongside the total amount of coins it holds.
-// It exists for gas efficiency, in order to avoid to have to get balance multiple times.
-func (k BaseViewKeeper) spendableCoins(ctx sdk.Context, addr sdk.AccAddress) (spendable, total sdk.Coins) {
-	total = k.GetAllBalances(ctx, addr)
+	balances := k.GetAllBalances(ctx, addr)
 	locked := k.LockedCoins(ctx, addr)
 
-	spendable, hasNeg := total.SafeSub(locked)
+	spendable, hasNeg := balances.SafeSub(locked)
 	if hasNeg {
-		spendable = sdk.NewCoins()
-		return
+		return sdk.NewCoins()
 	}
 
-	return
+	return spendable
 }
 
 // ValidateBalance validates all balances for a given account address returning
@@ -223,11 +213,4 @@ func (k BaseViewKeeper) ValidateBalance(ctx sdk.Context, addr sdk.AccAddress) er
 	}
 
 	return nil
-}
-
-// getAccountStore gets the account store of the given address.
-func (k BaseViewKeeper) getAccountStore(ctx sdk.Context, addr sdk.AccAddress) prefix.Store {
-	store := ctx.KVStore(k.storeKey)
-
-	return prefix.NewStore(store, types.CreateAccountBalancesPrefix(addr))
 }

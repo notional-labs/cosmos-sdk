@@ -12,7 +12,7 @@ parent:
 `x/upgrade` is an implementation of a Cosmos SDK module that facilitates smoothly
 upgrading a live Cosmos chain to a new (breaking) software version. It accomplishes this by
 providing a `BeginBlocker` hook that prevents the blockchain state machine from
-proceeding once a pre-defined upgrade block height has been reached.
+proceeding once a pre-defined upgrade block time or height has been reached.
 
 The module does not prescribe anything regarding how governance decides to do an
 upgrade, but just the mechanism for coordinating the upgrade safely. Without software
@@ -25,7 +25,3 @@ recover from.
 1. **[Concepts](01_concepts.md)**
 2. **[State](02_state.md)**
 3. **[Events](03_events.md)**
-4. **[Client](04_client.md)**
-    - [CLI](04_client.md#cli)
-    - [REST](04_client.md#rest)
-    - [gRPC](04_client.md#grpc)

@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"context"
+
 	"github.com/spf13/cobra"
 
 	"github.com/cosmos/cosmos-sdk/client"
@@ -39,7 +41,7 @@ func NewQuerySubspaceParamsCmd() *cobra.Command {
 			queryClient := proposal.NewQueryClient(clientCtx)
 
 			params := proposal.QueryParamsRequest{Subspace: args[0], Key: args[1]}
-			res, err := queryClient.Params(cmd.Context(), &params)
+			res, err := queryClient.Params(context.Background(), &params)
 			if err != nil {
 				return err
 			}

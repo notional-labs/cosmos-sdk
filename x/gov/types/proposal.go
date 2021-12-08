@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/gogo/protobuf/proto"
-	"sigs.k8s.io/yaml"
+	yaml "gopkg.in/yaml.v2"
 
 	"github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -18,6 +18,15 @@ const DefaultStartingProposalID uint64 = 1
 
 // NewProposal creates a new Proposal instance
 func NewProposal(content Content, id uint64, submitTime, depositEndTime time.Time) (Proposal, error) {
+	p := Proposal{
+		ProposalId:       id,
+		Status:           StatusDepositPeriod,
+		FinalTallyResult: EmptyTallyResult(),
+		TotalDeposit:     sdk.NewCoins(),
+		SubmitTime:       submitTime,
+		DepositEndTime:   depositEndTime,
+	}
+
 	msg, ok := content.(proto.Message)
 	if !ok {
 		return Proposal{}, fmt.Errorf("%T does not implement proto.Message", content)
@@ -28,15 +37,7 @@ func NewProposal(content Content, id uint64, submitTime, depositEndTime time.Tim
 		return Proposal{}, err
 	}
 
-	p := Proposal{
-		Content:          any,
-		ProposalId:       id,
-		Status:           StatusDepositPeriod,
-		FinalTallyResult: EmptyTallyResult(),
-		TotalDeposit:     sdk.NewCoins(),
-		SubmitTime:       submitTime,
-		DepositEndTime:   depositEndTime,
-	}
+	p.Content = any
 
 	return p, nil
 }

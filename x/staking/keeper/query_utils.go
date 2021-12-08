@@ -50,6 +50,8 @@ func (k Keeper) GetDelegatorValidator(
 	return validator, nil
 }
 
+// ____________________________________________________________________________________
+
 // return all delegations for a delegator
 func (k Keeper) GetAllDelegatorDelegations(ctx sdk.Context, delegator sdk.AccAddress) []types.Delegation {
 	delegations := make([]types.Delegation, 0)

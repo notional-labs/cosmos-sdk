@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
-
 	"github.com/stretchr/testify/suite"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
@@ -16,9 +14,11 @@ import (
 	"github.com/cosmos/cosmos-sdk/simapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/cosmos/cosmos-sdk/x/evidence/exported"
 	"github.com/cosmos/cosmos-sdk/x/evidence/keeper"
 	"github.com/cosmos/cosmos-sdk/x/evidence/types"
+	"github.com/cosmos/cosmos-sdk/x/staking"
 )
 
 var (
@@ -34,8 +34,7 @@ var (
 		sdk.ValAddress(pubkeys[2].Address()),
 	}
 
-	// The default power validators are initialized to have within tests
-	initAmt   = sdk.TokensFromConsensusPower(200, sdk.DefaultPowerReduction)
+	initAmt   = sdk.TokensFromConsensusPower(200)
 	initCoins = sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, initAmt))
 )
 
@@ -76,11 +75,12 @@ type KeeperTestSuite struct {
 	app     *simapp.SimApp
 
 	queryClient types.QueryClient
+	stakingHdl  sdk.Handler
 }
 
 func (suite *KeeperTestSuite) SetupTest() {
 	checkTx := false
-	app := simapp.Setup(suite.T(), checkTx)
+	app := simapp.Setup(checkTx)
 
 	// recreate keeper in order to use custom testing types
 	evidenceKeeper := keeper.NewKeeper(
@@ -104,6 +104,7 @@ func (suite *KeeperTestSuite) SetupTest() {
 	queryHelper := baseapp.NewQueryServerTestHelper(suite.ctx, app.InterfaceRegistry())
 	types.RegisterQueryServer(queryHelper, app.EvidenceKeeper)
 	suite.queryClient = types.NewQueryClient(queryHelper)
+	suite.stakingHdl = staking.NewHandler(app.StakingKeeper)
 }
 
 func (suite *KeeperTestSuite) populateEvidence(ctx sdk.Context, numEvidence int) []exported.Evidence {
@@ -129,10 +130,11 @@ func (suite *KeeperTestSuite) populateValidators(ctx sdk.Context) {
 	// add accounts and set total supply
 	totalSupplyAmt := initAmt.MulRaw(int64(len(valAddresses)))
 	totalSupply := sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, totalSupplyAmt))
-	suite.NoError(suite.app.BankKeeper.MintCoins(ctx, minttypes.ModuleName, totalSupply))
+	suite.app.BankKeeper.SetSupply(ctx, banktypes.NewSupply(totalSupply))
 
 	for _, addr := range valAddresses {
-		suite.NoError(suite.app.BankKeeper.SendCoinsFromModuleToAccount(ctx, minttypes.ModuleName, (sdk.AccAddress)(addr), initCoins))
+		err := suite.app.BankKeeper.AddCoins(ctx, sdk.AccAddress(addr), initCoins)
+		suite.NoError(err)
 	}
 }
 

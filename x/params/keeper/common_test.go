@@ -1,20 +1,24 @@
 package keeper_test
 
 import (
-	"github.com/cosmos/cosmos-sdk/codec"
+	"github.com/tendermint/tendermint/libs/log"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	dbm "github.com/tendermint/tm-db"
+
 	"github.com/cosmos/cosmos-sdk/simapp"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
-	"github.com/cosmos/cosmos-sdk/testutil"
+
+	"github.com/cosmos/cosmos-sdk/codec"
+	"github.com/cosmos/cosmos-sdk/store"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	paramskeeper "github.com/cosmos/cosmos-sdk/x/params/keeper"
 )
 
-func testComponents() (*codec.LegacyAmino, sdk.Context, storetypes.StoreKey, storetypes.StoreKey, paramskeeper.Keeper) {
-	marshaler := simapp.MakeTestEncodingConfig().Codec
+func testComponents() (*codec.LegacyAmino, sdk.Context, sdk.StoreKey, sdk.StoreKey, paramskeeper.Keeper) {
+	marshaler := simapp.MakeTestEncodingConfig().Marshaler
 	legacyAmino := createTestCodec()
 	mkey := sdk.NewKVStoreKey("test")
 	tkey := sdk.NewTransientStoreKey("transient_test")
-	ctx := testutil.DefaultContext(mkey, tkey)
+	ctx := defaultContext(mkey, tkey)
 	keeper := paramskeeper.NewKeeper(marshaler, legacyAmino, mkey, tkey)
 
 	return legacyAmino, ctx, mkey, tkey, keeper
@@ -32,4 +36,17 @@ func createTestCodec() *codec.LegacyAmino {
 	cdc.RegisterConcrete(s{}, "test/s", nil)
 	cdc.RegisterConcrete(invalid{}, "test/invalid", nil)
 	return cdc
+}
+
+func defaultContext(key sdk.StoreKey, tkey sdk.StoreKey) sdk.Context {
+	db := dbm.NewMemDB()
+	cms := store.NewCommitMultiStore(db)
+	cms.MountStoreWithDB(key, sdk.StoreTypeIAVL, db)
+	cms.MountStoreWithDB(tkey, sdk.StoreTypeTransient, db)
+	err := cms.LoadLatestVersion()
+	if err != nil {
+		panic(err)
+	}
+	ctx := sdk.NewContext(cms, tmproto.Header{}, false, log.NewNopLogger())
+	return ctx
 }

@@ -152,7 +152,7 @@ func encryptPrivKey(privKey cryptotypes.PrivKey, passphrase string) (saltBytes [
 	}
 
 	key = crypto.Sha256(key) // get 32 bytes
-	privKeyBytes := legacy.Cdc.MustMarshal(privKey)
+	privKeyBytes := legacy.Cdc.MustMarshalBinaryBare(privKey)
 
 	return saltBytes, xsalsa20symmetric.EncryptSymmetric(privKeyBytes, key)
 }

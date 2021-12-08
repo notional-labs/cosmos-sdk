@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -19,10 +20,7 @@ import (
 )
 
 func setupStore(t *testing.T) *snapshots.Store {
-	// os.MkdirTemp() is used instead of testing.T.TempDir()
-	// see https://github.com/cosmos/cosmos-sdk/pull/8475 for
-	// this change's rationale.
-	tempdir, err := os.MkdirTemp("", "")
+	tempdir, err := ioutil.TempDir("", "")
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = os.RemoveAll(tempdir) })
 
@@ -194,7 +192,7 @@ func TestStore_Load(t *testing.T) {
 	for i := uint32(0); i < snapshot.Chunks; i++ {
 		reader, ok := <-chunks
 		require.True(t, ok)
-		chunk, err := io.ReadAll(reader)
+		chunk, err := ioutil.ReadAll(reader)
 		require.NoError(t, err)
 		err = reader.Close()
 		require.NoError(t, err)
@@ -219,7 +217,7 @@ func TestStore_LoadChunk(t *testing.T) {
 	chunk, err = store.LoadChunk(2, 1, 0)
 	require.NoError(t, err)
 	require.NotNil(t, chunk)
-	body, err := io.ReadAll(chunk)
+	body, err := ioutil.ReadAll(chunk)
 	require.NoError(t, err)
 	assert.Equal(t, []byte{2, 1, 0}, body)
 	err = chunk.Close()
@@ -313,7 +311,7 @@ func TestStore_Save(t *testing.T) {
 
 	ch := make(chan io.ReadCloser, 2)
 	ch <- pr
-	ch <- io.NopCloser(bytes.NewBuffer([]byte{0xff}))
+	ch <- ioutil.NopCloser(bytes.NewBuffer([]byte{0xff}))
 	close(ch)
 
 	_, err = store.Save(6, 1, ch)

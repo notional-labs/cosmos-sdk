@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"io"
+	"io/ioutil"
 	"os"
 	"testing"
 	"time"
@@ -38,7 +39,7 @@ func hash(chunks [][]byte) []byte {
 func makeChunks(chunks [][]byte) <-chan io.ReadCloser {
 	ch := make(chan io.ReadCloser, len(chunks))
 	for _, chunk := range chunks {
-		ch <- io.NopCloser(bytes.NewReader(chunk))
+		ch <- ioutil.NopCloser(bytes.NewReader(chunk))
 	}
 	close(ch)
 	return ch
@@ -47,7 +48,7 @@ func makeChunks(chunks [][]byte) <-chan io.ReadCloser {
 func readChunks(chunks <-chan io.ReadCloser) [][]byte {
 	bodies := [][]byte{}
 	for chunk := range chunks {
-		body, err := io.ReadAll(chunk)
+		body, err := ioutil.ReadAll(chunk)
 		if err != nil {
 			panic(err)
 		}
@@ -75,7 +76,7 @@ func (m *mockSnapshotter) Restore(
 
 	m.chunks = [][]byte{}
 	for reader := range chunks {
-		chunk, err := io.ReadAll(reader)
+		chunk, err := ioutil.ReadAll(reader)
 		if err != nil {
 			return err
 		}
@@ -91,7 +92,7 @@ func (m *mockSnapshotter) Snapshot(height uint64, format uint32) (<-chan io.Read
 	}
 	ch := make(chan io.ReadCloser, len(m.chunks))
 	for _, chunk := range m.chunks {
-		ch <- io.NopCloser(bytes.NewReader(chunk))
+		ch <- ioutil.NopCloser(bytes.NewReader(chunk))
 	}
 	close(ch)
 	return ch, nil
@@ -100,10 +101,7 @@ func (m *mockSnapshotter) Snapshot(height uint64, format uint32) (<-chan io.Read
 // setupBusyManager creates a manager with an empty store that is busy creating a snapshot at height 1.
 // The snapshot will complete when the returned closer is called.
 func setupBusyManager(t *testing.T) *snapshots.Manager {
-	// os.MkdirTemp() is used instead of testing.T.TempDir()
-	// see https://github.com/cosmos/cosmos-sdk/pull/8475 for
-	// this change's rationale.
-	tempdir, err := os.MkdirTemp("", "")
+	tempdir, err := ioutil.TempDir("", "")
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = os.RemoveAll(tempdir) })
 
@@ -140,7 +138,7 @@ func (m *hungSnapshotter) Close() {
 func (m *hungSnapshotter) Snapshot(height uint64, format uint32) (<-chan io.ReadCloser, error) {
 	<-m.ch
 	ch := make(chan io.ReadCloser, 1)
-	ch <- io.NopCloser(bytes.NewReader([]byte{}))
+	ch <- ioutil.NopCloser(bytes.NewReader([]byte{}))
 	return ch, nil
 }
 

@@ -34,8 +34,8 @@ func NewQueryServer(clientCtx client.Context, interfaceRegistry codectypes.Inter
 }
 
 // GetSyncing implements ServiceServer.GetSyncing
-func (s queryServer) GetSyncing(ctx context.Context, _ *GetSyncingRequest) (*GetSyncingResponse, error) {
-	status, err := getNodeStatus(ctx, s.clientCtx)
+func (s queryServer) GetSyncing(_ context.Context, _ *GetSyncingRequest) (*GetSyncingResponse, error) {
+	status, err := getNodeStatus(s.clientCtx)
 	if err != nil {
 		return nil, err
 	}
@@ -45,8 +45,8 @@ func (s queryServer) GetSyncing(ctx context.Context, _ *GetSyncingRequest) (*Get
 }
 
 // GetLatestBlock implements ServiceServer.GetLatestBlock
-func (s queryServer) GetLatestBlock(ctx context.Context, _ *GetLatestBlockRequest) (*GetLatestBlockResponse, error) {
-	status, err := getBlock(ctx, s.clientCtx, nil)
+func (s queryServer) GetLatestBlock(context.Context, *GetLatestBlockRequest) (*GetLatestBlockResponse, error) {
+	status, err := getBlock(s.clientCtx, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +64,7 @@ func (s queryServer) GetLatestBlock(ctx context.Context, _ *GetLatestBlockReques
 }
 
 // GetBlockByHeight implements ServiceServer.GetBlockByHeight
-func (s queryServer) GetBlockByHeight(ctx context.Context, req *GetBlockByHeightRequest) (*GetBlockByHeightResponse, error) {
+func (s queryServer) GetBlockByHeight(_ context.Context, req *GetBlockByHeightRequest) (*GetBlockByHeightResponse, error) {
 	chainHeight, err := rpc.GetChainHeight(s.clientCtx)
 	if err != nil {
 		return nil, err
@@ -74,7 +74,7 @@ func (s queryServer) GetBlockByHeight(ctx context.Context, req *GetBlockByHeight
 		return nil, status.Error(codes.InvalidArgument, "requested block height is bigger then the chain length")
 	}
 
-	res, err := getBlock(ctx, s.clientCtx, &req.Height)
+	res, err := getBlock(s.clientCtx, &req.Height)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +95,30 @@ func (s queryServer) GetLatestValidatorSet(ctx context.Context, req *GetLatestVa
 	if err != nil {
 		return nil, err
 	}
-	return validatorsOutput(ctx, s.clientCtx, nil, page, limit)
+
+	validatorsRes, err := rpc.GetValidators(s.clientCtx, nil, &page, &limit)
+	if err != nil {
+		return nil, err
+	}
+
+	outputValidatorsRes := &GetLatestValidatorSetResponse{
+		BlockHeight: validatorsRes.BlockHeight,
+		Validators:  make([]*Validator, len(validatorsRes.Validators)),
+	}
+
+	for i, validator := range validatorsRes.Validators {
+		anyPub, err := codectypes.NewAnyWithValue(validator.PubKey)
+		if err != nil {
+			return nil, err
+		}
+		outputValidatorsRes.Validators[i] = &Validator{
+			Address:          validator.Address.String(),
+			ProposerPriority: validator.ProposerPriority,
+			PubKey:           anyPub,
+			VotingPower:      validator.VotingPower,
+		}
+	}
+	return outputValidatorsRes, nil
 }
 
 func (m *GetLatestValidatorSetResponse) UnpackInterfaces(unpacker codectypes.AnyUnpacker) error {
@@ -123,47 +146,36 @@ func (s queryServer) GetValidatorSetByHeight(ctx context.Context, req *GetValida
 	if req.Height > chainHeight {
 		return nil, status.Error(codes.InvalidArgument, "requested block height is bigger then the chain length")
 	}
-	r, err := validatorsOutput(ctx, s.clientCtx, &req.Height, page, limit)
-	if err != nil {
-		return nil, err
-	}
-	return &GetValidatorSetByHeightResponse{
-		BlockHeight: r.BlockHeight,
-		Validators:  r.Validators,
-		Pagination:  r.Pagination,
-	}, nil
-}
 
-func validatorsOutput(ctx context.Context, cctx client.Context, height *int64, page, limit int) (*GetLatestValidatorSetResponse, error) {
-	vs, err := rpc.GetValidators(ctx, cctx, height, &page, &limit)
+	validatorsRes, err := rpc.GetValidators(s.clientCtx, &req.Height, &page, &limit)
+
 	if err != nil {
 		return nil, err
 	}
-	resp := GetLatestValidatorSetResponse{
-		BlockHeight: vs.BlockHeight,
-		Validators:  make([]*Validator, len(vs.Validators)),
-		Pagination: &qtypes.PageResponse{
-			Total: vs.Total,
-		},
+
+	outputValidatorsRes := &GetValidatorSetByHeightResponse{
+		BlockHeight: validatorsRes.BlockHeight,
+		Validators:  make([]*Validator, len(validatorsRes.Validators)),
 	}
-	for i, v := range vs.Validators {
-		anyPub, err := codectypes.NewAnyWithValue(v.PubKey)
+
+	for i, validator := range validatorsRes.Validators {
+		anyPub, err := codectypes.NewAnyWithValue(validator.PubKey)
 		if err != nil {
 			return nil, err
 		}
-		resp.Validators[i] = &Validator{
-			Address:          v.Address.String(),
-			ProposerPriority: v.ProposerPriority,
+		outputValidatorsRes.Validators[i] = &Validator{
+			Address:          validator.Address.String(),
+			ProposerPriority: validator.ProposerPriority,
 			PubKey:           anyPub,
-			VotingPower:      v.VotingPower,
+			VotingPower:      validator.VotingPower,
 		}
 	}
-	return &resp, nil
+	return outputValidatorsRes, nil
 }
 
 // GetNodeInfo implements ServiceServer.GetNodeInfo
 func (s queryServer) GetNodeInfo(ctx context.Context, req *GetNodeInfoRequest) (*GetNodeInfoResponse, error) {
-	status, err := getNodeStatus(ctx, s.clientCtx)
+	status, err := getNodeStatus(s.clientCtx)
 	if err != nil {
 		return nil, err
 	}

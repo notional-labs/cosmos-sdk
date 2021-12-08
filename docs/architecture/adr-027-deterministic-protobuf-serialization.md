@@ -38,7 +38,7 @@ step when sending and signing transactions.
 
 ### Decision
 
-The following encoding scheme is to be used by other ADRs,
+The following encoding scheme is to be used by other ADRs, 
 and in particular for `SignDoc` serialization.
 
 ## Specification
@@ -70,6 +70,7 @@ malleability.
 
 Among other sources of non-determinism, this ADR eliminates the possibility of
 encoding malleability.
+
 
 ### Serialization rules
 
@@ -274,7 +275,8 @@ for all protobuf documents we need in the context of Cosmos SDK signing.
 
 ### Neutral
 
-### Usage in Cosmos SDK
+
+### Usage in SDK
 
 For the reasons mentioned above ("Negative" section) we prefer to keep workarounds
 for shared data structure. Example: the aforementioned `TxRaw` is using raw bytes

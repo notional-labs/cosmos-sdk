@@ -20,7 +20,7 @@ import (
 type CapabilityTestSuite struct {
 	suite.Suite
 
-	cdc    codec.Codec
+	cdc    codec.Marshaler
 	ctx    sdk.Context
 	app    *simapp.SimApp
 	keeper *keeper.Keeper
@@ -29,7 +29,7 @@ type CapabilityTestSuite struct {
 
 func (suite *CapabilityTestSuite) SetupTest() {
 	checkTx := false
-	app := simapp.Setup(suite.T(), checkTx)
+	app := simapp.Setup(checkTx)
 	cdc := app.AppCodec()
 
 	// create new keeper so we can define custom scoping before init and seal
@@ -52,12 +52,12 @@ func (suite *CapabilityTestSuite) TestInitializeMemStore() {
 	suite.Require().NotNil(cap1)
 
 	// mock statesync by creating new keeper that shares persistent state but loses in-memory map
-	newKeeper := keeper.NewKeeper(suite.cdc, suite.app.GetKey(types.StoreKey), suite.app.GetMemKey("testingkey"))
+	newKeeper := keeper.NewKeeper(suite.cdc, suite.app.GetKey(types.StoreKey), suite.app.GetMemKey("testing"))
 	newSk1 := newKeeper.ScopeToModule(banktypes.ModuleName)
 
 	// Mock App startup
 	ctx := suite.app.BaseApp.NewUncachedContext(false, tmproto.Header{})
-	newKeeper.Seal()
+	newKeeper.InitializeAndSeal(ctx)
 	suite.Require().False(newKeeper.IsInitialized(ctx), "memstore initialized flag set before BeginBlock")
 
 	// Mock app beginblock and ensure that no gas has been consumed and memstore is initialized

@@ -22,7 +22,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/store/cachemulti"
 	"github.com/cosmos/cosmos-sdk/store/dbadapter"
 	"github.com/cosmos/cosmos-sdk/store/iavl"
-	"github.com/cosmos/cosmos-sdk/store/listenkv"
 	"github.com/cosmos/cosmos-sdk/store/mem"
 	"github.com/cosmos/cosmos-sdk/store/tracekv"
 	"github.com/cosmos/cosmos-sdk/store/transient"
@@ -54,14 +53,11 @@ type Store struct {
 	lazyLoading    bool
 	pruneHeights   []int64
 	initialVersion int64
-	removalMap     map[types.StoreKey]bool
 
 	traceWriter  io.Writer
 	traceContext types.TraceContext
 
 	interBlockCache types.MultiStorePersistentCache
-
-	listeners map[types.StoreKey][]types.WriteListener
 }
 
 var (
@@ -81,8 +77,6 @@ func NewStore(db dbm.DB) *Store {
 		stores:       make(map[types.StoreKey]types.CommitKVStore),
 		keysByName:   make(map[string]types.StoreKey),
 		pruneHeights: make([]int64, 0),
-		listeners:    make(map[types.StoreKey][]types.WriteListener),
-		removalMap:   make(map[types.StoreKey]bool),
 	}
 }
 
@@ -192,22 +186,7 @@ func (rs *Store) loadVersion(ver int64, upgrades *types.StoreUpgrades) error {
 	// load each Store (note this doesn't panic on unmounted keys now)
 	var newStores = make(map[types.StoreKey]types.CommitKVStore)
 
-	storesKeys := make([]types.StoreKey, 0, len(rs.storesParams))
-
-	for key := range rs.storesParams {
-		storesKeys = append(storesKeys, key)
-	}
-	if upgrades != nil {
-		// deterministic iteration order for upgrades
-		// (as the underlying store may change and
-		// upgrades make store changes where the execution order may matter)
-		sort.Slice(storesKeys, func(i, j int) bool {
-			return storesKeys[i].Name() < storesKeys[j].Name()
-		})
-	}
-
-	for _, key := range storesKeys {
-		storeParams := rs.storesParams[key]
+	for key, storeParams := range rs.storesParams {
 		commitID := rs.getCommitID(infos, key.Name())
 
 		// If it has been added, set the initial version
@@ -227,10 +206,9 @@ func (rs *Store) loadVersion(ver int64, upgrades *types.StoreUpgrades) error {
 			if err := deleteKVStore(store.(types.KVStore)); err != nil {
 				return errors.Wrapf(err, "failed to delete store %s", key.Name())
 			}
-			rs.removalMap[key] = true
 		} else if oldName := upgrades.RenamedFrom(key.Name()); oldName != "" {
 			// handle renames specially
-			// make an unregistered key to satisfy loadCommitStore params
+			// make an unregistered key to satify loadCommitStore params
 			oldKey := types.NewKVStoreKey(oldName)
 			oldParams := storeParams
 			oldParams.key = oldKey
@@ -245,11 +223,6 @@ func (rs *Store) loadVersion(ver int64, upgrades *types.StoreUpgrades) error {
 			if err := moveKVStoreData(oldStore.(types.KVStore), store.(types.KVStore)); err != nil {
 				return errors.Wrapf(err, "failed to move store %s -> %s", oldName, key.Name())
 			}
-
-			// add the old key so its deletion is committed
-			newStores[oldKey] = oldStore
-			// this will ensure it's not perpetually stored in commitInfo
-			rs.removalMap[oldKey] = true
 		}
 	}
 
@@ -339,23 +312,6 @@ func (rs *Store) TracingEnabled() bool {
 	return rs.traceWriter != nil
 }
 
-// AddListeners adds listeners for a specific KVStore
-func (rs *Store) AddListeners(key types.StoreKey, listeners []types.WriteListener) {
-	if ls, ok := rs.listeners[key]; ok {
-		rs.listeners[key] = append(ls, listeners...)
-	} else {
-		rs.listeners[key] = listeners
-	}
-}
-
-// ListeningEnabled returns if listening is enabled for a specific KVStore
-func (rs *Store) ListeningEnabled(key types.StoreKey) bool {
-	if ls, ok := rs.listeners[key]; ok {
-		return len(ls) != 0
-	}
-	return false
-}
-
 // LastCommitID implements Committer/CommitStore.
 func (rs *Store) LastCommitID() types.CommitID {
 	if rs.lastCommitInfo == nil {
@@ -384,19 +340,8 @@ func (rs *Store) Commit() types.CommitID {
 		previousHeight = rs.lastCommitInfo.GetVersion()
 		version = previousHeight + 1
 	}
-	rs.lastCommitInfo = commitStores(version, rs.stores, rs.removalMap)
 
-	// remove remnants of removed stores
-	for sk := range rs.removalMap {
-		if _, ok := rs.stores[sk]; ok {
-			delete(rs.stores, sk)
-			delete(rs.storesParams, sk)
-			delete(rs.keysByName, sk.Name())
-		}
-	}
-
-	// reset the removalMap
-	rs.removalMap = make(map[types.StoreKey]bool)
+	rs.lastCommitInfo = commitStores(version, rs.stores)
 
 	// Determine if pruneHeight height needs to be added to the list of heights to
 	// be pruned, where pruneHeight = (commitHeight - 1) - KeepRecent.
@@ -459,11 +404,6 @@ func (rs *Store) CacheWrapWithTrace(_ io.Writer, _ types.TraceContext) types.Cac
 	return rs.CacheWrap()
 }
 
-// CacheWrapWithListeners implements the CacheWrapper interface.
-func (rs *Store) CacheWrapWithListeners(_ types.StoreKey, _ []types.WriteListener) types.CacheWrap {
-	return rs.CacheWrap()
-}
-
 // CacheMultiStore creates ephemeral branch of the multi-store and returns a CacheMultiStore.
 // It implements the MultiStore interface.
 func (rs *Store) CacheMultiStore() types.CacheMultiStore {
@@ -471,7 +411,8 @@ func (rs *Store) CacheMultiStore() types.CacheMultiStore {
 	for k, v := range rs.stores {
 		stores[k] = v
 	}
-	return cachemulti.NewStore(rs.db, stores, rs.keysByName, rs.traceWriter, rs.traceContext, rs.listeners)
+
+	return cachemulti.NewStore(rs.db, stores, rs.keysByName, rs.traceWriter, rs.traceContext)
 }
 
 // CacheMultiStoreWithVersion is analogous to CacheMultiStore except that it
@@ -501,7 +442,7 @@ func (rs *Store) CacheMultiStoreWithVersion(version int64) (types.CacheMultiStor
 		}
 	}
 
-	return cachemulti.NewStore(rs.db, cachedStores, rs.keysByName, rs.traceWriter, rs.traceContext, rs.listeners), nil
+	return cachemulti.NewStore(rs.db, cachedStores, rs.keysByName, rs.traceWriter, rs.traceContext), nil
 }
 
 // GetStore returns a mounted Store for a given StoreKey. If the StoreKey does
@@ -535,9 +476,6 @@ func (rs *Store) GetKVStore(key types.StoreKey) types.KVStore {
 	if rs.TracingEnabled() {
 		store = tracekv.NewStore(store, rs.traceWriter, rs.traceContext)
 	}
-	if rs.ListeningEnabled(key) {
-		store = listenkv.NewStore(store, key, rs.listeners[key])
-	}
 
 	return store
 }
@@ -563,17 +501,17 @@ func (rs *Store) Query(req abci.RequestQuery) abci.ResponseQuery {
 	path := req.Path
 	storeName, subpath, err := parsePath(path)
 	if err != nil {
-		return sdkerrors.QueryResult(err, false)
+		return sdkerrors.QueryResult(err)
 	}
 
 	store := rs.getStoreByName(storeName)
 	if store == nil {
-		return sdkerrors.QueryResult(sdkerrors.Wrapf(sdkerrors.ErrUnknownRequest, "no such store: %s", storeName), false)
+		return sdkerrors.QueryResult(sdkerrors.Wrapf(sdkerrors.ErrUnknownRequest, "no such store: %s", storeName))
 	}
 
 	queryable, ok := store.(types.Queryable)
 	if !ok {
-		return sdkerrors.QueryResult(sdkerrors.Wrapf(sdkerrors.ErrUnknownRequest, "store %s (type %T) doesn't support queries", storeName, store), false)
+		return sdkerrors.QueryResult(sdkerrors.Wrapf(sdkerrors.ErrUnknownRequest, "store %s (type %T) doesn't support queries", storeName, store))
 	}
 
 	// trim the path and make the query
@@ -585,7 +523,7 @@ func (rs *Store) Query(req abci.RequestQuery) abci.ResponseQuery {
 	}
 
 	if res.ProofOps == nil || len(res.ProofOps.Ops) == 0 {
-		return sdkerrors.QueryResult(sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "proof is unexpectedly empty; ensure height has not been pruned"), false)
+		return sdkerrors.QueryResult(sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "proof is unexpectedly empty; ensure height has not been pruned"))
 	}
 
 	// If the request's height is the latest height we've committed, then utilize
@@ -598,7 +536,7 @@ func (rs *Store) Query(req abci.RequestQuery) abci.ResponseQuery {
 	} else {
 		commitInfo, err = getCommitInfo(rs.db, res.Height)
 		if err != nil {
-			return sdkerrors.QueryResult(err, false)
+			return sdkerrors.QueryResult(err)
 		}
 	}
 
@@ -978,7 +916,7 @@ func getLatestVersion(db dbm.DB) int64 {
 }
 
 // Commits each store and returns a new commitInfo.
-func commitStores(version int64, storeMap map[types.StoreKey]types.CommitKVStore, removalMap map[types.StoreKey]bool) *types.CommitInfo {
+func commitStores(version int64, storeMap map[types.StoreKey]types.CommitKVStore) *types.CommitInfo {
 	storeInfos := make([]types.StoreInfo, 0, len(storeMap))
 
 	for key, store := range storeMap {
@@ -988,12 +926,10 @@ func commitStores(version int64, storeMap map[types.StoreKey]types.CommitKVStore
 			continue
 		}
 
-		if !removalMap[key] {
-			si := types.StoreInfo{}
-			si.Name = key.Name()
-			si.CommitId = commitID
-			storeInfos = append(storeInfos, si)
-		}
+		si := types.StoreInfo{}
+		si.Name = key.Name()
+		si.CommitId = commitID
+		storeInfos = append(storeInfos, si)
 	}
 
 	return &types.CommitInfo{

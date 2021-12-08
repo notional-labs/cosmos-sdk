@@ -16,9 +16,9 @@ func (keeper Keeper) AfterProposalSubmission(ctx sdk.Context, proposalID uint64)
 }
 
 // AfterProposalDeposit - call hook if registered
-func (keeper Keeper) AfterProposalDeposit(ctx sdk.Context, proposalID uint64, depositorAddr sdk.AccAddress) {
+func (keeper Keeper) AfterProposalDeposit(ctx sdk.Context, proposalID uint64, depositAddr sdk.AccAddress) {
 	if keeper.hooks != nil {
-		keeper.hooks.AfterProposalDeposit(ctx, proposalID, depositorAddr)
+		keeper.hooks.AfterProposalDeposit(ctx, proposalID, depositAddr)
 	}
 }
 
@@ -29,16 +29,16 @@ func (keeper Keeper) AfterProposalVote(ctx sdk.Context, proposalID uint64, voter
 	}
 }
 
-// AfterProposalFailedMinDeposit - call hook if registered
-func (keeper Keeper) AfterProposalFailedMinDeposit(ctx sdk.Context, proposalID uint64) {
+// AfterProposalInactive - call hook if registered
+func (keeper Keeper) AfterProposalInactive(ctx sdk.Context, proposalID uint64) {
 	if keeper.hooks != nil {
-		keeper.hooks.AfterProposalFailedMinDeposit(ctx, proposalID)
+		keeper.hooks.AfterProposalInactive(ctx, proposalID)
 	}
 }
 
-// AfterProposalVotingPeriodEnded - call hook if registered
-func (keeper Keeper) AfterProposalVotingPeriodEnded(ctx sdk.Context, proposalID uint64) {
+// AfterProposalActive - call hook if registered
+func (keeper Keeper) AfterProposalActive(ctx sdk.Context, proposalID uint64) {
 	if keeper.hooks != nil {
-		keeper.hooks.AfterProposalVotingPeriodEnded(ctx, proposalID)
+		keeper.hooks.AfterProposalActive(ctx, proposalID)
 	}
 }

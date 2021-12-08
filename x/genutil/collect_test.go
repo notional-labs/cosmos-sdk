@@ -2,6 +2,7 @@ package genutil_test
 
 import (
 	"encoding/json"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -20,7 +21,7 @@ import (
 )
 
 type doNothingUnmarshalJSON struct {
-	codec.JSONCodec
+	codec.JSONMarshaler
 }
 
 func (dnj *doNothingUnmarshalJSON) UnmarshalJSON(_ []byte, _ proto.Message) error {
@@ -31,13 +32,13 @@ type doNothingIterator struct {
 	gtypes.GenesisBalancesIterator
 }
 
-func (dni *doNothingIterator) IterateGenesisBalances(_ codec.JSONCodec, _ map[string]json.RawMessage, _ func(bankexported.GenesisBalance) bool) {
+func (dni *doNothingIterator) IterateGenesisBalances(_ codec.JSONMarshaler, _ map[string]json.RawMessage, _ func(bankexported.GenesisBalance) bool) {
 }
 
 // Ensures that CollectTx correctly traverses directories and won't error out on encountering
 // a directory during traversal of the first level. See issue https://github.com/cosmos/cosmos-sdk/issues/6788.
 func TestCollectTxsHandlesDirectories(t *testing.T) {
-	testDir, err := os.MkdirTemp(os.TempDir(), "testCollectTxs")
+	testDir, err := ioutil.TempDir(os.TempDir(), "testCollectTxs")
 	if err != nil {
 		t.Fatal(err)
 	}

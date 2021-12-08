@@ -4,8 +4,6 @@ import (
 	"encoding/binary"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/types/address"
-	"github.com/cosmos/cosmos-sdk/types/kv"
 )
 
 const (
@@ -25,11 +23,11 @@ const (
 // Keys for slashing store
 // Items are stored with the following key: values
 //
-// - 0x01<consAddrLen (1 Byte)><consAddress_Bytes>: ValidatorSigningInfo
+// - 0x01<consAddress_Bytes>: ValidatorSigningInfo
 //
-// - 0x02<consAddrLen (1 Byte)><consAddress_Bytes><period_Bytes>: bool
+// - 0x02<consAddress_Bytes><period_Bytes>: bool
 //
-// - 0x03<accAddrLen (1 Byte)><accAddr_Bytes>: cryptotypes.PubKey
+// - 0x03<accAddr_Bytes>: crypto.PubKey
 var (
 	ValidatorSigningInfoKeyPrefix         = []byte{0x01} // Prefix for signing info
 	ValidatorMissedBlockBitArrayKeyPrefix = []byte{0x02} // Prefix for missed block bit array
@@ -38,32 +36,31 @@ var (
 
 // ValidatorSigningInfoKey - stored by *Consensus* address (not operator address)
 func ValidatorSigningInfoKey(v sdk.ConsAddress) []byte {
-	return append(ValidatorSigningInfoKeyPrefix, address.MustLengthPrefix(v.Bytes())...)
+	return append(ValidatorSigningInfoKeyPrefix, v.Bytes()...)
 }
 
 // ValidatorSigningInfoAddress - extract the address from a validator signing info key
 func ValidatorSigningInfoAddress(key []byte) (v sdk.ConsAddress) {
-	// Remove prefix and address length.
-	kv.AssertKeyAtLeastLength(key, 3)
-	addr := key[2:]
-
+	addr := key[1:]
+	if len(addr) != sdk.AddrLen {
+		panic("unexpected key length")
+	}
 	return sdk.ConsAddress(addr)
 }
 
 // ValidatorMissedBlockBitArrayPrefixKey - stored by *Consensus* address (not operator address)
 func ValidatorMissedBlockBitArrayPrefixKey(v sdk.ConsAddress) []byte {
-	return append(ValidatorMissedBlockBitArrayKeyPrefix, address.MustLengthPrefix(v.Bytes())...)
+	return append(ValidatorMissedBlockBitArrayKeyPrefix, v.Bytes()...)
 }
 
 // ValidatorMissedBlockBitArrayKey - stored by *Consensus* address (not operator address)
 func ValidatorMissedBlockBitArrayKey(v sdk.ConsAddress, i int64) []byte {
 	b := make([]byte, 8)
 	binary.LittleEndian.PutUint64(b, uint64(i))
-
 	return append(ValidatorMissedBlockBitArrayPrefixKey(v), b...)
 }
 
 // AddrPubkeyRelationKey gets pubkey relation key used to get the pubkey from the address
-func AddrPubkeyRelationKey(addr []byte) []byte {
-	return append(AddrPubkeyRelationKeyPrefix, address.MustLengthPrefix(addr)...)
+func AddrPubkeyRelationKey(address []byte) []byte {
+	return append(AddrPubkeyRelationKeyPrefix, address...)
 }

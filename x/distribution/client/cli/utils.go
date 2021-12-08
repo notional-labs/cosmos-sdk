@@ -1,17 +1,17 @@
 package cli
 
 import (
-	"os"
+	"io/ioutil"
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/x/distribution/types"
 )
 
 // ParseCommunityPoolSpendProposalWithDeposit reads and parses a CommunityPoolSpendProposalWithDeposit from a file.
-func ParseCommunityPoolSpendProposalWithDeposit(cdc codec.JSONCodec, proposalFile string) (types.CommunityPoolSpendProposalWithDeposit, error) {
+func ParseCommunityPoolSpendProposalWithDeposit(cdc codec.JSONMarshaler, proposalFile string) (types.CommunityPoolSpendProposalWithDeposit, error) {
 	proposal := types.CommunityPoolSpendProposalWithDeposit{}
 
-	contents, err := os.ReadFile(proposalFile)
+	contents, err := ioutil.ReadFile(proposalFile)
 	if err != nil {
 		return proposal, err
 	}

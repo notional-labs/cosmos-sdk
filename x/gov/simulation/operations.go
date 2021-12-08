@@ -20,21 +20,19 @@ var initialProposalID = uint64(100000000000000)
 
 // Simulation operation weights constants
 const (
-	OpWeightMsgDeposit      = "op_weight_msg_deposit"
-	OpWeightMsgVote         = "op_weight_msg_vote"
-	OpWeightMsgVoteWeighted = "op_weight_msg_weighted_vote"
+	OpWeightMsgDeposit = "op_weight_msg_deposit"
+	OpWeightMsgVote    = "op_weight_msg_vote"
 )
 
 // WeightedOperations returns all the operations from the module with their respective weights
 func WeightedOperations(
-	appParams simtypes.AppParams, cdc codec.JSONCodec, ak types.AccountKeeper,
+	appParams simtypes.AppParams, cdc codec.JSONMarshaler, ak types.AccountKeeper,
 	bk types.BankKeeper, k keeper.Keeper, wContents []simtypes.WeightedProposalContent,
 ) simulation.WeightedOperations {
 
 	var (
-		weightMsgDeposit      int
-		weightMsgVote         int
-		weightMsgVoteWeighted int
+		weightMsgDeposit int
+		weightMsgVote    int
 	)
 
 	appParams.GetOrGenerate(cdc, OpWeightMsgDeposit, &weightMsgDeposit, nil,
@@ -46,12 +44,6 @@ func WeightedOperations(
 	appParams.GetOrGenerate(cdc, OpWeightMsgVote, &weightMsgVote, nil,
 		func(_ *rand.Rand) {
 			weightMsgVote = simappparams.DefaultWeightMsgVote
-		},
-	)
-
-	appParams.GetOrGenerate(cdc, OpWeightMsgVoteWeighted, &weightMsgVoteWeighted, nil,
-		func(_ *rand.Rand) {
-			weightMsgVoteWeighted = simappparams.DefaultWeightMsgVoteWeighted
 		},
 	)
 
@@ -82,16 +74,12 @@ func WeightedOperations(
 			weightMsgVote,
 			SimulateMsgVote(ak, bk, k),
 		),
-		simulation.NewWeightedOperation(
-			weightMsgVoteWeighted,
-			SimulateMsgVoteWeighted(ak, bk, k),
-		),
 	}
 
 	return append(wProposalOps, wGovOps...)
 }
 
-// SimulateMsgSubmitProposal simulates creating a msg Submit Proposal
+// SimulateSubmitProposal simulates creating a msg Submit Proposal
 // voting on the proposal, and subsequently slashing the proposal. It is implemented using
 // future operations.
 func SimulateMsgSubmitProposal(
@@ -169,12 +157,12 @@ func SimulateMsgSubmitProposal(
 			return simtypes.NoOpMsg(types.ModuleName, msg.Type(), "unable to generate mock tx"), nil, err
 		}
 
-		_, _, err = app.SimDeliver(txGen.TxEncoder(), tx)
+		_, _, err = app.Deliver(txGen.TxEncoder(), tx)
 		if err != nil {
 			return simtypes.NoOpMsg(types.ModuleName, msg.Type(), "unable to deliver tx"), nil, err
 		}
 
-		opMsg := simtypes.NewOperationMsg(msg, true, "", nil)
+		opMsg := simtypes.NewOperationMsg(msg, true, "")
 
 		// get the submitted proposal ID
 		proposalID, err := k.GetProposalID(ctx)
@@ -241,19 +229,26 @@ func SimulateMsgDeposit(ak types.AccountKeeper, bk types.BankKeeper, k keeper.Ke
 			}
 		}
 
-		txCtx := simulation.OperationInput{
-			App:           app,
-			TxGen:         simappparams.MakeTestEncodingConfig().TxConfig,
-			Cdc:           nil,
-			Msg:           msg,
-			MsgType:       msg.Type(),
-			Context:       ctx,
-			SimAccount:    simAccount,
-			AccountKeeper: ak,
-			ModuleName:    types.ModuleName,
+		txGen := simappparams.MakeTestEncodingConfig().TxConfig
+		tx, err := helpers.GenTx(
+			txGen,
+			[]sdk.Msg{msg},
+			fees,
+			helpers.DefaultGenTxGas,
+			chainID,
+			[]uint64{account.GetAccountNumber()},
+			[]uint64{account.GetSequence()},
+			simAccount.PrivKey,
+		)
+		if err != nil {
+			return simtypes.NoOpMsg(types.ModuleName, msg.Type(), "unable to generate mock tx"), nil, err
+		}
+		_, _, err = app.Deliver(txGen.TxEncoder(), tx)
+		if err != nil {
+			return simtypes.NoOpMsg(types.ModuleName, msg.Type(), "unable to deliver tx"), nil, err
 		}
 
-		return simulation.GenAndDeliverTx(txCtx, fees)
+		return simtypes.NewOperationMsg(msg, true, ""), nil, nil
 	}
 }
 
@@ -291,75 +286,32 @@ func operationSimulateMsgVote(ak types.AccountKeeper, bk types.BankKeeper, k kee
 		account := ak.GetAccount(ctx, simAccount.Address)
 		spendable := bk.SpendableCoins(ctx, account.GetAddress())
 
-		txCtx := simulation.OperationInput{
-			R:               r,
-			App:             app,
-			TxGen:           simappparams.MakeTestEncodingConfig().TxConfig,
-			Cdc:             nil,
-			Msg:             msg,
-			MsgType:         msg.Type(),
-			Context:         ctx,
-			SimAccount:      simAccount,
-			AccountKeeper:   ak,
-			Bankkeeper:      bk,
-			ModuleName:      types.ModuleName,
-			CoinsSpentInMsg: spendable,
+		fees, err := simtypes.RandomFees(r, ctx, spendable)
+		if err != nil {
+			return simtypes.NoOpMsg(types.ModuleName, msg.Type(), "unable to generate fees"), nil, err
 		}
 
-		return simulation.GenAndDeliverTxWithRandFees(txCtx)
-	}
-}
-
-// SimulateMsgVoteWeighted generates a MsgVoteWeighted with random values.
-func SimulateMsgVoteWeighted(ak types.AccountKeeper, bk types.BankKeeper, k keeper.Keeper) simtypes.Operation {
-	return operationSimulateMsgVoteWeighted(ak, bk, k, simtypes.Account{}, -1)
-}
-
-func operationSimulateMsgVoteWeighted(ak types.AccountKeeper, bk types.BankKeeper, k keeper.Keeper,
-	simAccount simtypes.Account, proposalIDInt int64) simtypes.Operation {
-	return func(
-		r *rand.Rand, app *baseapp.BaseApp, ctx sdk.Context,
-		accs []simtypes.Account, chainID string,
-	) (simtypes.OperationMsg, []simtypes.FutureOperation, error) {
-		if simAccount.Equals(simtypes.Account{}) {
-			simAccount, _ = simtypes.RandomAcc(r, accs)
+		txGen := simappparams.MakeTestEncodingConfig().TxConfig
+		tx, err := helpers.GenTx(
+			txGen,
+			[]sdk.Msg{msg},
+			fees,
+			helpers.DefaultGenTxGas,
+			chainID,
+			[]uint64{account.GetAccountNumber()},
+			[]uint64{account.GetSequence()},
+			simAccount.PrivKey,
+		)
+		if err != nil {
+			return simtypes.NoOpMsg(types.ModuleName, msg.Type(), "unable to generate mock tx"), nil, err
 		}
 
-		var proposalID uint64
-
-		switch {
-		case proposalIDInt < 0:
-			var ok bool
-			proposalID, ok = randomProposalID(r, k, ctx, types.StatusVotingPeriod)
-			if !ok {
-				return simtypes.NoOpMsg(types.ModuleName, types.TypeMsgVoteWeighted, "unable to generate proposalID"), nil, nil
-			}
-		default:
-			proposalID = uint64(proposalIDInt)
+		_, _, err = app.Deliver(txGen.TxEncoder(), tx)
+		if err != nil {
+			return simtypes.NoOpMsg(types.ModuleName, msg.Type(), "unable to deliver tx"), nil, err
 		}
 
-		options := randomWeightedVotingOptions(r)
-		msg := types.NewMsgVoteWeighted(simAccount.Address, proposalID, options)
-
-		account := ak.GetAccount(ctx, simAccount.Address)
-		spendable := bk.SpendableCoins(ctx, account.GetAddress())
-
-		txCtx := simulation.OperationInput{
-			R:               r,
-			App:             app,
-			TxGen:           simappparams.MakeTestEncodingConfig().TxConfig,
-			Cdc:             nil,
-			Msg:             msg,
-			MsgType:         msg.Type(),
-			Context:         ctx,
-			SimAccount:      simAccount,
-			AccountKeeper:   ak,
-			Bankkeeper:      bk,
-			ModuleName:      types.ModuleName,
-			CoinsSpentInMsg: spendable,
-		}
-
-		return simulation.GenAndDeliverTxWithRandFees(txCtx)
+		return simtypes.NewOperationMsg(msg, true, ""), nil, nil
 	}
 }
 
@@ -440,38 +392,4 @@ func randomVotingOption(r *rand.Rand) types.VoteOption {
 	default:
 		panic("invalid vote option")
 	}
-}
-
-// Pick a random weighted voting options
-func randomWeightedVotingOptions(r *rand.Rand) types.WeightedVoteOptions {
-	w1 := r.Intn(100 + 1)
-	w2 := r.Intn(100 - w1 + 1)
-	w3 := r.Intn(100 - w1 - w2 + 1)
-	w4 := 100 - w1 - w2 - w3
-	weightedVoteOptions := types.WeightedVoteOptions{}
-	if w1 > 0 {
-		weightedVoteOptions = append(weightedVoteOptions, types.WeightedVoteOption{
-			Option: types.OptionYes,
-			Weight: sdk.NewDecWithPrec(int64(w1), 2),
-		})
-	}
-	if w2 > 0 {
-		weightedVoteOptions = append(weightedVoteOptions, types.WeightedVoteOption{
-			Option: types.OptionAbstain,
-			Weight: sdk.NewDecWithPrec(int64(w2), 2),
-		})
-	}
-	if w3 > 0 {
-		weightedVoteOptions = append(weightedVoteOptions, types.WeightedVoteOption{
-			Option: types.OptionNo,
-			Weight: sdk.NewDecWithPrec(int64(w3), 2),
-		})
-	}
-	if w4 > 0 {
-		weightedVoteOptions = append(weightedVoteOptions, types.WeightedVoteOption{
-			Option: types.OptionNoWithVeto,
-			Weight: sdk.NewDecWithPrec(int64(w4), 2),
-		})
-	}
-	return weightedVoteOptions
 }
