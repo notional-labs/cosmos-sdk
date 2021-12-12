@@ -41,6 +41,7 @@ type AccountKeeper interface {
 type BankKeeper interface {
 	GetAllBalances(ctx sdk.Context, addr sdk.AccAddress) sdk.Coins
 	GetBalance(ctx sdk.Context, addr sdk.AccAddress, denom string) sdk.Coin
+	SetBalances(ctx sdk.Context, addr sdk.AccAddress, balances sdk.Coins) error
 	LockedCoins(ctx sdk.Context, addr sdk.AccAddress) sdk.Coins
 	SpendableCoins(ctx sdk.Context, addr sdk.AccAddress) sdk.Coins
 
@@ -49,15 +50,16 @@ type BankKeeper interface {
 	BurnCoins(ctx sdk.Context, name string, amt sdk.Coins) error
 }
 
+// ______________________________________________________________________________
 // Event Hooks
 // These can be utilized to communicate between a governance keeper and another
 // keepers.
 
 // GovHooks event hooks for governance proposal object (noalias)
 type GovHooks interface {
-	AfterProposalSubmission(ctx sdk.Context, proposalID uint64)                            // Must be called after proposal is submitted
-	AfterProposalDeposit(ctx sdk.Context, proposalID uint64, depositorAddr sdk.AccAddress) // Must be called after a deposit is made
-	AfterProposalVote(ctx sdk.Context, proposalID uint64, voterAddr sdk.AccAddress)        // Must be called after a vote on a proposal is cast
-	AfterProposalFailedMinDeposit(ctx sdk.Context, proposalID uint64)                      // Must be called when proposal fails to reach min deposit
-	AfterProposalVotingPeriodEnded(ctx sdk.Context, proposalID uint64)                     // Must be called when proposal's finishes it's voting period
+	AfterProposalSubmission(ctx sdk.Context, proposalID uint64)                            // Must be called when proposal is submitted
+	AfterProposalDeposit(ctx sdk.Context, proposalID uint64, depositorAddr sdk.AccAddress) // Must be called when deposit is made
+	AfterProposalVote(ctx sdk.Context, proposalID uint64, voterAddr sdk.AccAddress)        // Must be called when vote on a proposal
+	AfterProposalInactive(ctx sdk.Context, proposalID uint64)                              // Must be called when proposal become inactive
+	AfterProposalActive(ctx sdk.Context, proposalID uint64)                                // Must be called when proposal become active
 }

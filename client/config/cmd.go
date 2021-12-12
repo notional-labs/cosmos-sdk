@@ -36,11 +36,8 @@ func runConfigCmd(cmd *cobra.Command, args []string) error {
 
 	switch len(args) {
 	case 0:
-		// print all client config fields to stdout
-		s, err := json.MarshalIndent(conf, "", "\t")
-		if err != nil {
-			return err
-		}
+		// print all client config fields to sdt out
+		s, _ := json.MarshalIndent(conf, "", "\t")
 		cmd.Println(string(s))
 
 	case 1:

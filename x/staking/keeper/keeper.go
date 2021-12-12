@@ -1,9 +1,9 @@
 package keeper
 
 import (
+	"container/list"
 	"fmt"
 
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	"github.com/tendermint/tendermint/libs/log"
 
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -20,17 +20,18 @@ var _ types.DelegationSet = Keeper{}
 
 // keeper of the staking store
 type Keeper struct {
-	storeKey   storetypes.StoreKey
-	cdc        codec.BinaryCodec
-	authKeeper types.AccountKeeper
-	bankKeeper types.BankKeeper
-	hooks      types.StakingHooks
-	paramstore paramtypes.Subspace
+	storeKey           sdk.StoreKey
+	cdc                codec.BinaryMarshaler
+	authKeeper         types.AccountKeeper
+	bankKeeper         types.BankKeeper
+	hooks              types.StakingHooks
+	paramstore         paramtypes.Subspace
+	validatorCacheList *list.List
 }
 
 // NewKeeper creates a new staking Keeper instance
 func NewKeeper(
-	cdc codec.BinaryCodec, key storetypes.StoreKey, ak types.AccountKeeper, bk types.BankKeeper,
+	cdc codec.BinaryMarshaler, key sdk.StoreKey, ak types.AccountKeeper, bk types.BankKeeper,
 	ps paramtypes.Subspace,
 ) Keeper {
 	// set KeyTable if it has not already been set
@@ -48,12 +49,13 @@ func NewKeeper(
 	}
 
 	return Keeper{
-		storeKey:   key,
-		cdc:        cdc,
-		authKeeper: ak,
-		bankKeeper: bk,
-		paramstore: ps,
-		hooks:      nil,
+		storeKey:           key,
+		cdc:                cdc,
+		authKeeper:         ak,
+		bankKeeper:         bk,
+		paramstore:         ps,
+		hooks:              nil,
+		validatorCacheList: list.New(),
 	}
 }
 
@@ -83,7 +85,7 @@ func (k Keeper) GetLastTotalPower(ctx sdk.Context) sdk.Int {
 	}
 
 	ip := sdk.IntProto{}
-	k.cdc.MustUnmarshal(bz, &ip)
+	k.cdc.MustUnmarshalBinaryBare(bz, &ip)
 
 	return ip.Int
 }
@@ -91,6 +93,6 @@ func (k Keeper) GetLastTotalPower(ctx sdk.Context) sdk.Int {
 // Set the last total validator power.
 func (k Keeper) SetLastTotalPower(ctx sdk.Context, power sdk.Int) {
 	store := ctx.KVStore(k.storeKey)
-	bz := k.cdc.MustMarshal(&sdk.IntProto{Int: power})
+	bz := k.cdc.MustMarshalBinaryBare(&sdk.IntProto{Int: power})
 	store.Set(types.LastTotalPowerKey, bz)
 }

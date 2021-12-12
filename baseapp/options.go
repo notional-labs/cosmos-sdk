@@ -10,7 +10,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/snapshots"
 	"github.com/cosmos/cosmos-sdk/store"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/types/tx"
 )
 
 // File for storing in-package BaseApp optional functions,
@@ -96,16 +95,12 @@ func (app *BaseApp) SetParamStore(ps ParamStore) {
 	app.paramStore = ps
 }
 
-// SetVersion sets the application's version string.
-func (app *BaseApp) SetVersion(v string) {
+// SetAppVersion sets the application's version string.
+func (app *BaseApp) SetAppVersion(v string) {
 	if app.sealed {
-		panic("SetVersion() on sealed BaseApp")
+		panic("SetAppVersion() on sealed BaseApp")
 	}
-	app.version = v
-}
 
-// SetProtocolVersion sets the application's protocol version
-func (app *BaseApp) SetProtocolVersion(v uint64) {
 	app.appVersion = v
 }
 
@@ -149,12 +144,12 @@ func (app *BaseApp) SetEndBlocker(endBlocker sdk.EndBlocker) {
 	app.endBlocker = endBlocker
 }
 
-func (app *BaseApp) SetTxHandler(txHandler tx.Handler) {
+func (app *BaseApp) SetAnteHandler(ah sdk.AnteHandler) {
 	if app.sealed {
-		panic("SetTxHandler() on sealed BaseApp")
+		panic("SetAnteHandler() on sealed BaseApp")
 	}
 
-	app.txHandler = txHandler
+	app.anteHandler = ah
 }
 
 func (app *BaseApp) SetAddrPeerFilter(pf sdk.PeerFilter) {
@@ -196,6 +191,14 @@ func (app *BaseApp) SetStoreLoader(loader StoreLoader) {
 	app.storeLoader = loader
 }
 
+// SetRouter allows us to customize the router.
+func (app *BaseApp) SetRouter(router sdk.Router) {
+	if app.sealed {
+		panic("SetRouter() on sealed BaseApp")
+	}
+	app.router = router
+}
+
 // SetSnapshotStore sets the snapshot store.
 func (app *BaseApp) SetSnapshotStore(snapshotStore *snapshots.Store) {
 	if app.sealed {
@@ -228,4 +231,5 @@ func (app *BaseApp) SetSnapshotKeepRecent(snapshotKeepRecent uint32) {
 func (app *BaseApp) SetInterfaceRegistry(registry types.InterfaceRegistry) {
 	app.interfaceRegistry = registry
 	app.grpcQueryRouter.SetInterfaceRegistry(registry)
+	app.msgServiceRouter.SetInterfaceRegistry(registry)
 }

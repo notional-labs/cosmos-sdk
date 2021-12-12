@@ -18,8 +18,6 @@ func (gs GenesisState) Validate() error {
 	seenBalances := make(map[string]bool)
 	seenMetadatas := make(map[string]bool)
 
-	totalSupply := sdk.Coins{}
-
 	for _, balance := range gs.Balances {
 		if seenBalances[balance.Address] {
 			return fmt.Errorf("duplicate balance for address %s", balance.Address)
@@ -30,8 +28,6 @@ func (gs GenesisState) Validate() error {
 		}
 
 		seenBalances[balance.Address] = true
-
-		totalSupply = totalSupply.Add(balance.Coins...)
 	}
 
 	for _, metadata := range gs.DenomMetadata {
@@ -46,19 +42,8 @@ func (gs GenesisState) Validate() error {
 		seenMetadatas[metadata.Base] = true
 	}
 
-	if !gs.Supply.Empty() {
-		// NOTE: this errors if supply for any given coin is zero
-		err := gs.Supply.Validate()
-		if err != nil {
-			return err
-		}
-
-		if !gs.Supply.IsEqual(totalSupply) {
-			return fmt.Errorf("genesis supply is incorrect, expected %v, got %v", gs.Supply, totalSupply)
-		}
-	}
-
-	return nil
+	// NOTE: this errors if supply for any given coin is zero
+	return NewSupply(gs.Supply).ValidateBasic()
 }
 
 // NewGenesisState creates a new genesis state.
@@ -73,12 +58,12 @@ func NewGenesisState(params Params, balances []Balance, supply sdk.Coins, denomM
 
 // DefaultGenesisState returns a default bank module genesis state.
 func DefaultGenesisState() *GenesisState {
-	return NewGenesisState(DefaultParams(), []Balance{}, sdk.Coins{}, []Metadata{})
+	return NewGenesisState(DefaultParams(), []Balance{}, DefaultSupply().GetTotal(), []Metadata{})
 }
 
 // GetGenesisStateFromAppState returns x/bank GenesisState given raw application
 // genesis state.
-func GetGenesisStateFromAppState(cdc codec.JSONCodec, appState map[string]json.RawMessage) *GenesisState {
+func GetGenesisStateFromAppState(cdc codec.JSONMarshaler, appState map[string]json.RawMessage) *GenesisState {
 	var genesisState GenesisState
 
 	if appState[ModuleName] != nil {

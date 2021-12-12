@@ -3,8 +3,6 @@ package mem_test
 import (
 	"testing"
 
-	"github.com/cosmos/cosmos-sdk/store/cachekv"
-
 	"github.com/stretchr/testify/require"
 
 	"github.com/cosmos/cosmos-sdk/store/mem"
@@ -27,15 +25,6 @@ func TestStore(t *testing.T) {
 
 	db.Delete(key)
 	require.Nil(t, db.Get(key))
-
-	cacheWrapper := db.CacheWrap()
-	require.IsType(t, &cachekv.Store{}, cacheWrapper)
-
-	cacheWrappedWithTrace := db.CacheWrapWithTrace(nil, nil)
-	require.IsType(t, &cachekv.Store{}, cacheWrappedWithTrace)
-
-	cacheWrappedWithListeners := db.CacheWrapWithListeners(nil, nil)
-	require.IsType(t, &cachekv.Store{}, cacheWrappedWithListeners)
 }
 
 func TestCommit(t *testing.T) {

@@ -17,6 +17,5 @@ const (
 	AttributeKeyDstValidator      = "destination_validator"
 	AttributeKeyDelegator         = "delegator"
 	AttributeKeyCompletionTime    = "completion_time"
-	AttributeKeyNewShares         = "new_shares"
 	AttributeValueCategory        = ModuleName
 )

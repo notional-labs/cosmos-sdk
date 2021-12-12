@@ -3,7 +3,7 @@ package types
 import (
 	"fmt"
 
-	"sigs.k8s.io/yaml"
+	yaml "gopkg.in/yaml.v2"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
@@ -51,7 +51,7 @@ func (p *Params) ParamSetPairs() paramtypes.ParamSetPairs {
 func (p Params) ValidateBasic() error {
 	if p.CommunityTax.IsNegative() || p.CommunityTax.GT(sdk.OneDec()) {
 		return fmt.Errorf(
-			"community tax should be non-negative and less than one: %s", p.CommunityTax,
+			"community tax should non-negative and less than one: %s", p.CommunityTax,
 		)
 	}
 	if p.BaseProposerReward.IsNegative() {
@@ -64,9 +64,9 @@ func (p Params) ValidateBasic() error {
 			"bonus proposer reward should be positive: %s", p.BonusProposerReward,
 		)
 	}
-	if v := p.BaseProposerReward.Add(p.BonusProposerReward).Add(p.CommunityTax); v.GT(sdk.OneDec()) {
+	if v := p.BaseProposerReward.Add(p.BonusProposerReward); v.GT(sdk.OneDec()) {
 		return fmt.Errorf(
-			"sum of base, bonus proposer rewards, and community tax cannot be greater than one: %s", v,
+			"sum of base and bonus proposer reward cannot greater than one: %s", v,
 		)
 	}
 

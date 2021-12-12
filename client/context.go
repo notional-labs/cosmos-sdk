@@ -1,15 +1,16 @@
 package client
 
 import (
-	"bufio"
+	"encoding/json"
 	"io"
 	"os"
 
 	"github.com/spf13/viper"
 
-	"sigs.k8s.io/yaml"
+	"gopkg.in/yaml.v2"
 
 	"github.com/gogo/protobuf/proto"
+	"github.com/pkg/errors"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -24,11 +25,10 @@ type Context struct {
 	FromAddress       sdk.AccAddress
 	Client            rpcclient.Client
 	ChainID           string
-	Codec             codec.Codec
+	JSONMarshaler     codec.JSONMarshaler
 	InterfaceRegistry codectypes.InterfaceRegistry
 	Input             io.Reader
 	Keyring           keyring.Keyring
-	KeyringOptions    []keyring.Option
 	Output            io.Writer
 	OutputFormat      string
 	Height            int64
@@ -46,7 +46,6 @@ type Context struct {
 	TxConfig          TxConfig
 	AccountRetriever  AccountRetriever
 	NodeURI           string
-	FeeGranter        sdk.AccAddress
 	Viper             *viper.Viper
 
 	// TODO: Deprecated (remove).
@@ -59,24 +58,15 @@ func (ctx Context) WithKeyring(k keyring.Keyring) Context {
 	return ctx
 }
 
-// WithKeyringOptions returns a copy of the context with an updated keyring.
-func (ctx Context) WithKeyringOptions(opts ...keyring.Option) Context {
-	ctx.KeyringOptions = opts
-	return ctx
-}
-
 // WithInput returns a copy of the context with an updated input.
 func (ctx Context) WithInput(r io.Reader) Context {
-	// convert to a bufio.Reader to have a shared buffer between the keyring and the
-	// the Commands, ensuring a read from one advance the read pointer for the other.
-	// see https://github.com/cosmos/cosmos-sdk/issues/9566.
-	ctx.Input = bufio.NewReader(r)
+	ctx.Input = r
 	return ctx
 }
 
-// WithCodec returns a copy of the Context with an updated Codec.
-func (ctx Context) WithCodec(m codec.Codec) Context {
-	ctx.Codec = m
+// WithJSONMarshaler returns a copy of the Context with an updated JSONMarshaler.
+func (ctx Context) WithJSONMarshaler(m codec.JSONMarshaler) Context {
+	ctx.JSONMarshaler = m
 	return ctx
 }
 
@@ -181,13 +171,6 @@ func (ctx Context) WithFromAddress(addr sdk.AccAddress) Context {
 	return ctx
 }
 
-// WithFeeGranterAddress returns a copy of the context with an updated fee granter account
-// address.
-func (ctx Context) WithFeeGranterAddress(addr sdk.AccAddress) Context {
-	ctx.FeeGranter = addr
-	return ctx
-}
-
 // WithBroadcastMode returns a copy of the context with an updated broadcast
 // mode.
 func (ctx Context) WithBroadcastMode(mode string) Context {
@@ -256,10 +239,10 @@ func (ctx Context) PrintBytes(o []byte) error {
 
 // PrintProto outputs toPrint to the ctx.Output based on ctx.OutputFormat which is
 // either text or json. If text, toPrint will be YAML encoded. Otherwise, toPrint
-// will be JSON encoded using ctx.Codec. An error is returned upon failure.
+// will be JSON encoded using ctx.JSONMarshaler. An error is returned upon failure.
 func (ctx Context) PrintProto(toPrint proto.Message) error {
 	// always serialize JSON initially because proto json can't be directly YAML encoded
-	out, err := ctx.Codec.MarshalJSON(toPrint)
+	out, err := ctx.JSONMarshaler.MarshalJSON(toPrint)
 	if err != nil {
 		return err
 	}
@@ -278,9 +261,16 @@ func (ctx Context) PrintObjectLegacy(toPrint interface{}) error {
 }
 
 func (ctx Context) printOutput(out []byte) error {
-	var err error
 	if ctx.OutputFormat == "text" {
-		out, err = yaml.JSONToYAML(out)
+		// handle text format by decoding and re-encoding JSON as YAML
+		var j interface{}
+
+		err := json.Unmarshal(out, &j)
+		if err != nil {
+			return err
+		}
+
+		out, err = yaml.Marshal(j)
 		if err != nil {
 			return err
 		}
@@ -291,7 +281,7 @@ func (ctx Context) printOutput(out []byte) error {
 		writer = os.Stdout
 	}
 
-	_, err = writer.Write(out)
+	_, err := writer.Write(out)
 	if err != nil {
 		return err
 	}
@@ -315,32 +305,36 @@ func GetFromFields(kr keyring.Keyring, from string, genOnly bool) (sdk.AccAddres
 		return nil, "", 0, nil
 	}
 
-	var k *keyring.Record
+	if genOnly {
+		addr, err := sdk.AccAddressFromBech32(from)
+		if err != nil {
+			return nil, "", 0, errors.Wrap(err, "must provide a valid Bech32 address in generate-only mode")
+		}
+
+		return addr, "", 0, nil
+	}
+
+	var info keyring.Info
 	if addr, err := sdk.AccAddressFromBech32(from); err == nil {
-		k, err = kr.KeyByAddress(addr)
+		info, err = kr.KeyByAddress(addr)
 		if err != nil {
 			return nil, "", 0, err
 		}
 	} else {
-		k, err = kr.Key(from)
+		info, err = kr.Key(from)
 		if err != nil {
 			return nil, "", 0, err
 		}
 	}
 
-	addr, err := k.GetAddress()
-	if err != nil {
-		return nil, "", 0, err
-	}
-
-	return addr, k.Name, k.GetType(), nil
+	return info.GetAddress(), info.GetName(), info.GetType(), nil
 }
 
 // NewKeyringFromBackend gets a Keyring object from a backend
 func NewKeyringFromBackend(ctx Context, backend string) (keyring.Keyring, error) {
 	if ctx.GenerateOnly || ctx.Simulate {
-		backend = keyring.BackendMemory
+		return keyring.New(sdk.KeyringServiceName(), keyring.BackendMemory, ctx.KeyringDir, ctx.Input)
 	}
 
-	return keyring.New(sdk.KeyringServiceName(), backend, ctx.KeyringDir, ctx.Input, ctx.Codec, ctx.KeyringOptions...)
+	return keyring.New(sdk.KeyringServiceName(), backend, ctx.KeyringDir, ctx.Input)
 }

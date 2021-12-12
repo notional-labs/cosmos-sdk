@@ -5,7 +5,8 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
-	"github.com/cosmos/cosmos-sdk/x/auth/migrations/legacytx"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/x/auth/legacy/legacytx"
 	"github.com/cosmos/cosmos-sdk/x/auth/signing"
 )
 
@@ -63,4 +64,25 @@ func CopyTx(tx signing.Tx, builder client.TxBuilder, ignoreSignatureError bool) 
 	builder.SetTimeoutHeight(tx.GetTimeoutHeight())
 
 	return nil
+}
+
+// ConvertAndEncodeStdTx encodes the stdTx as a transaction in the format specified by txConfig
+func ConvertAndEncodeStdTx(txConfig client.TxConfig, stdTx legacytx.StdTx) ([]byte, error) {
+	builder := txConfig.NewTxBuilder()
+
+	var theTx sdk.Tx
+
+	// check if we need a StdTx anyway, in that case don't copy
+	if _, ok := builder.GetTx().(legacytx.StdTx); ok {
+		theTx = stdTx
+	} else {
+		err := CopyTx(stdTx, builder, false)
+		if err != nil {
+			return nil, err
+		}
+
+		theTx = builder.GetTx()
+	}
+
+	return txConfig.TxEncoder()(theTx)
 }

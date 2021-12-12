@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"sigs.k8s.io/yaml"
+	yaml "gopkg.in/yaml.v2"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
@@ -17,7 +17,7 @@ const (
 
 // Default governance params
 var (
-	DefaultMinDepositTokens = sdk.NewInt(10000000)
+	DefaultMinDepositTokens = sdk.TokensFromConsensusPower(10)
 	DefaultQuorum           = sdk.NewDecWithPrec(334, 3)
 	DefaultThreshold        = sdk.NewDecWithPrec(5, 1)
 	DefaultVetoThreshold    = sdk.NewDecWithPrec(334, 3)

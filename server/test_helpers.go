@@ -3,8 +3,6 @@ package server
 import (
 	"fmt"
 	"net"
-
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
 // Get a free address for a test tendermint server
@@ -15,9 +13,15 @@ func FreeTCPAddr() (addr, port string, err error) {
 		return "", "", err
 	}
 
-	if err := l.Close(); err != nil {
-		return "", "", sdkerrors.Wrap(err, "couldn't close the listener")
+	closer := func() {
+		err := l.Close()
+		if err != nil {
+			// TODO: Handle with #870
+			panic(err)
+		}
 	}
+
+	defer closer()
 
 	portI := l.Addr().(*net.TCPAddr).Port
 	port = fmt.Sprintf("%d", portI)

@@ -8,11 +8,13 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
 	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	dbm "github.com/tendermint/tm-db"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
+	"github.com/cosmos/cosmos-sdk/store"
 	"github.com/cosmos/cosmos-sdk/tests/mocks"
-	"github.com/cosmos/cosmos-sdk/testutil"
 	"github.com/cosmos/cosmos-sdk/types"
 )
 
@@ -24,6 +26,15 @@ func TestContextTestSuite(t *testing.T) {
 	suite.Run(t, new(contextTestSuite))
 }
 
+func (s *contextTestSuite) defaultContext(key types.StoreKey) types.Context {
+	db := dbm.NewMemDB()
+	cms := store.NewCommitMultiStore(db)
+	cms.MountStoreWithDB(key, types.StoreTypeIAVL, db)
+	s.Require().NoError(cms.LoadLatestVersion())
+	ctx := types.NewContext(cms, tmproto.Header{}, false, log.NewNopLogger())
+	return ctx
+}
+
 func (s *contextTestSuite) TestCacheContext() {
 	key := types.NewKVStoreKey(s.T().Name() + "_TestCacheContext")
 	k1 := []byte("hello")
@@ -31,7 +42,7 @@ func (s *contextTestSuite) TestCacheContext() {
 	k2 := []byte("key")
 	v2 := []byte("value")
 
-	ctx := testutil.DefaultContext(key, types.NewTransientStoreKey("transient_"+s.T().Name()))
+	ctx := s.defaultContext(key)
 	store := ctx.KVStore(key)
 	store.Set(k1, v1)
 	s.Require().Equal(v1, store.Get(k1))
@@ -53,7 +64,7 @@ func (s *contextTestSuite) TestCacheContext() {
 
 func (s *contextTestSuite) TestLogContext() {
 	key := types.NewKVStoreKey(s.T().Name())
-	ctx := testutil.DefaultContext(key, types.NewTransientStoreKey("transient_"+s.T().Name()))
+	ctx := s.defaultContext(key)
 	ctrl := gomock.NewController(s.T())
 	s.T().Cleanup(ctrl.Finish)
 

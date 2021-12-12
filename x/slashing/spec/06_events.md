@@ -2,22 +2,11 @@
 order: 6
 -->
 
-# Events
+# Tags
 
-The slashing module emits the following events:
+The slashing module emits the following events/tags:
 
-## MsgServer
-
-### MsgUnjail
-
-| Type    | Attribute Key | Attribute Value |
-| ------- | ------------- | --------------- |
-| message | module        | slashing        |
-| message | sender        | {validatorAddress} |
-
-## Keeper
-
-## BeginBlocker: HandleValidatorSignature
+## BeginBlocker
 
 | Type  | Attribute Key | Attribute Value             |
 | ----- | ------------- | --------------------------- |
@@ -25,7 +14,6 @@ The slashing module emits the following events:
 | slash | power         | {validatorPower}            |
 | slash | reason        | {slashReason}               |
 | slash | jailed [0]    | {validatorConsensusAddress} |
-| slash | burned coins  | {sdk.Int}                   |
 
 - [0] Only included if the validator is jailed.
 
@@ -35,12 +23,12 @@ The slashing module emits the following events:
 | liveness | missed_blocks | {missedBlocksCounter}       |
 | liveness | height        | {blockHeight}               |
 
-### Slash
+## Handlers
 
-+ same as `"slash"` event from `HandleValidatorSignature`, but without the `jailed` attribute.
+### MsgUnjail
 
-### Jail
-
-| Type  | Attribute Key | Attribute Value    |
-| ----- | ------------- | ------------------ |
-| slash | jailed        | {validatorAddress} |
+| Type    | Attribute Key | Attribute Value |
+| ------- | ------------- | --------------- |
+| message | module        | slashing        |
+| message | action        | unjail          |
+| message | sender        | {senderAddress} |

@@ -3,90 +3,132 @@ package params_test
 import (
 	"testing"
 
-	"github.com/stretchr/testify/suite"
-
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-
 	"github.com/cosmos/cosmos-sdk/simapp"
+
+	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/libs/log"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	dbm "github.com/tendermint/tm-db"
+
+	"github.com/cosmos/cosmos-sdk/codec"
+	"github.com/cosmos/cosmos-sdk/store"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	"github.com/cosmos/cosmos-sdk/x/params"
+	"github.com/cosmos/cosmos-sdk/x/params/keeper"
+	"github.com/cosmos/cosmos-sdk/x/params/types"
 	"github.com/cosmos/cosmos-sdk/x/params/types/proposal"
-	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
-type HandlerTestSuite struct {
-	suite.Suite
+func validateNoOp(_ interface{}) error { return nil }
 
-	app        *simapp.SimApp
-	ctx        sdk.Context
-	govHandler govtypes.Handler
+type testInput struct {
+	ctx    sdk.Context
+	cdc    *codec.LegacyAmino
+	keeper keeper.Keeper
 }
 
-func (suite *HandlerTestSuite) SetupTest() {
-	suite.app = simapp.Setup(suite.T(), false)
-	suite.ctx = suite.app.BaseApp.NewContext(false, tmproto.Header{})
-	suite.govHandler = params.NewParamChangeProposalHandler(suite.app.ParamsKeeper)
+var (
+	_ types.ParamSet = (*testParams)(nil)
+
+	keyMaxValidators = "MaxValidators"
+	keySlashingRate  = "SlashingRate"
+	testSubspace     = "TestSubspace"
+)
+
+type testParamsSlashingRate struct {
+	DoubleSign uint16 `json:"double_sign,omitempty" yaml:"double_sign,omitempty"`
+	Downtime   uint16 `json:"downtime,omitempty" yaml:"downtime,omitempty"`
 }
 
-func TestHandlerTestSuite(t *testing.T) {
-	suite.Run(t, new(HandlerTestSuite))
+type testParams struct {
+	MaxValidators uint16                 `json:"max_validators" yaml:"max_validators"` // maximum number of validators (max uint16 = 65535)
+	SlashingRate  testParamsSlashingRate `json:"slashing_rate" yaml:"slashing_rate"`
+}
+
+func (tp *testParams) ParamSetPairs() types.ParamSetPairs {
+	return types.ParamSetPairs{
+		types.NewParamSetPair([]byte(keyMaxValidators), &tp.MaxValidators, validateNoOp),
+		types.NewParamSetPair([]byte(keySlashingRate), &tp.SlashingRate, validateNoOp),
+	}
 }
 
 func testProposal(changes ...proposal.ParamChange) *proposal.ParameterChangeProposal {
-	return proposal.NewParameterChangeProposal("title", "description", changes)
+	return proposal.NewParameterChangeProposal(
+		"Test",
+		"description",
+		changes,
+	)
 }
 
-func (suite *HandlerTestSuite) TestProposalHandler() {
-	testCases := []struct {
-		name     string
-		proposal *proposal.ParameterChangeProposal
-		onHandle func()
-		expErr   bool
-	}{
-		{
-			"all fields",
-			testProposal(proposal.NewParamChange(stakingtypes.ModuleName, string(stakingtypes.KeyMaxValidators), "1")),
-			func() {
-				maxVals := suite.app.StakingKeeper.MaxValidators(suite.ctx)
-				suite.Require().Equal(uint32(1), maxVals)
-			},
-			false,
-		},
-		{
-			"invalid type",
-			testProposal(proposal.NewParamChange(stakingtypes.ModuleName, string(stakingtypes.KeyMaxValidators), "-")),
-			func() {},
-			true,
-		},
-		{
-			"omit empty fields",
-			testProposal(proposal.ParamChange{
-				Subspace: govtypes.ModuleName,
-				Key:      string(govtypes.ParamStoreKeyDepositParams),
-				Value:    `{"min_deposit": [{"denom": "uatom","amount": "64000000"}]}`,
-			}),
-			func() {
-				depositParams := suite.app.GovKeeper.GetDepositParams(suite.ctx)
-				suite.Require().Equal(govtypes.DepositParams{
-					MinDeposit:       sdk.NewCoins(sdk.NewCoin("uatom", sdk.NewInt(64000000))),
-					MaxDepositPeriod: govtypes.DefaultPeriod,
-				}, depositParams)
-			},
-			false,
-		},
-	}
+func newTestInput(t *testing.T) testInput {
+	cdc := codec.NewLegacyAmino()
+	proposal.RegisterLegacyAminoCodec(cdc)
 
-	for _, tc := range testCases {
-		tc := tc
-		suite.Run(tc.name, func() {
-			err := suite.govHandler(suite.ctx, tc.proposal)
-			if tc.expErr {
-				suite.Require().Error(err)
-			} else {
-				suite.Require().NoError(err)
-				tc.onHandle()
-			}
-		})
-	}
+	db := dbm.NewMemDB()
+	cms := store.NewCommitMultiStore(db)
+
+	keyParams := sdk.NewKVStoreKey("params")
+	tKeyParams := sdk.NewTransientStoreKey("transient_params")
+
+	cms.MountStoreWithDB(keyParams, sdk.StoreTypeIAVL, db)
+	cms.MountStoreWithDB(tKeyParams, sdk.StoreTypeTransient, db)
+
+	err := cms.LoadLatestVersion()
+	require.Nil(t, err)
+
+	encCfg := simapp.MakeTestEncodingConfig()
+	keeper := keeper.NewKeeper(encCfg.Marshaler, encCfg.Amino, keyParams, tKeyParams)
+	ctx := sdk.NewContext(cms, tmproto.Header{}, false, log.NewNopLogger())
+
+	return testInput{ctx, cdc, keeper}
+}
+
+func TestProposalHandlerPassed(t *testing.T) {
+	input := newTestInput(t)
+	ss := input.keeper.Subspace(testSubspace).WithKeyTable(
+		types.NewKeyTable().RegisterParamSet(&testParams{}),
+	)
+
+	tp := testProposal(proposal.NewParamChange(testSubspace, keyMaxValidators, "1"))
+	hdlr := params.NewParamChangeProposalHandler(input.keeper)
+	require.NoError(t, hdlr(input.ctx, tp))
+
+	var param uint16
+	ss.Get(input.ctx, []byte(keyMaxValidators), &param)
+	require.Equal(t, param, uint16(1))
+}
+
+func TestProposalHandlerFailed(t *testing.T) {
+	input := newTestInput(t)
+	ss := input.keeper.Subspace(testSubspace).WithKeyTable(
+		types.NewKeyTable().RegisterParamSet(&testParams{}),
+	)
+
+	tp := testProposal(proposal.NewParamChange(testSubspace, keyMaxValidators, "invalidType"))
+	hdlr := params.NewParamChangeProposalHandler(input.keeper)
+	require.Error(t, hdlr(input.ctx, tp))
+
+	require.False(t, ss.Has(input.ctx, []byte(keyMaxValidators)))
+}
+
+func TestProposalHandlerUpdateOmitempty(t *testing.T) {
+	input := newTestInput(t)
+	ss := input.keeper.Subspace(testSubspace).WithKeyTable(
+		types.NewKeyTable().RegisterParamSet(&testParams{}),
+	)
+
+	hdlr := params.NewParamChangeProposalHandler(input.keeper)
+	var param testParamsSlashingRate
+
+	tp := testProposal(proposal.NewParamChange(testSubspace, keySlashingRate, `{"downtime": 7}`))
+	require.NoError(t, hdlr(input.ctx, tp))
+
+	ss.Get(input.ctx, []byte(keySlashingRate), &param)
+	require.Equal(t, testParamsSlashingRate{0, 7}, param)
+
+	tp = testProposal(proposal.NewParamChange(testSubspace, keySlashingRate, `{"double_sign": 10}`))
+	require.NoError(t, hdlr(input.ctx, tp))
+
+	ss.Get(input.ctx, []byte(keySlashingRate), &param)
+	require.Equal(t, testParamsSlashingRate{10, 7}, param)
 }

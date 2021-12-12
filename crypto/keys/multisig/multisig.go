@@ -15,21 +15,19 @@ var _ multisigtypes.PubKey = &LegacyAminoPubKey{}
 var _ types.UnpackInterfacesMessage = &LegacyAminoPubKey{}
 
 // NewLegacyAminoPubKey returns a new LegacyAminoPubKey.
-// Multisig can be constructed with multiple same keys - it will increase the power of
-// the owner of that key (he will still need to add multiple signatures in the right order).
 // Panics if len(pubKeys) < k or 0 >= k.
-func NewLegacyAminoPubKey(threshold int, pubKeys []cryptotypes.PubKey) *LegacyAminoPubKey {
-	if threshold <= 0 {
+func NewLegacyAminoPubKey(k int, pubKeys []cryptotypes.PubKey) *LegacyAminoPubKey {
+	if k <= 0 {
 		panic("threshold k of n multisignature: k <= 0")
 	}
-	if len(pubKeys) < threshold {
+	if len(pubKeys) < k {
 		panic("threshold k of n multisignature: len(pubKeys) < k")
 	}
 	anyPubKeys, err := packPubKeys(pubKeys)
 	if err != nil {
 		panic(err)
 	}
-	return &LegacyAminoPubKey{Threshold: uint32(threshold), PubKeys: anyPubKeys}
+	return &LegacyAminoPubKey{Threshold: uint32(k), PubKeys: anyPubKeys}
 }
 
 // Address implements cryptotypes.PubKey Address method
@@ -39,14 +37,10 @@ func (m *LegacyAminoPubKey) Address() cryptotypes.Address {
 
 // Bytes returns the proto encoded version of the LegacyAminoPubKey
 func (m *LegacyAminoPubKey) Bytes() []byte {
-	return AminoCdc.MustMarshal(m)
+	return AminoCdc.MustMarshalBinaryBare(m)
 }
 
-// VerifyMultisignature implements the multisigtypes.PubKey VerifyMultisignature method.
-// The signatures must be added in an order corresponding to the public keys order in
-// LegacyAminoPubKey. It's OK to have multiple same keys in the multisig - it will increase
-// the power of the owner of that key - in that case the signer will still need to append
-// multiple same signatures in the right order.
+// VerifyMultisignature implements the multisigtypes.PubKey VerifyMultisignature method
 func (m *LegacyAminoPubKey) VerifyMultisignature(getSignBytes multisigtypes.GetSignBytesFunc, sig *signing.MultiSignatureData) error {
 	bitarray := sig.BitArray
 	sigs := sig.Signatures
@@ -54,7 +48,7 @@ func (m *LegacyAminoPubKey) VerifyMultisignature(getSignBytes multisigtypes.GetS
 	pubKeys := m.GetPubKeys()
 	// ensure bit array is the correct size
 	if len(pubKeys) != size {
-		return fmt.Errorf("bit array size is incorrect, expecting: %d", len(pubKeys))
+		return fmt.Errorf("bit array size is incorrect %d", len(pubKeys))
 	}
 	// ensure size of signature list
 	if len(sigs) < int(m.Threshold) || len(sigs) > size {
@@ -62,7 +56,7 @@ func (m *LegacyAminoPubKey) VerifyMultisignature(getSignBytes multisigtypes.GetS
 	}
 	// ensure at least k signatures are set
 	if bitarray.NumTrueBitsBefore(size) < int(m.Threshold) {
-		return fmt.Errorf("not enough signatures set, have %d, expected %d", bitarray.NumTrueBitsBefore(size), int(m.Threshold))
+		return fmt.Errorf("minimum number of signatures not set, have %d, expected %d", bitarray.NumTrueBitsBefore(size), int(m.Threshold))
 	}
 	// index in the list of signatures which we are concerned with.
 	sigIndex := 0

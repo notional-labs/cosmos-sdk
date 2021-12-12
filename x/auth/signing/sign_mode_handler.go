@@ -34,7 +34,4 @@ type SignerData struct {
 	// since in SIGN_MODE_DIRECT the account sequence is already in the signer
 	// info.
 	Sequence uint64
-
-	// SignerIndex index of signer in the signer_infos array
-	SignerIndex int
 }

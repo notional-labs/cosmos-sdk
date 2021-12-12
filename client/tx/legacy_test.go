@@ -14,7 +14,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/testutil/testdata"
 	"github.com/cosmos/cosmos-sdk/types"
 	signing2 "github.com/cosmos/cosmos-sdk/types/tx/signing"
-	"github.com/cosmos/cosmos-sdk/x/auth/migrations/legacytx"
+	"github.com/cosmos/cosmos-sdk/x/auth/legacy/legacytx"
+	"github.com/cosmos/cosmos-sdk/x/auth/signing"
 	"github.com/cosmos/cosmos-sdk/x/auth/tx"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 )
@@ -22,13 +23,14 @@ import (
 const (
 	memo          = "waboom"
 	gas           = uint64(10000)
-	timeoutHeight = uint64(5)
+	timeoutHeight = 5
 )
 
 var (
 	fee            = types.NewCoins(types.NewInt64Coin("bam", 100))
 	_, pub1, addr1 = testdata.KeyTestPubAddr()
 	_, _, addr2    = testdata.KeyTestPubAddr()
+	msg            = banktypes.NewMsgSend(addr1, addr2, types.NewCoins(types.NewInt64Coin("wack", 10000)))
 	sig            = signing2.SignatureV2{
 		PubKey: pub1,
 		Data: &signing2.SingleSignatureData{
@@ -36,15 +38,13 @@ var (
 			Signature: []byte("dummy"),
 		},
 	}
-	msg0 = banktypes.NewMsgSend(addr1, addr2, types.NewCoins(types.NewInt64Coin("wack", 1)))
-	msg1 = banktypes.NewMsgSend(addr1, addr2, types.NewCoins(types.NewInt64Coin("wack", 2)))
 )
 
 func buildTestTx(t *testing.T, builder client.TxBuilder) {
 	builder.SetMemo(memo)
 	builder.SetGasLimit(gas)
 	builder.SetFeeAmount(fee)
-	err := builder.SetMsgs(msg0, msg1)
+	err := builder.SetMsgs(msg)
 	require.NoError(t, err)
 	err = builder.SetSignatures(sig)
 	require.NoError(t, err)
@@ -75,15 +75,11 @@ func (s *TestSuite) TestCopyTx() {
 	protoBuilder2 := s.protoCfg.NewTxBuilder()
 	err = tx2.CopyTx(aminoBuilder.GetTx(), protoBuilder2, false)
 	s.Require().NoError(err)
-	// Check sigs, signers and msgs.
-	sigsV2_1, err := protoBuilder.GetTx().GetSignaturesV2()
+	bz, err := s.protoCfg.TxEncoder()(protoBuilder.GetTx())
 	s.Require().NoError(err)
-	sigsV2_2, err := protoBuilder2.GetTx().GetSignaturesV2()
+	bz2, err := s.protoCfg.TxEncoder()(protoBuilder2.GetTx())
 	s.Require().NoError(err)
-	s.Require().Equal(sigsV2_1, sigsV2_2)
-	s.Require().Equal(protoBuilder.GetTx().GetSigners(), protoBuilder2.GetTx().GetSigners())
-	s.Require().Equal(protoBuilder.GetTx().GetMsgs()[0], protoBuilder2.GetTx().GetMsgs()[0])
-	s.Require().Equal(protoBuilder.GetTx().GetMsgs()[1], protoBuilder2.GetTx().GetMsgs()[1])
+	s.Require().Equal(bz, bz2)
 
 	// amino -> proto -> amino
 	aminoBuilder = s.aminoCfg.NewTxBuilder()
@@ -94,15 +90,11 @@ func (s *TestSuite) TestCopyTx() {
 	aminoBuilder2 := s.aminoCfg.NewTxBuilder()
 	err = tx2.CopyTx(protoBuilder.GetTx(), aminoBuilder2, false)
 	s.Require().NoError(err)
-	// Check sigs, signers, and msgs
-	sigsV2_1, err = aminoBuilder.GetTx().GetSignaturesV2()
+	bz, err = s.aminoCfg.TxEncoder()(aminoBuilder.GetTx())
 	s.Require().NoError(err)
-	sigsV2_2, err = aminoBuilder2.GetTx().GetSignaturesV2()
+	bz2, err = s.aminoCfg.TxEncoder()(aminoBuilder2.GetTx())
 	s.Require().NoError(err)
-	s.Require().Equal(sigsV2_1, sigsV2_2)
-	s.Require().Equal(aminoBuilder.GetTx().GetSigners(), aminoBuilder2.GetTx().GetSigners())
-	s.Require().Equal(aminoBuilder.GetTx().GetMsgs()[0], aminoBuilder2.GetTx().GetMsgs()[0])
-	s.Require().Equal(aminoBuilder.GetTx().GetMsgs()[1], aminoBuilder2.GetTx().GetMsgs()[1])
+	s.Require().Equal(bz, bz2)
 }
 
 func (s *TestSuite) TestConvertTxToStdTx() {
@@ -114,8 +106,7 @@ func (s *TestSuite) TestConvertTxToStdTx() {
 	s.Require().Equal(memo, stdTx.Memo)
 	s.Require().Equal(gas, stdTx.Fee.Gas)
 	s.Require().Equal(fee, stdTx.Fee.Amount)
-	s.Require().Equal(msg0, stdTx.Msgs[0])
-	s.Require().Equal(msg1, stdTx.Msgs[1])
+	s.Require().Equal(msg, stdTx.Msgs[0])
 	s.Require().Equal(timeoutHeight, stdTx.TimeoutHeight)
 	s.Require().Equal(sig.PubKey, stdTx.Signatures[0].PubKey)
 	s.Require().Equal(sig.Data.(*signing2.SingleSignatureData).Signature, stdTx.Signatures[0].Signature)
@@ -134,8 +125,7 @@ func (s *TestSuite) TestConvertTxToStdTx() {
 	s.Require().Equal(memo, stdTx.Memo)
 	s.Require().Equal(gas, stdTx.Fee.Gas)
 	s.Require().Equal(fee, stdTx.Fee.Amount)
-	s.Require().Equal(msg0, stdTx.Msgs[0])
-	s.Require().Equal(msg1, stdTx.Msgs[1])
+	s.Require().Equal(msg, stdTx.Msgs[0])
 	s.Require().Equal(timeoutHeight, stdTx.TimeoutHeight)
 	s.Require().Empty(stdTx.Signatures)
 
@@ -148,6 +138,23 @@ func (s *TestSuite) TestConvertTxToStdTx() {
 	s.Require().Equal(stdTx, stdTx2)
 }
 
-func TestTestSuite(t *testing.T) {
-	suite.Run(t, new(TestSuite))
+func (s *TestSuite) TestConvertAndEncodeStdTx() {
+	// convert amino -> proto -> amino
+	aminoBuilder := s.aminoCfg.NewTxBuilder()
+	buildTestTx(s.T(), aminoBuilder)
+	stdTx := aminoBuilder.GetTx().(legacytx.StdTx)
+	txBz, err := tx2.ConvertAndEncodeStdTx(s.protoCfg, stdTx)
+	s.Require().NoError(err)
+	decodedTx, err := s.protoCfg.TxDecoder()(txBz)
+	s.Require().NoError(err)
+	aminoBuilder2 := s.aminoCfg.NewTxBuilder()
+	s.Require().NoError(tx2.CopyTx(decodedTx.(signing.Tx), aminoBuilder2, false))
+	s.Require().Equal(stdTx, aminoBuilder2.GetTx())
+
+	// just use amino everywhere
+	txBz, err = tx2.ConvertAndEncodeStdTx(s.aminoCfg, stdTx)
+	s.Require().NoError(err)
+	decodedTx, err = s.aminoCfg.TxDecoder()(txBz)
+	s.Require().NoError(err)
+	s.Require().Equal(stdTx, decodedTx)
 }

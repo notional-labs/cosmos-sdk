@@ -1,30 +1,30 @@
 package types
 
 import (
-	"sigs.k8s.io/yaml"
+	yaml "gopkg.in/yaml.v2"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 // ValidatorGovInfo used for tallying
 type ValidatorGovInfo struct {
-	Address             sdk.ValAddress      // address of the validator operator
-	BondedTokens        sdk.Int             // Power of a Validator
-	DelegatorShares     sdk.Dec             // Total outstanding delegator shares
-	DelegatorDeductions sdk.Dec             // Delegator deductions from validator's delegators voting independently
-	Vote                WeightedVoteOptions // Vote of the validator
+	Address             sdk.ValAddress // address of the validator operator
+	BondedTokens        sdk.Int        // Power of a Validator
+	DelegatorShares     sdk.Dec        // Total outstanding delegator shares
+	DelegatorDeductions sdk.Dec        // Delegator deductions from validator's delegators voting independently
+	Vote                VoteOption     // Vote of the validator
 }
 
 // NewValidatorGovInfo creates a ValidatorGovInfo instance
 func NewValidatorGovInfo(address sdk.ValAddress, bondedTokens sdk.Int, delegatorShares,
-	delegatorDeductions sdk.Dec, options WeightedVoteOptions) ValidatorGovInfo {
+	delegatorDeductions sdk.Dec, vote VoteOption) ValidatorGovInfo {
 
 	return ValidatorGovInfo{
 		Address:             address,
 		BondedTokens:        bondedTokens,
 		DelegatorShares:     delegatorShares,
 		DelegatorDeductions: delegatorDeductions,
-		Vote:                options,
+		Vote:                vote,
 	}
 }
 

@@ -3,7 +3,7 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
-	"os"
+	"io/ioutil"
 
 	"github.com/spf13/pflag"
 
@@ -30,7 +30,7 @@ func parseSubmitProposalFlags(fs *pflag.FlagSet) (*proposal, error) {
 		}
 	}
 
-	contents, err := os.ReadFile(proposalFile)
+	contents, err := ioutil.ReadFile(proposalFile)
 	if err != nil {
 		return nil, err
 	}

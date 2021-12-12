@@ -5,11 +5,12 @@ package rest_test
 import (
 	"fmt"
 
+	"github.com/cosmos/cosmos-sdk/simapp"
 	"github.com/cosmos/cosmos-sdk/testutil/network"
 	"github.com/cosmos/cosmos-sdk/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/types/rest"
+	authclient "github.com/cosmos/cosmos-sdk/x/auth/client"
 	"github.com/cosmos/cosmos-sdk/x/auth/legacy/legacytx"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	bankrest "github.com/cosmos/cosmos-sdk/x/bank/client/rest"
@@ -17,6 +18,9 @@ import (
 )
 
 func (s *IntegrationTestSuite) TestCoinSend() {
+	encodingConfig := simapp.MakeTestEncodingConfig()
+	authclient.Codec = encodingConfig.Marshaler
+
 	val := s.network.Validators[0]
 
 	account, err := getAccountInfo(val)
@@ -24,7 +28,7 @@ func (s *IntegrationTestSuite) TestCoinSend() {
 
 	sendReq := generateSendReq(
 		account,
-		types.Coins{types.NewCoin(s.cfg.BondDenom, types.TokensFromConsensusPower(1, sdk.DefaultPowerReduction))},
+		types.Coins{types.NewCoin(s.cfg.BondDenom, types.TokensFromConsensusPower(1))},
 	)
 
 	stdTx, err := submitSendReq(val, sendReq)
