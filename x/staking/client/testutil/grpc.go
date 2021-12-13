@@ -19,51 +19,52 @@ import (
 )
 
 func (s *IntegrationTestSuite) TestGRPCQueryValidatorsHandler() {
-	val := s.network.Validators[0]
-	baseURL := val.APIAddress
-
-	testCases := []struct {
-		name  string
-		url   string
-		error bool
-	}{
-		{
-			"test query validators gRPC route with invalid status",
-			fmt.Sprintf("%s/cosmos/staking/v1beta1/validators?status=active", baseURL),
-			true,
-		},
-		{
-			"test query validators gRPC route without status query param",
-			fmt.Sprintf("%s/cosmos/staking/v1beta1/validators", baseURL),
-			false,
-		},
-		{
-			"test query validators gRPC route with valid status",
-			fmt.Sprintf("%s/cosmos/staking/v1beta1/validators?status=%s", baseURL, types.Bonded.String()),
-			false,
-		},
-	}
 	/*
-		for _, tc := range testCases {
-			tc := tc
-			s.Run(tc.name, func() {
-				resp, err := rest.GetRequest(tc.url)
-				s.Require().NoError(err)
+		val := s.network.Validators[0]
+		baseURL := val.APIAddress
 
-				var valRes types.QueryValidatorsResponse
-				err = val.ClientCtx.Codec.UnmarshalJSON(resp, &valRes)
-
-				if tc.error {
-					s.Require().Error(err)
-					s.Require().Nil(valRes.Validators)
-					s.Require().Equal(0, len(valRes.Validators))
-				} else {
-					s.Require().NoError(err)
-					s.Require().NotNil(valRes.Validators)
-					s.Require().Equal(len(s.network.Validators), len(valRes.Validators))
-				}
-			})
+		testCases := []struct {
+			name  string
+			url   string
+			error bool
+		}{
+			{
+				"test query validators gRPC route with invalid status",
+				fmt.Sprintf("%s/cosmos/staking/v1beta1/validators?status=active", baseURL),
+				true,
+			},
+			{
+				"test query validators gRPC route without status query param",
+				fmt.Sprintf("%s/cosmos/staking/v1beta1/validators", baseURL),
+				false,
+			},
+			{
+				"test query validators gRPC route with valid status",
+				fmt.Sprintf("%s/cosmos/staking/v1beta1/validators?status=%s", baseURL, types.Bonded.String()),
+				false,
+			},
 		}
+
+			for _, tc := range testCases {
+				tc := tc
+				s.Run(tc.name, func() {
+					resp, err := rest.GetRequest(tc.url)
+					s.Require().NoError(err)
+
+					var valRes types.QueryValidatorsResponse
+					err = val.ClientCtx.Codec.UnmarshalJSON(resp, &valRes)
+
+					if tc.error {
+						s.Require().Error(err)
+						s.Require().Nil(valRes.Validators)
+						s.Require().Equal(0, len(valRes.Validators))
+					} else {
+						s.Require().NoError(err)
+						s.Require().NotNil(valRes.Validators)
+						s.Require().Equal(len(s.network.Validators), len(valRes.Validators))
+					}
+				})
+			}
 	*/
 }
 
@@ -364,7 +365,7 @@ func (s *IntegrationTestSuite) TestGRPCQueryDelegatorDelegations() {
 	// Create new account in the keyring for address without delegations.
 	k, _, err := val.ClientCtx.Keyring.NewMnemonic("test", keyring.English, sdk.FullFundraiserPath, keyring.DefaultBIP39Passphrase, hd.Secp256k1)
 	s.Require().NoError(err)
-	newAddr, err := k.GetAddress()
+	newAddr := k.GetAddress()
 	s.Require().NoError(err)
 
 	testCases := []struct {
