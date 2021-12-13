@@ -2,6 +2,7 @@ package staking
 
 import (
 	"fmt"
+	"log"
 
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmtypes "github.com/tendermint/tendermint/types"
@@ -43,9 +44,7 @@ func InitGenesis(
 
 		// Call the creation hook if not exported
 		if !data.Exported {
-			if err := keeper.AfterValidatorCreated(ctx, validator.GetOperator()); err != nil {
-				panic(err)
-			}
+			keeper.AfterValidatorCreated(ctx, validator.GetOperator())
 		}
 
 		// update timeslice if necessary
@@ -71,18 +70,13 @@ func InitGenesis(
 
 		// Call the before-creation hook if not exported
 		if !data.Exported {
-			if err := keeper.BeforeDelegationCreated(ctx, delegatorAddress, delegation.GetValidatorAddr()); err != nil {
-				panic(err)
-			}
+			keeper.BeforeDelegationCreated(ctx, delegatorAddress, delegation.GetValidatorAddr())
 		}
 
 		keeper.SetDelegation(ctx, delegation)
-
 		// Call the after-modification hook if not exported
 		if !data.Exported {
-			if err := keeper.AfterDelegationModified(ctx, delegatorAddress, delegation.GetValidatorAddr()); err != nil {
-				panic(err)
-			}
+			keeper.AfterDelegationModified(ctx, delegatorAddress, delegation.GetValidatorAddr())
 		}
 	}
 
@@ -111,18 +105,15 @@ func InitGenesis(
 	if bondedPool == nil {
 		panic(fmt.Sprintf("%s module account has not been set", types.BondedPoolName))
 	}
-
-	// TODO: remove with genesis 2-phases refactor https://github.com/cosmos/cosmos-sdk/issues/2862
+	// TODO remove with genesis 2-phases refactor https://github.com/cosmos/cosmos-sdk/issues/2862
 	bondedBalance := bankKeeper.GetAllBalances(ctx, bondedPool.GetAddress())
 	if bondedBalance.IsZero() {
 		accountKeeper.SetModuleAccount(ctx, bondedPool)
 	}
-
 	// if balance is different from bonded coins panic because genesis is most likely malformed
 	if !bondedBalance.IsEqual(bondedCoins) {
 		panic(fmt.Sprintf("bonded pool balance is different from bonded coins: %s <-> %s", bondedBalance, bondedCoins))
 	}
-
 	notBondedPool := keeper.GetNotBondedPool(ctx)
 	if notBondedPool == nil {
 		panic(fmt.Sprintf("%s module account has not been set", types.NotBondedPoolName))
@@ -132,13 +123,10 @@ func InitGenesis(
 	if notBondedBalance.IsZero() {
 		accountKeeper.SetModuleAccount(ctx, notBondedPool)
 	}
-
-	// If balance is different from non bonded coins panic because genesis is most
-	// likely malformed.
+	// if balance is different from non bonded coins panic because genesis is most likely malformed
 	if !notBondedBalance.IsEqual(notBondedCoins) {
 		panic(fmt.Sprintf("not bonded pool balance is different from not bonded coins: %s <-> %s", notBondedBalance, notBondedCoins))
 	}
-
 	// don't need to run Tendermint updates if we exported
 	if data.Exported {
 		for _, lv := range data.LastValidatorPowers {
@@ -146,7 +134,6 @@ func InitGenesis(
 			if err != nil {
 				panic(err)
 			}
-
 			keeper.SetLastValidatorPower(ctx, valAddr, lv.Power)
 			validator, found := keeper.GetValidator(ctx, valAddr)
 
@@ -160,10 +147,9 @@ func InitGenesis(
 		}
 	} else {
 		var err error
-
 		res, err = keeper.ApplyAndReturnValidatorSetUpdates(ctx)
 		if err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 	}
 
