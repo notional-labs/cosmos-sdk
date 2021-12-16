@@ -21,8 +21,10 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/kv"
 )
 
+
+// For Dig, we've reduced the cache size by 100x vs what we use for Osmosis
 const (
-	defaultIAVLCacheSize = 10000000
+	defaultIAVLCacheSize = 100000
 )
 
 var (
