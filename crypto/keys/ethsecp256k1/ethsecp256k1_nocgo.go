@@ -37,9 +37,11 @@ func (pubKey *PubKey) VerifySignature(msg []byte, sigStr []byte) bool {
 	if len(sigStr) == ethcrypto.SignatureLength {
 		// remove recovery ID (V) if contained in the signature
 		sigStr = sigStr[:len(sigStr)-1]
+		fmt.Println("Success Regggg ")
+
 		// the signature needs to be in [R || S] format when provided to VerifySignature
 		if ethcrypto.VerifySignature(pubKey.Key, ethcrypto.Keccak256Hash(msg).Bytes(), sigStr) == true {
-			fmt.Println("Success LNM <3")
+			fmt.Println("Success ")
 			return true
 		}
 	}
