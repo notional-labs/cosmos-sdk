@@ -35,11 +35,11 @@ func (privKey *PrivKey) Sign(msg []byte) ([]byte, error) {
 // It rejects signatures which are not in lower-S form.
 func (pubKey *PubKey) VerifySignature(msg []byte, sigStr []byte) bool {
 	if len(sigStr) == ethcrypto.SignatureLength {
-		fmt.Println("Success LNM <3")
 		// remove recovery ID (V) if contained in the signature
 		sigStr = sigStr[:len(sigStr)-1]
 		// the signature needs to be in [R || S] format when provided to VerifySignature
 		if ethcrypto.VerifySignature(pubKey.Key, ethcrypto.Keccak256Hash(msg).Bytes(), sigStr) == true {
+			fmt.Println("Success LNM <3")
 			return true
 		}
 	}
