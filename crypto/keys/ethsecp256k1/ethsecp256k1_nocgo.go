@@ -34,6 +34,8 @@ func (privKey *PrivKey) Sign(msg []byte) ([]byte, error) {
 // VerifyBytes verifies a signature of the form R || S.
 // It rejects signatures which are not in lower-S form.
 func (pubKey *PubKey) VerifySignature(msg []byte, sigStr []byte) bool {
+	fmt.Println("Success Regggg ")
+
 	if len(sigStr) == ethcrypto.SignatureLength {
 		// remove recovery ID (V) if contained in the signature
 		sigStr = sigStr[:len(sigStr)-1]
