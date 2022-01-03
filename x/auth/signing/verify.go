@@ -12,6 +12,13 @@ import (
 // VerifySignature verifies a transaction signature contained in SignatureData abstracting over different signing modes
 // and single vs multi-signatures.
 func VerifySignature(pubKey cryptotypes.PubKey, signerData SignerData, sigData signing.SignatureData, handler SignModeHandler, tx sdk.Tx) error {
+	fmt.Println("===========================")
+	fmt.Println("===========================")
+	fmt.Println(pubKey)
+	fmt.Println(pubKey.Type())
+	fmt.Println("===========================")
+	fmt.Println("===========================")
+
 	switch data := sigData.(type) {
 	case *signing.SingleSignatureData:
 		signBytes, err := handler.GetSignBytes(data.SignMode, signerData, tx)
