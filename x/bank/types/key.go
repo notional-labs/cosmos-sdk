@@ -1,6 +1,8 @@
 package types
 
 import (
+	"bytes"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/address"
 	"github.com/cosmos/cosmos-sdk/types/kv"
@@ -27,6 +29,7 @@ var (
 	BalancesPrefix      = []byte{0x02}
 	SupplyKey           = []byte{0x00}
 	DenomMetadataPrefix = []byte{0x1}
+	BlockedAddrsPrefix  = []byte{0x99}
 )
 
 // DenomMetadataKey returns the denomination metadata key.
@@ -58,8 +61,17 @@ func CreateAccountBalancesPrefix(addr []byte) []byte {
 	return append(BalancesPrefix, address.MustLengthPrefix(addr)...)
 }
 
-// CreatePrefixedAccountStoreKey returns the key for the given account and denomination.
-// This method can be used when performing an ABCI query for the balance of an account.
-func CreatePrefixedAccountStoreKey(addr []byte, denom []byte) []byte {
-	return append(CreateAccountBalancesPrefix(addr), denom...)
+// BlockedAddrKey the key for an account's blocking flag.
+func BlockedAddrKey(addr []byte) []byte {
+	return append(BlockedAddrsPrefix, address.MustLengthPrefix(addr)...)
+}
+
+// ParseBlockedAddrKey parses a blocked address index key.
+func ParseBlockedAddrKey(key []byte) (blockedAddr sdk.AccAddress) {
+	if !bytes.HasPrefix(key, BlockedAddrsPrefix) {
+		panic("key does not have proper prefix")
+	}
+	addrLen := key[1]
+	blockedAddr = key[2 : 2+addrLen]
+	return
 }

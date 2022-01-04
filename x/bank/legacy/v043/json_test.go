@@ -72,6 +72,7 @@ func TestMigrateJSON(t *testing.T) {
 			]
 		}
 	],
+	"blocked_addrs": [],
 	"denom_metadata": [],
 	"params": {
 		"default_send_enabled": false,

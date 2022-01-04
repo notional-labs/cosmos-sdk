@@ -22,6 +22,9 @@ message GenesisState {
 
   // denom_metadata defines the metadata of the differents coins.
   repeated Metadata denom_metadata = 4 [(gogoproto.moretags) = "yaml:\"denom_metadata\"", (gogoproto.nullable) = false];
+
+  // blocked_addrs is an array containing the blocked addresses
+  repeated string blocked_addrs = 5 [(gogoproto.moretags) = "yaml:\"blocked_addrs\"", (gogoproto.nullable) = false];
 }
 
 // Balance defines an account address and balance pair used in the bank module's
