@@ -36,6 +36,14 @@ func (k BaseKeeper) InitGenesis(ctx sdk.Context, genState *types.GenesisState) {
 	for _, meta := range genState.DenomMetadata {
 		k.SetDenomMetaData(ctx, meta)
 	}
+
+	for _, addr := range genState.BlockedAddrs {
+		acc, err := sdk.AccAddressFromBech32(addr)
+		if err != nil {
+			panic(err)
+		}
+		k.AddBlockedAddr(ctx, acc)
+	}
 }
 
 // ExportGenesis returns the bank module's genesis state.
@@ -50,5 +58,6 @@ func (k BaseKeeper) ExportGenesis(ctx sdk.Context) *types.GenesisState {
 		k.GetAccountsBalances(ctx),
 		totalSupply,
 		k.GetAllDenomMetaData(ctx),
+		k.GetAllBlockedAddrs(ctx),
 	)
 }
