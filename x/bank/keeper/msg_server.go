@@ -39,7 +39,7 @@ func (k msgServer) Send(goCtx context.Context, msg *types.MsgSend) (*types.MsgSe
 		return nil, err
 	}
 
-	if k.BlockedAddr(to) {
+	if k.BlockedAddr(ctx, to) {
 		return nil, sdkerrors.Wrapf(sdkerrors.ErrUnauthorized, "%s is not allowed to receive funds", msg.ToAddress)
 	}
 
@@ -85,7 +85,7 @@ func (k msgServer) MultiSend(goCtx context.Context, msg *types.MsgMultiSend) (*t
 		if err != nil {
 			panic(err)
 		}
-		if k.BlockedAddr(accAddr) {
+		if k.BlockedAddr(ctx, accAddr) {
 			return nil, sdkerrors.Wrapf(sdkerrors.ErrUnauthorized, "%s is not allowed to receive transactions", out.Address)
 		}
 	}
