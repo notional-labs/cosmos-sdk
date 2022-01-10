@@ -32,7 +32,7 @@ func (suite *KeeperTestSuite) TestGRPCQueryValidators() {
 			},
 			true,
 
-			len(vals) + 1, // +1 validator from genesis state
+			len(vals),
 			false,
 		},
 		{
@@ -41,7 +41,7 @@ func (suite *KeeperTestSuite) TestGRPCQueryValidators() {
 				req = &types.QueryValidatorsRequest{Status: ""}
 			},
 			true,
-			len(vals) + 1, // +1 validator from genesis state
+			len(vals),
 			false,
 		},
 		{
@@ -72,7 +72,7 @@ func (suite *KeeperTestSuite) TestGRPCQueryValidators() {
 				suite.NoError(err)
 				suite.NotNil(valsResp)
 				suite.Equal(tc.numVals, len(valsResp.Validators))
-				suite.Equal(uint64(len(vals))+1, valsResp.Pagination.Total) // +1 validator from genesis state
+				suite.Equal(uint64(len(vals)), valsResp.Pagination.Total)
 
 				if tc.hasNext {
 					suite.NotNil(valsResp.Pagination.NextKey)
@@ -773,7 +773,7 @@ func createValidators(t *testing.T, ctx sdk.Context, app *simapp.SimApp, powers 
 	addrs := simapp.AddTestAddrsIncremental(app, ctx, 5, app.StakingKeeper.TokensFromConsensusPower(ctx, 300))
 	valAddrs := simapp.ConvertAddrsToValAddrs(addrs)
 	pks := simapp.CreateTestPubKeys(5)
-	cdc := simapp.MakeTestEncodingConfig().Codec
+	cdc := simapp.MakeTestEncodingConfig().Marshaler
 	app.StakingKeeper = keeper.NewKeeper(
 		cdc,
 		app.GetKey(types.StoreKey),

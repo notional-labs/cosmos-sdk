@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/suite"
-	"sigs.k8s.io/yaml"
+	"gopkg.in/yaml.v2"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -363,6 +363,9 @@ func (s *decimalTestSuite) TestPower() {
 	for i, tc := range testCases {
 		res := tc.input.Power(tc.power)
 		s.Require().True(tc.expected.Sub(res).Abs().LTE(sdk.SmallestDec()), "unexpected result for test case %d, input: %v", i, tc.input)
+		s.Require().True(tc.expected.Sub(tc.input.PowerMut(tc.power)).Abs().LTE(sdk.SmallestDec()),
+			"unexpected result for test case %d, input %v", i, tc.input)
+		s.Require().True(res.Equal(tc.input), "unexpected result for test case %d, input: %v", i, tc.input)
 	}
 }
 

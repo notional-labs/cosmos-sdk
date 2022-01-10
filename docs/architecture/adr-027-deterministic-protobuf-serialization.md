@@ -274,7 +274,7 @@ for all protobuf documents we need in the context of Cosmos SDK signing.
 
 ### Neutral
 
-### Usage in Cosmos SDK
+### Usage in SDK
 
 For the reasons mentioned above ("Negative" section) we prefer to keep workarounds
 for shared data structure. Example: the aforementioned `TxRaw` is using raw bytes

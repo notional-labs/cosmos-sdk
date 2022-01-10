@@ -2,6 +2,7 @@ package staking
 
 import (
 	"fmt"
+	"log"
 
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmtypes "github.com/tendermint/tendermint/types"
@@ -43,9 +44,7 @@ func InitGenesis(
 
 		// Call the creation hook if not exported
 		if !data.Exported {
-			if err := keeper.AfterValidatorCreated(ctx, validator.GetOperator()); err != nil {
-				panic(err)
-			}
+			keeper.AfterValidatorCreated(ctx, validator.GetOperator())
 		}
 
 		// update timeslice if necessary
@@ -71,17 +70,13 @@ func InitGenesis(
 
 		// Call the before-creation hook if not exported
 		if !data.Exported {
-			if err := keeper.BeforeDelegationCreated(ctx, delegatorAddress, delegation.GetValidatorAddr()); err != nil {
-				panic(err)
-			}
+			keeper.BeforeDelegationCreated(ctx, delegatorAddress, delegation.GetValidatorAddr())
 		}
 
 		keeper.SetDelegation(ctx, delegation)
 		// Call the after-modification hook if not exported
 		if !data.Exported {
-			if err := keeper.AfterDelegationModified(ctx, delegatorAddress, delegation.GetValidatorAddr()); err != nil {
-				panic(err)
-			}
+			keeper.AfterDelegationModified(ctx, delegatorAddress, delegation.GetValidatorAddr())
 		}
 	}
 
@@ -154,7 +149,7 @@ func InitGenesis(
 		var err error
 		res, err = keeper.ApplyAndReturnValidatorSetUpdates(ctx)
 		if err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 	}
 

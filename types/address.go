@@ -10,7 +10,7 @@ import (
 	"sync"
 
 	"github.com/hashicorp/golang-lru/simplelru"
-	"sigs.k8s.io/yaml"
+	yaml "gopkg.in/yaml.v2"
 
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/internal/conv"
@@ -116,6 +116,10 @@ var _ Address = AccAddress{}
 var _ Address = ValAddress{}
 var _ Address = ConsAddress{}
 
+var _ yaml.Marshaler = AccAddress{}
+var _ yaml.Marshaler = ValAddress{}
+var _ yaml.Marshaler = ConsAddress{}
+
 // ----------------------------------------------------------------------------
 // account
 // ----------------------------------------------------------------------------
@@ -132,9 +136,7 @@ func AccAddressFromHex(address string) (addr AccAddress, err error) {
 
 // VerifyAddressFormat verifies that the provided bytes form a valid address
 // according to the default address rules or a custom address verifier set by
-// GetConfig().SetAddressVerifier().
-// TODO make an issue to get rid of global Config
-// ref: https://github.com/cosmos/cosmos-sdk/issues/9690
+// GetConfig().SetAddressVerifier()
 func VerifyAddressFormat(bz []byte) error {
 	verifier := GetConfig().GetAddressVerifier()
 	if verifier != nil {

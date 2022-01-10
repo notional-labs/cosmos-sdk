@@ -9,7 +9,7 @@ import (
 	cdctypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-	"github.com/cosmos/cosmos-sdk/x/auth/migrations/legacytx"
+	"github.com/cosmos/cosmos-sdk/x/auth/legacy/legacytx"
 )
 
 var (
@@ -43,7 +43,10 @@ func NewMsgGrant(granter sdk.AccAddress, grantee sdk.AccAddress, a Authorization
 
 // GetSigners implements Msg
 func (msg MsgGrant) GetSigners() []sdk.AccAddress {
-	granter, _ := sdk.AccAddressFromBech32(msg.Granter)
+	granter, err := sdk.AccAddressFromBech32(msg.Granter)
+	if err != nil {
+		panic(err)
+	}
 	return []sdk.AccAddress{granter}
 }
 
@@ -51,11 +54,11 @@ func (msg MsgGrant) GetSigners() []sdk.AccAddress {
 func (msg MsgGrant) ValidateBasic() error {
 	granter, err := sdk.AccAddressFromBech32(msg.Granter)
 	if err != nil {
-		return sdkerrors.ErrInvalidAddress.Wrapf("invalid granter address: %s", err)
+		return sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, "invalid granter address")
 	}
 	grantee, err := sdk.AccAddressFromBech32(msg.Grantee)
 	if err != nil {
-		return sdkerrors.ErrInvalidAddress.Wrapf("invalid grantee address: %s", err)
+		return sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, "invalid granter address")
 	}
 
 	if granter.Equals(grantee) {
@@ -128,7 +131,10 @@ func NewMsgRevoke(granter sdk.AccAddress, grantee sdk.AccAddress, msgTypeURL str
 
 // GetSigners implements Msg
 func (msg MsgRevoke) GetSigners() []sdk.AccAddress {
-	granter, _ := sdk.AccAddressFromBech32(msg.Granter)
+	granter, err := sdk.AccAddressFromBech32(msg.Granter)
+	if err != nil {
+		panic(err)
+	}
 	return []sdk.AccAddress{granter}
 }
 
@@ -136,11 +142,11 @@ func (msg MsgRevoke) GetSigners() []sdk.AccAddress {
 func (msg MsgRevoke) ValidateBasic() error {
 	granter, err := sdk.AccAddressFromBech32(msg.Granter)
 	if err != nil {
-		return sdkerrors.ErrInvalidAddress.Wrapf("invalid granter address: %s", err)
+		return sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, "invalid granter address")
 	}
 	grantee, err := sdk.AccAddressFromBech32(msg.Grantee)
 	if err != nil {
-		return sdkerrors.ErrInvalidAddress.Wrapf("invalid grantee address: %s", err)
+		return sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, "invalid grantee address")
 	}
 
 	if granter.Equals(grantee) {
@@ -204,14 +210,18 @@ func (msg MsgExec) GetMessages() ([]sdk.Msg, error) {
 
 // GetSigners implements Msg
 func (msg MsgExec) GetSigners() []sdk.AccAddress {
-	grantee, _ := sdk.AccAddressFromBech32(msg.Grantee)
+	grantee, err := sdk.AccAddressFromBech32(msg.Grantee)
+	if err != nil {
+		panic(err)
+	}
 	return []sdk.AccAddress{grantee}
 }
 
 // ValidateBasic implements Msg
 func (msg MsgExec) ValidateBasic() error {
-	if _, err := sdk.AccAddressFromBech32(msg.Grantee); err != nil {
-		return sdkerrors.ErrInvalidAddress.Wrapf("invalid grantee address: %s", err)
+	_, err := sdk.AccAddressFromBech32(msg.Grantee)
+	if err != nil {
+		return sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, "invalid grantee address")
 	}
 
 	if len(msg.Msgs) == 0 {

@@ -3,8 +3,9 @@ package keys
 import (
 	"fmt"
 	"io"
+	"path/filepath"
 
-	"sigs.k8s.io/yaml"
+	yaml "gopkg.in/yaml.v2"
 
 	cryptokeyring "github.com/cosmos/cosmos-sdk/crypto/keyring"
 )
@@ -13,19 +14,32 @@ import (
 const (
 	OutputFormatText = "text"
 	OutputFormatJSON = "json"
+
+	// defaultKeyDBName is the client's subdirectory where keys are stored.
+	defaultKeyDBName = "keys"
 )
 
-type bechKeyOutFn func(k *cryptokeyring.Record) (cryptokeyring.KeyOutput, error)
+type bechKeyOutFn func(keyInfo cryptokeyring.Info) (cryptokeyring.KeyOutput, error)
 
-func printKeyringRecord(w io.Writer, k *cryptokeyring.Record, bechKeyOut bechKeyOutFn, output string) {
-	ko, err := bechKeyOut(k)
+// NewLegacyKeyBaseFromDir initializes a legacy keybase at the rootDir directory. Keybase
+// options can be applied when generating this new Keybase.
+func NewLegacyKeyBaseFromDir(rootDir string, opts ...cryptokeyring.KeybaseOption) (cryptokeyring.LegacyKeybase, error) {
+	return getLegacyKeyBaseFromDir(rootDir, opts...)
+}
+
+func getLegacyKeyBaseFromDir(rootDir string, opts ...cryptokeyring.KeybaseOption) (cryptokeyring.LegacyKeybase, error) {
+	return cryptokeyring.NewLegacy(defaultKeyDBName, filepath.Join(rootDir, "keys"), opts...)
+}
+
+func printKeyInfo(w io.Writer, keyInfo cryptokeyring.Info, bechKeyOut bechKeyOutFn, output string) {
+	ko, err := bechKeyOut(keyInfo)
 	if err != nil {
 		panic(err)
 	}
 
 	switch output {
 	case OutputFormatText:
-		printTextRecords(w, []cryptokeyring.KeyOutput{ko})
+		printTextInfos(w, []cryptokeyring.KeyOutput{ko})
 
 	case OutputFormatJSON:
 		out, err := KeysCdc.MarshalJSON(ko)
@@ -37,19 +51,17 @@ func printKeyringRecord(w io.Writer, k *cryptokeyring.Record, bechKeyOut bechKey
 	}
 }
 
-func printKeyringRecords(w io.Writer, records []*cryptokeyring.Record, output string) {
-	kos, err := cryptokeyring.MkAccKeysOutput(records)
+func printInfos(w io.Writer, infos []cryptokeyring.Info, output string) {
+	kos, err := cryptokeyring.MkAccKeysOutput(infos)
 	if err != nil {
 		panic(err)
 	}
 
 	switch output {
 	case OutputFormatText:
-		printTextRecords(w, kos)
+		printTextInfos(w, kos)
 
 	case OutputFormatJSON:
-		// TODO https://github.com/cosmos/cosmos-sdk/issues/8046
-		// Replace AminoCdc with Proto JSON
 		out, err := KeysCdc.MarshalJSON(kos)
 		if err != nil {
 			panic(err)
@@ -59,11 +71,10 @@ func printKeyringRecords(w io.Writer, records []*cryptokeyring.Record, output st
 	}
 }
 
-func printTextRecords(w io.Writer, kos []cryptokeyring.KeyOutput) {
+func printTextInfos(w io.Writer, kos []cryptokeyring.KeyOutput) {
 	out, err := yaml.Marshal(&kos)
 	if err != nil {
 		panic(err)
 	}
-
 	fmt.Fprintln(w, string(out))
 }

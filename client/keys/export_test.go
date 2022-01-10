@@ -14,12 +14,10 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	"github.com/cosmos/cosmos-sdk/simapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 func Test_runExportCmd(t *testing.T) {
-	cdc := simapp.MakeTestEncodingConfig().Codec
 	testCases := []struct {
 		name           string
 		keyringBackend string
@@ -86,7 +84,7 @@ func Test_runExportCmd(t *testing.T) {
 			mockInBuf := bufio.NewReader(mockIn)
 
 			// create a key
-			kb, err := keyring.New(sdk.KeyringServiceName(), tc.keyringBackend, kbHome, bufio.NewReader(mockInBuf), cdc)
+			kb, err := keyring.New(sdk.KeyringServiceName(), tc.keyringBackend, kbHome, bufio.NewReader(mockInBuf))
 			require.NoError(t, err)
 			t.Cleanup(func() {
 				kb.Delete("keyname1") // nolint:errcheck
@@ -99,8 +97,7 @@ func Test_runExportCmd(t *testing.T) {
 			clientCtx := client.Context{}.
 				WithKeyringDir(kbHome).
 				WithKeyring(kb).
-				WithInput(mockInBuf).
-				WithCodec(cdc)
+				WithInput(mockInBuf)
 			ctx := context.WithValue(context.Background(), client.ClientContextKey, &clientCtx)
 
 			err = cmd.ExecuteContext(ctx)

@@ -52,5 +52,3 @@
   - x/*/client/**/*
 "Type: ADR":
   - docs/architecture/**/*
-"C:container":
-  - container/**/*

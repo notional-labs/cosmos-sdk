@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -11,22 +12,19 @@ import (
 	"github.com/cosmos/cosmos-sdk/simapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/gov"
-	"github.com/cosmos/cosmos-sdk/x/gov/keeper"
 	"github.com/cosmos/cosmos-sdk/x/gov/types"
 	"github.com/cosmos/cosmos-sdk/x/staking"
-	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
-	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
 func TestTickExpiredDepositPeriod(t *testing.T) {
-	app := simapp.Setup(t, false)
+	app := simapp.Setup(false)
 	ctx := app.BaseApp.NewContext(false, tmproto.Header{})
 	addrs := simapp.AddTestAddrs(app, ctx, 10, valTokens)
 
 	header := tmproto.Header{Height: app.LastBlockHeight() + 1}
 	app.BeginBlock(abci.RequestBeginBlock{Header: header})
 
-	govMsgSvr := keeper.NewMsgServerImpl(app.GovKeeper)
+	govHandler := gov.NewHandler(app.GovKeeper)
 
 	inactiveQueue := app.GovKeeper.InactiveProposalQueueIterator(ctx, ctx.BlockHeader().Time)
 	require.False(t, inactiveQueue.Valid())
@@ -39,7 +37,7 @@ func TestTickExpiredDepositPeriod(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	res, err := govMsgSvr.SubmitProposal(sdk.WrapSDKContext(ctx), newProposalMsg)
+	res, err := govHandler(ctx, newProposalMsg)
 	require.NoError(t, err)
 	require.NotNil(t, res)
 
@@ -71,14 +69,14 @@ func TestTickExpiredDepositPeriod(t *testing.T) {
 }
 
 func TestTickMultipleExpiredDepositPeriod(t *testing.T) {
-	app := simapp.Setup(t, false)
+	app := simapp.Setup(false)
 	ctx := app.BaseApp.NewContext(false, tmproto.Header{})
 	addrs := simapp.AddTestAddrs(app, ctx, 10, valTokens)
 
 	header := tmproto.Header{Height: app.LastBlockHeight() + 1}
 	app.BeginBlock(abci.RequestBeginBlock{Header: header})
 
-	govMsgSvr := keeper.NewMsgServerImpl(app.GovKeeper)
+	govHandler := gov.NewHandler(app.GovKeeper)
 
 	inactiveQueue := app.GovKeeper.InactiveProposalQueueIterator(ctx, ctx.BlockHeader().Time)
 	require.False(t, inactiveQueue.Valid())
@@ -91,7 +89,7 @@ func TestTickMultipleExpiredDepositPeriod(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	res, err := govMsgSvr.SubmitProposal(sdk.WrapSDKContext(ctx), newProposalMsg)
+	res, err := govHandler(ctx, newProposalMsg)
 	require.NoError(t, err)
 	require.NotNil(t, res)
 
@@ -114,7 +112,7 @@ func TestTickMultipleExpiredDepositPeriod(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	res, err = govMsgSvr.SubmitProposal(sdk.WrapSDKContext(ctx), newProposalMsg2)
+	res, err = govHandler(ctx, newProposalMsg2)
 	require.NoError(t, err)
 	require.NotNil(t, res)
 
@@ -148,14 +146,14 @@ func TestTickMultipleExpiredDepositPeriod(t *testing.T) {
 }
 
 func TestTickPassedDepositPeriod(t *testing.T) {
-	app := simapp.Setup(t, false)
+	app := simapp.Setup(false)
 	ctx := app.BaseApp.NewContext(false, tmproto.Header{})
 	addrs := simapp.AddTestAddrs(app, ctx, 10, valTokens)
 
 	header := tmproto.Header{Height: app.LastBlockHeight() + 1}
 	app.BeginBlock(abci.RequestBeginBlock{Header: header})
 
-	govMsgSvr := keeper.NewMsgServerImpl(app.GovKeeper)
+	govHandler := gov.NewHandler(app.GovKeeper)
 
 	inactiveQueue := app.GovKeeper.InactiveProposalQueueIterator(ctx, ctx.BlockHeader().Time)
 	require.False(t, inactiveQueue.Valid())
@@ -171,11 +169,15 @@ func TestTickPassedDepositPeriod(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	res, err := govMsgSvr.SubmitProposal(sdk.WrapSDKContext(ctx), newProposalMsg)
+	res, err := govHandler(ctx, newProposalMsg)
 	require.NoError(t, err)
 	require.NotNil(t, res)
 
-	proposalID := res.ProposalId
+	var proposalData types.MsgSubmitProposalResponse
+	err = proto.Unmarshal(res.Data, &proposalData)
+	require.NoError(t, err)
+
+	proposalID := proposalData.ProposalId
 
 	inactiveQueue = app.GovKeeper.InactiveProposalQueueIterator(ctx, ctx.BlockHeader().Time)
 	require.False(t, inactiveQueue.Valid())
@@ -191,9 +193,9 @@ func TestTickPassedDepositPeriod(t *testing.T) {
 
 	newDepositMsg := types.NewMsgDeposit(addrs[1], proposalID, sdk.Coins{sdk.NewInt64Coin(sdk.DefaultBondDenom, 5)})
 
-	res1, err := govMsgSvr.Deposit(sdk.WrapSDKContext(ctx), newDepositMsg)
+	res, err = govHandler(ctx, newDepositMsg)
 	require.NoError(t, err)
-	require.NotNil(t, res1)
+	require.NotNil(t, res)
 
 	activeQueue = app.GovKeeper.ActiveProposalQueueIterator(ctx, ctx.BlockHeader().Time)
 	require.False(t, activeQueue.Valid())
@@ -201,7 +203,7 @@ func TestTickPassedDepositPeriod(t *testing.T) {
 }
 
 func TestTickPassedVotingPeriod(t *testing.T) {
-	app := simapp.Setup(t, false)
+	app := simapp.Setup(false)
 	ctx := app.BaseApp.NewContext(false, tmproto.Header{})
 	addrs := simapp.AddTestAddrs(app, ctx, 10, valTokens)
 
@@ -210,7 +212,7 @@ func TestTickPassedVotingPeriod(t *testing.T) {
 	header := tmproto.Header{Height: app.LastBlockHeight() + 1}
 	app.BeginBlock(abci.RequestBeginBlock{Header: header})
 
-	govMsgSvr := keeper.NewMsgServerImpl(app.GovKeeper)
+	govHandler := gov.NewHandler(app.GovKeeper)
 
 	inactiveQueue := app.GovKeeper.InactiveProposalQueueIterator(ctx, ctx.BlockHeader().Time)
 	require.False(t, inactiveQueue.Valid())
@@ -223,13 +225,15 @@ func TestTickPassedVotingPeriod(t *testing.T) {
 	newProposalMsg, err := types.NewMsgSubmitProposal(TestProposal, proposalCoins, addrs[0])
 	require.NoError(t, err)
 
-	wrapCtx := sdk.WrapSDKContext(ctx)
-
-	res, err := govMsgSvr.SubmitProposal(wrapCtx, newProposalMsg)
+	res, err := govHandler(ctx, newProposalMsg)
 	require.NoError(t, err)
 	require.NotNil(t, res)
 
-	proposalID := res.ProposalId
+	var proposalData types.MsgSubmitProposalResponse
+	err = proto.Unmarshal(res.Data, &proposalData)
+	require.NoError(t, err)
+
+	proposalID := proposalData.ProposalId
 
 	newHeader := ctx.BlockHeader()
 	newHeader.Time = ctx.BlockHeader().Time.Add(time.Duration(1) * time.Second)
@@ -237,9 +241,9 @@ func TestTickPassedVotingPeriod(t *testing.T) {
 
 	newDepositMsg := types.NewMsgDeposit(addrs[1], proposalID, proposalCoins)
 
-	res1, err := govMsgSvr.Deposit(wrapCtx, newDepositMsg)
+	res, err = govHandler(ctx, newDepositMsg)
 	require.NoError(t, err)
-	require.NotNil(t, res1)
+	require.NotNil(t, res)
 
 	newHeader = ctx.BlockHeader()
 	newHeader.Time = ctx.BlockHeader().Time.Add(app.GovKeeper.GetDepositParams(ctx).MaxDepositPeriod).Add(app.GovKeeper.GetVotingParams(ctx).VotingPeriod)
@@ -267,21 +271,21 @@ func TestTickPassedVotingPeriod(t *testing.T) {
 }
 
 func TestProposalPassedEndblocker(t *testing.T) {
-	app := simapp.Setup(t, false)
+	app := simapp.Setup(false)
 	ctx := app.BaseApp.NewContext(false, tmproto.Header{})
 	addrs := simapp.AddTestAddrs(app, ctx, 10, valTokens)
 
 	SortAddresses(addrs)
 
-	govMsgSvr := keeper.NewMsgServerImpl(app.GovKeeper)
-	stakingMsgSvr := stakingkeeper.NewMsgServerImpl(app.StakingKeeper)
+	handler := gov.NewHandler(app.GovKeeper)
+	stakingHandler := staking.NewHandler(app.StakingKeeper)
 
 	header := tmproto.Header{Height: app.LastBlockHeight() + 1}
 	app.BeginBlock(abci.RequestBeginBlock{Header: header})
 
 	valAddr := sdk.ValAddress(addrs[0])
 
-	createValidators(t, stakingMsgSvr, ctx, []sdk.ValAddress{valAddr}, []int64{10})
+	createValidators(t, stakingHandler, ctx, []sdk.ValAddress{valAddr}, []int64{10})
 	staking.EndBlocker(ctx, app.StakingKeeper)
 
 	macc := app.GovKeeper.GetGovernanceAccount(ctx)
@@ -294,9 +298,7 @@ func TestProposalPassedEndblocker(t *testing.T) {
 	proposalCoins := sdk.Coins{sdk.NewCoin(sdk.DefaultBondDenom, app.StakingKeeper.TokensFromConsensusPower(ctx, 10))}
 	newDepositMsg := types.NewMsgDeposit(addrs[0], proposal.ProposalId, proposalCoins)
 
-	res, err := govMsgSvr.Deposit(sdk.WrapSDKContext(ctx), newDepositMsg)
-	require.NoError(t, err)
-	require.NotNil(t, res)
+	handleAndCheck(t, handler, ctx, newDepositMsg)
 
 	macc = app.GovKeeper.GetGovernanceAccount(ctx)
 	require.NotNil(t, macc)
@@ -320,19 +322,19 @@ func TestProposalPassedEndblocker(t *testing.T) {
 }
 
 func TestEndBlockerProposalHandlerFailed(t *testing.T) {
-	app := simapp.Setup(t, false)
+	app := simapp.Setup(false)
 	ctx := app.BaseApp.NewContext(false, tmproto.Header{})
 	addrs := simapp.AddTestAddrs(app, ctx, 1, valTokens)
 
 	SortAddresses(addrs)
 
-	stakingMsgSvr := stakingkeeper.NewMsgServerImpl(app.StakingKeeper)
+	stakingHandler := staking.NewHandler(app.StakingKeeper)
 	header := tmproto.Header{Height: app.LastBlockHeight() + 1}
 	app.BeginBlock(abci.RequestBeginBlock{Header: header})
 
 	valAddr := sdk.ValAddress(addrs[0])
 
-	createValidators(t, stakingMsgSvr, ctx, []sdk.ValAddress{valAddr}, []int64{10})
+	createValidators(t, stakingHandler, ctx, []sdk.ValAddress{valAddr}, []int64{10})
 	staking.EndBlocker(ctx, app.StakingKeeper)
 
 	// Create a proposal where the handler will pass for the test proposal
@@ -344,10 +346,7 @@ func TestEndBlockerProposalHandlerFailed(t *testing.T) {
 	proposalCoins := sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, app.StakingKeeper.TokensFromConsensusPower(ctx, 10)))
 	newDepositMsg := types.NewMsgDeposit(addrs[0], proposal.ProposalId, proposalCoins)
 
-	govMsgSvr := keeper.NewMsgServerImpl(app.GovKeeper)
-	res, err := govMsgSvr.Deposit(sdk.WrapSDKContext(ctx), newDepositMsg)
-	require.NoError(t, err)
-	require.NotNil(t, res)
+	handleAndCheck(t, gov.NewHandler(app.GovKeeper), ctx, newDepositMsg)
 
 	err = app.GovKeeper.AddVote(ctx, proposal.ProposalId, addrs[0], types.NewNonSplitVoteOption(types.OptionYes))
 	require.NoError(t, err)
@@ -362,20 +361,4 @@ func TestEndBlockerProposalHandlerFailed(t *testing.T) {
 
 	// validate that the proposal fails/has been rejected
 	gov.EndBlocker(ctx, app.GovKeeper)
-}
-
-func createValidators(t *testing.T, stakingMsgSvr stakingtypes.MsgServer, ctx sdk.Context, addrs []sdk.ValAddress, powerAmt []int64) {
-	require.True(t, len(addrs) <= len(pubkeys), "Not enough pubkeys specified at top of file.")
-
-	for i := 0; i < len(addrs); i++ {
-		valTokens := sdk.TokensFromConsensusPower(powerAmt[i], sdk.DefaultPowerReduction)
-		valCreateMsg, err := stakingtypes.NewMsgCreateValidator(
-			addrs[i], pubkeys[i], sdk.NewCoin(sdk.DefaultBondDenom, valTokens),
-			TestDescription, TestCommissionRates, sdk.OneInt(),
-		)
-		require.NoError(t, err)
-		res, err := stakingMsgSvr.CreateValidator(sdk.WrapSDKContext(ctx), valCreateMsg)
-		require.NoError(t, err)
-		require.NotNil(t, res)
-	}
 }

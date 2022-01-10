@@ -91,12 +91,23 @@ func Test_validateParams(t *testing.T) {
 	require.True(t, params.SendEnabledDenom(sdk.DefaultBondDenom))
 	require.False(t, params.SendEnabledDenom("foodenom2"))
 
-	paramYaml := "default_send_enabled: true\nsend_enabled:\n- denom: foodenom\n- denom: foodenom2\n"
+	paramYaml := `send_enabled:
+- denom: foodenom
+  enabled: false
+- denom: foodenom2
+  enabled: false
+default_send_enabled: true
+`
 	require.Equal(t, paramYaml, params.String())
 
 	// Ensure proper format of yaml output when false
 	params.DefaultSendEnabled = false
-	paramYaml = "send_enabled:\n- denom: foodenom\n- denom: foodenom2\n"
+	paramYaml = `send_enabled:
+- denom: foodenom
+  enabled: false
+- denom: foodenom2
+  enabled: false
+`
 	require.Equal(t, paramYaml, params.String())
 
 	params = NewParams(true, SendEnabledParams{

@@ -101,7 +101,7 @@ func SimulateMsgCreateValidator(ak types.AccountKeeper, bk types.BankKeeper, k k
 		// ensure the validator doesn't exist already
 		_, found := k.GetValidator(ctx, address)
 		if found {
-			return simtypes.NoOpMsg(types.ModuleName, types.TypeMsgCreateValidator, "validator already exists"), nil, nil
+			return simtypes.NoOpMsg(types.ModuleName, types.TypeMsgCreateValidator, "unable to find validator"), nil, nil
 		}
 
 		denom := k.GetParams(ctx).BondDenom
@@ -125,7 +125,8 @@ func SimulateMsgCreateValidator(ak types.AccountKeeper, bk types.BankKeeper, k k
 
 		coins, hasNeg := spendable.SafeSub(sdk.Coins{selfDelegation})
 		if !hasNeg {
-			fees, err = simtypes.RandomFees(r, ctx, coins)
+			feeCoins := coins.FilterDenoms([]string{sdk.DefaultBondDenom})
+			fees, err = simtypes.RandomFees(r, ctx, feeCoins)
 			if err != nil {
 				return simtypes.NoOpMsg(types.ModuleName, types.TypeMsgCreateValidator, "unable to generate fees"), nil, err
 			}
@@ -267,7 +268,8 @@ func SimulateMsgDelegate(ak types.AccountKeeper, bk types.BankKeeper, k keeper.K
 
 		coins, hasNeg := spendable.SafeSub(sdk.Coins{bondAmt})
 		if !hasNeg {
-			fees, err = simtypes.RandomFees(r, ctx, coins)
+			feeCoins := coins.FilterDenoms([]string{sdk.DefaultBondDenom})
+			fees, err = simtypes.RandomFees(r, ctx, feeCoins)
 			if err != nil {
 				return simtypes.NoOpMsg(types.ModuleName, types.TypeMsgDelegate, "unable to generate fees"), nil, err
 			}

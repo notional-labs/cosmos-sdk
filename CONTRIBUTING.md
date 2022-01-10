@@ -1,6 +1,7 @@
 # Contributing
 
 - [Contributing](#contributing)
+    - [Dev Calls](#dev-calls)
     - [Architecture Decision Records (ADR)](#architecture-decision-records-adr)
     - [Development Procedure](#development-procedure)
         - [Testing](#testing)
@@ -12,8 +13,6 @@
     - [Protobuf](#protobuf)
     - [Branching Model and Release](#branching-model-and-release)
         - [PR Targeting](#pr-targeting)
-        - [Major Release Procedure](#major-release-procedure)
-        - [Patch Release Procedure](#patch-release-procedure)
     - [Code Owner Membership](#code-owner-membership)
     - [Concept & Feature Approval Process](#concept--feature-approval-process)
 
@@ -24,11 +23,13 @@ discussion or proposing code changes. To ensure a smooth workflow for all
 contributors, the general procedure for contributing has been established:
 
 1. Start by browsing [new issues](https://github.com/cosmos/cosmos-sdk/issues) and [discussions](https://github.com/cosmos/cosmos-sdk/discussions). If you are looking for something interesting or if you have something in your mind, there is a chance it was has been discussed.
-  - Looking for a good place to start contributing? How about checking out some [good first issues](https://github.com/cosmos/cosmos-sdk/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22)?
+
+- Looking for a good place to start contributing? How about checking out some [good first issues](https://github.com/cosmos/cosmos-sdk/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22)?
+
 2. Determine whether a GitHub issue or discussion is more appropriate for your needs:
-  1. If want to propose something new that requires specification or an additional design, or you would like to change a process, start with a [new discussion](https://github.com/cosmos/cosmos-sdk/discussions/new). With discussions, we can better handle the design process using discussion threads. A discussion usually leads to one or more issues.
-   2. If the issue you want addressed is a specific proposal or a bug, then open a [new issue](https://github.com/cosmos/cosmos-sdk/issues/new/choose).
-   3. Review existing [issues](https://github.com/cosmos/cosmos-sdk/issues) to find an issue you'd like to help with.
+1. If want to propose something new that requires specification or an additional design, or you would like to change a process, start with a [new discussion](https://github.com/cosmos/cosmos-sdk/discussions/new). With discussions, we can better handle the design process using discussion threads. A discussion usually leads to one or more issues.
+2. If the issue you want addressed is a specific proposal or a bug, then open a [new issue](https://github.com/cosmos/cosmos-sdk/issues/new/choose).
+3. Review existing [issues](https://github.com/cosmos/cosmos-sdk/issues) to find an issue you'd like to help with.
 3. Participate in thoughtful discussion on that issue.
 4. If you would like to contribute:
    1. Ensure that the proposal has been accepted.
@@ -39,10 +40,27 @@ contributors, the general procedure for contributing has been established:
       to begin work.
 5. To submit your work as a contribution to the repository follow standard GitHub best practices. See [pull request guideline](#pull-requests) below.
 
-**Note: ** For very small or blatantly obvious problems such as typos, you are
+**Note:** For very small or blatantly obvious problems such as typos, you are
 not required to an open issue to submit a PR, but be aware that for more complex
 problems/features, if a PR is opened before an adequate design discussion has
 taken place in a GitHub issue, that PR runs a high likelihood of being rejected.
+
+## Teams Dev Calls
+
+The Cosmos SDK has many stakeholders contributing and shaping the project. Regen Network Development leads the Cosmos SDK R&D, and welcomes long-term contributors and additional maintainers from other projects. We use self-organizing principles to coordinate and collaborate across organizations in structured "Working Groups" that focus on specific problem domains or architectural components of the Cosmos SDK.
+
+The developers are organized in working groups which are listed on a ["Working Groups & Arch Process" Github Issue](https://github.com/cosmos/cosmos-sdk/issues/9058) (pinned at the top of the [issues list](https://github.com/cosmos/cosmos-sdk/issues)).
+
+The important development announcements are shared on [Discord](https://discord.com/invite/cosmosnetwork) in the \#dev-announcements channel.
+
+To synchronize we have few major meetings:
+
++ Architecture calls: bi-weekly on Fridays at 14:00 UTC (alternating with the grooming meeting below).
++ Grooming / Planning: bi-weekly on Fridays at 14:00 UTC (alternating with the architecture meeting above).
++ Cosmos Community SDK Development Call on the last Wednesday of every month at 17:00 UTC.
++ Cosmos Roadmap Prioritization every 4 weeks on Tuesday at 15:00 UTC (limited participation).
+
+If you would like to join one of those calls, then please contact us on [Discord](https://discord.com/invite/cosmosnetwork) or reach out directly to Cory Levinson from Regen Network (cory@regen.network).
 
 ## Architecture Decision Records (ADR)
 
@@ -54,11 +72,11 @@ When proposing an architecture decision for the Cosmos SDK, please start by open
 - `master` must never fail `make lint test test-race`.
 - No `--force` onto `master` (except when reverting a broken commit, which should seldom happen).
 - Create a branch to start a wok:
-  - Fork the repo (core developers must create a branch directly in the Cosmos SDK repo),
+    - Fork the repo (core developers must create a branch directly in the Cosmos SDK repo),
     branch from the HEAD of `master`, make some commits, and submit a PR to `master`.
-  - For core developers working within the `cosmos-sdk` repo, follow branch name conventions to ensure a clear
+    - For core developers working within the `cosmos-sdk` repo, follow branch name conventions to ensure a clear
     ownership of branches: `{moniker}/{issue#}-branch-name`.
-  - See [Branching Model](#branching-model-and-release) for more details.
+    - See [Branching Model](#branching-model-and-release) for more details.
 - Be sure to run `make format` before every commit. The easiest way
   to do this is have your editor run it for you upon saving a file (most of the editors
   will do it anyway using a pre-configured setup of the programming language mode).
@@ -76,10 +94,12 @@ Tests can be executed by running `make test` at the top level of the Cosmos SDK 
 ### Pull Requests
 
 Before submitting a pull request:
+
 - merge the latest master `git merge origin/master`,
 - run `make lint test` to ensure that all checks and tests pass.
 
 Then:
+
 1. If you have something to show, **start with a `Draft` PR**. It's good to have early validation of your work and we highly recommend this practice. A Draft PR also indicates to the community that the work is in progress.
    Draft PRs also helps the core team provide early feedback and ensure the work is in the right direction.
 2. When the code is complete, change your PR from `Draft` to `Ready for Review`.

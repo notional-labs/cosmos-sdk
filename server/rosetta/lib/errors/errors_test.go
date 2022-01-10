@@ -1,9 +1,8 @@
 package errors
 
 import (
-	"testing"
-
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestRegisterError(t *testing.T) {

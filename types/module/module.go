@@ -297,9 +297,7 @@ func (m *Manager) RegisterServices(cfg Configurator) {
 	}
 }
 
-// InitGenesis performs init genesis functionality for modules. Exactly one
-// module must return a non-empty validator set update to correctly initialize
-// the chain.
+// InitGenesis performs init genesis functionality for modules
 func (m *Manager) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, genesisData map[string]json.RawMessage) abci.ResponseInitChain {
 	var validatorUpdates []abci.ValidatorUpdate
 	ctx.Logger().Info("initializing blockchain state from genesis.json")
@@ -307,7 +305,7 @@ func (m *Manager) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, genesisData 
 		if genesisData[moduleName] == nil {
 			continue
 		}
-		ctx.Logger().Debug("running initialization for module", "module", moduleName)
+		ctx.Logger().Info("running initialization for module", "module", moduleName)
 
 		moduleValUpdates := m.Modules[moduleName].InitGenesis(ctx, cdc, genesisData[moduleName])
 
@@ -320,11 +318,7 @@ func (m *Manager) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, genesisData 
 			validatorUpdates = moduleValUpdates
 		}
 	}
-
-	// a chain must initialize with a non-empty validator set
-	if len(validatorUpdates) == 0 {
-		panic(fmt.Sprintf("validator set is empty after InitGenesis, please ensure at least one validator is initialized with a delegation greater than or equal to the DefaultPowerReduction (%d)", sdk.DefaultPowerReduction))
-	}
+	ctx.Logger().Info("Done init genesis")
 
 	return abci.ResponseInitChain{
 		Validators: validatorUpdates,
@@ -335,7 +329,9 @@ func (m *Manager) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, genesisData 
 func (m *Manager) ExportGenesis(ctx sdk.Context, cdc codec.JSONCodec) map[string]json.RawMessage {
 	genesisData := make(map[string]json.RawMessage)
 	for _, moduleName := range m.OrderExportGenesis {
+		// if moduleName == "bank" {
 		genesisData[moduleName] = m.Modules[moduleName].ExportGenesis(ctx, cdc)
+		// }
 	}
 
 	return genesisData
@@ -398,6 +394,7 @@ func (m Manager) RunMigrations(ctx sdk.Context, cfg Configurator, fromVM Version
 	if !ok {
 		return nil, sdkerrors.Wrapf(sdkerrors.ErrInvalidType, "expected %T, got %T", configurator{}, cfg)
 	}
+	ctx.Logger().Info("Start running migrations")
 
 	updatedVM := make(VersionMap)
 	// for deterministic iteration order
@@ -435,6 +432,8 @@ func (m Manager) RunMigrations(ctx sdk.Context, cfg Configurator, fromVM Version
 				// is configurator (the struct).
 				return nil, sdkerrors.Wrapf(sdkerrors.ErrInvalidType, "expected %T, got %T", configurator{}, cfg)
 			}
+			ctx.Logger().Info(fmt.Sprintf("Running migration for module: %s, InitGenesis (on default genesis) toVersion %d",
+				moduleName, toVersion))
 
 			moduleValUpdates := module.InitGenesis(ctx, cfgtor.cdc, module.DefaultGenesis(cfgtor.cdc))
 			// The module manager assumes only one module will update the

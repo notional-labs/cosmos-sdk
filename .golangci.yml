@@ -12,7 +12,7 @@ linters:
     - dogsled
     # - errcheck
     - goconst
-    - gocritic
+    # - gocritic
     - gofmt
     - goimports
     - gosec
@@ -24,7 +24,7 @@ linters:
     - prealloc
     - revive
     - exportloopref
-    - staticcheck
+    # - staticcheck
     - structcheck
     - stylecheck
     - typecheck
@@ -33,7 +33,7 @@ linters:
     - unparam
     - misspell
     # - wsl
-    - nolintlint
+    # - nolintlint
 
 issues:
   exclude-rules:
@@ -54,7 +54,7 @@ issues:
     - text: "ST1016:"
       linters:
         - stylecheck
-    - path: "migrations"
+    - path: "legacy"
       text: "SA1019:"
       linters:
         - staticcheck

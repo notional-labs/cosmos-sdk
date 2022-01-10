@@ -26,34 +26,33 @@ func BeginBlocker(k keeper.Keeper, ctx sdk.Context, _ abci.RequestBeginBlock) {
 	if !found {
 		return
 	}
-	logger := ctx.Logger()
 
 	// To make sure clear upgrade is executed at the same block
 	if plan.ShouldExecute(ctx) {
 		// If skip upgrade has been set for current height, we clear the upgrade plan
 		if k.IsSkipHeight(ctx.BlockHeight()) {
 			skipUpgradeMsg := fmt.Sprintf("UPGRADE \"%s\" SKIPPED at %d: %s", plan.Name, plan.Height, plan.Info)
-			logger.Info(skipUpgradeMsg)
+			ctx.Logger().Info(skipUpgradeMsg)
 
 			// Clear the upgrade plan at current height
 			k.ClearUpgradePlan(ctx)
 			return
 		}
 
-		// Prepare shutdown if we don't have an upgrade handler for this upgrade name (meaning this software is out of date)
 		if !k.HasHandler(plan.Name) {
 			// Write the upgrade info to disk. The UpgradeStoreLoader uses this info to perform or skip
 			// store migrations.
-			err := k.DumpUpgradeInfoToDisk(ctx.BlockHeight(), plan)
+			err := k.DumpUpgradeInfoWithInfoToDisk(ctx.BlockHeight(), plan.Name, plan.Info)
 			if err != nil {
 				panic(fmt.Errorf("unable to write upgrade info to filesystem: %s", err.Error()))
 			}
 
 			upgradeMsg := BuildUpgradeNeededMsg(plan)
-			logger.Error(upgradeMsg)
+			// We don't have an upgrade handler for this upgrade name, meaning this software is out of date so shutdown
+			ctx.Logger().Error(upgradeMsg)
+
 			panic(upgradeMsg)
 		}
-
 		// We have an upgrade handler for this upgrade name, so apply the upgrade
 		ctx.Logger().Info(fmt.Sprintf("applying upgrade \"%s\" at %s", plan.Name, plan.DueAt()))
 		ctx = ctx.WithBlockGasMeter(sdk.NewInfiniteGasMeter())
@@ -64,7 +63,7 @@ func BeginBlocker(k keeper.Keeper, ctx sdk.Context, _ abci.RequestBeginBlock) {
 	// if we have a pending upgrade, but it is not yet time, make sure we did not
 	// set the handler already
 	if k.HasHandler(plan.Name) {
-		downgradeMsg := fmt.Sprintf("BINARY UPDATED BEFORE TRIGGER! UPGRADE \"%s\" - in binary but not executed on chain. Downgrade your binary", plan.Name)
+		downgradeMsg := fmt.Sprintf("BINARY UPDATED BEFORE TRIGGER! UPGRADE \"%s\" - in binary but not executed on chain", plan.Name)
 		ctx.Logger().Error(downgradeMsg)
 		panic(downgradeMsg)
 	}

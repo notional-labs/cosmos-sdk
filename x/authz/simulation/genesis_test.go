@@ -15,7 +15,7 @@ import (
 )
 
 func TestRandomizedGenState(t *testing.T) {
-	app := simapp.Setup(t, false)
+	app := simapp.Setup(false)
 
 	s := rand.NewSource(1)
 	r := rand.New(s)

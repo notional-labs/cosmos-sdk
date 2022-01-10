@@ -100,6 +100,3 @@ The available permissions are:
 4. **[Events](04_events.md)**
    - [Handlers](04_events.md#handlers)
 5. **[Parameters](05_params.md)**
-6. **[Client](06_client.md)**
-    - [CLI](06_client.md#cli)
-    - [gRPC](06_client.md#grpc)

@@ -2,21 +2,20 @@ package query_test
 
 import (
 	"fmt"
-	"testing"
 
 	"github.com/cosmos/cosmos-sdk/codec"
+	"github.com/cosmos/cosmos-sdk/simapp"
 	"github.com/cosmos/cosmos-sdk/store/prefix"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/address"
 	"github.com/cosmos/cosmos-sdk/types/query"
-	"github.com/cosmos/cosmos-sdk/x/bank/testutil"
 	"github.com/cosmos/cosmos-sdk/x/bank/types"
 )
 
 var addr1 = sdk.AccAddress([]byte("addr1"))
 
 func (s *paginationTestSuite) TestFilteredPaginations() {
-	app, ctx, appCodec := setupTest(s.T())
+	app, ctx, appCodec := setupTest()
 
 	var balances sdk.Coins
 	for i := 0; i < numBalances; i++ {
@@ -33,7 +32,7 @@ func (s *paginationTestSuite) TestFilteredPaginations() {
 	addr1 := sdk.AccAddress([]byte("addr1"))
 	acc1 := app.AccountKeeper.NewAccountWithAddress(ctx, addr1)
 	app.AccountKeeper.SetAccount(ctx, acc1)
-	s.Require().NoError(testutil.FundAccount(app.BankKeeper, ctx, addr1, balances))
+	s.Require().NoError(simapp.FundAccount(app.BankKeeper, ctx, addr1, balances))
 	store := ctx.KVStore(app.GetKey(types.StoreKey))
 
 	// verify pagination with limit > total values
@@ -91,7 +90,7 @@ func (s *paginationTestSuite) TestFilteredPaginations() {
 }
 
 func (s *paginationTestSuite) TestReverseFilteredPaginations() {
-	app, ctx, appCodec := setupTest(s.T())
+	app, ctx, appCodec := setupTest()
 
 	var balances sdk.Coins
 	for i := 0; i < numBalances; i++ {
@@ -108,7 +107,7 @@ func (s *paginationTestSuite) TestReverseFilteredPaginations() {
 	addr1 := sdk.AccAddress([]byte("addr1"))
 	acc1 := app.AccountKeeper.NewAccountWithAddress(ctx, addr1)
 	app.AccountKeeper.SetAccount(ctx, acc1)
-	s.Require().NoError(testutil.FundAccount(app.BankKeeper, ctx, addr1, balances))
+	s.Require().NoError(simapp.FundAccount(app.BankKeeper, ctx, addr1, balances))
 	store := ctx.KVStore(app.GetKey(types.StoreKey))
 
 	// verify pagination with limit > total values
@@ -171,8 +170,8 @@ func (s *paginationTestSuite) TestReverseFilteredPaginations() {
 
 }
 
-func ExampleFilteredPaginate(t *testing.T) {
-	app, ctx, _ := setupTest(t)
+func ExampleFilteredPaginate() {
+	app, ctx, appCodec := setupTest()
 
 	var balances sdk.Coins
 	for i := 0; i < numBalances; i++ {
@@ -189,7 +188,7 @@ func ExampleFilteredPaginate(t *testing.T) {
 	addr1 := sdk.AccAddress([]byte("addr1"))
 	acc1 := app.AccountKeeper.NewAccountWithAddress(ctx, addr1)
 	app.AccountKeeper.SetAccount(ctx, acc1)
-	err := testutil.FundAccount(app.BankKeeper, ctx, addr1, balances)
+	err := simapp.FundAccount(app.BankKeeper, ctx, addr1, balances)
 	if err != nil { // should return no error
 		fmt.Println(err)
 	}
@@ -201,16 +200,16 @@ func ExampleFilteredPaginate(t *testing.T) {
 
 	var balResult sdk.Coins
 	pageRes, err := query.FilteredPaginate(accountStore, pageReq, func(key []byte, value []byte, accumulate bool) (bool, error) {
-		var amount sdk.Int
-		err := amount.Unmarshal(value)
+		var bal sdk.Coin
+		err := appCodec.Unmarshal(value, &bal)
 		if err != nil {
 			return false, err
 		}
 
-		// filter amount greater than 100
-		if amount.Int64() > int64(100) {
+		// filter balances with amount greater than 100
+		if bal.Amount.Int64() > int64(100) {
 			if accumulate {
-				balResult = append(balResult, sdk.NewCoin(string(key), amount))
+				balResult = append(balResult, bal)
 			}
 
 			return true, nil
@@ -233,16 +232,16 @@ func execFilterPaginate(store sdk.KVStore, pageReq *query.PageRequest, appCodec 
 
 	var balResult sdk.Coins
 	res, err = query.FilteredPaginate(accountStore, pageReq, func(key []byte, value []byte, accumulate bool) (bool, error) {
-		var amount sdk.Int
-		err := amount.Unmarshal(value)
+		var bal sdk.Coin
+		err := appCodec.Unmarshal(value, &bal)
 		if err != nil {
 			return false, err
 		}
 
-		// filter amount greater than 100
-		if amount.Int64() > int64(100) {
+		// filter balances with amount greater than 100
+		if bal.Amount.Int64() > int64(100) {
 			if accumulate {
-				balResult = append(balResult, sdk.NewCoin(string(key), amount))
+				balResult = append(balResult, bal)
 			}
 
 			return true, nil
