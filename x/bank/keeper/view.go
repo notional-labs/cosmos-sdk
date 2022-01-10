@@ -71,23 +71,22 @@ func (k BaseViewKeeper) GetAllBalances(ctx sdk.Context, addr sdk.AccAddress) sdk
 // GetAccountsBalances returns all the accounts balances from the store.
 func (k BaseViewKeeper) GetAccountsBalances(ctx sdk.Context) []types.Balance {
 	balances := make([]types.Balance, 0)
-	mapAddressToBalancesIdx := make(map[string]int)
+	// mapAddressToBalancesIdx := make(map[string]int)
 
 	k.IterateAllBalances(ctx, func(addr sdk.AccAddress, balance sdk.Coin) bool {
-		idx, ok := mapAddressToBalancesIdx[addr.String()]
-		if ok {
-			// address is already on the set of accounts balances
-			balances[idx].Coins = balances[idx].Coins.Add(balance)
-			balances[idx].Coins.Sort()
-			return false
-		}
+		// idx, ok := mapAddressToBalancesIdx[addr.String()]
+		// if ok {
+		// 	// address is already on the set of accounts balances
+		// balances[idx].Coins = balances[idx].Coins.Add(balance)
+		// return false
+		// }
 
 		accountBalance := types.Balance{
 			Address: addr.String(),
 			Coins:   sdk.NewCoins(balance),
 		}
 		balances = append(balances, accountBalance)
-		mapAddressToBalancesIdx[addr.String()] = len(balances) - 1
+		// mapAddressToBalancesIdx[addr.String()] = len(balances) - 1
 		return false
 	})
 
@@ -144,14 +143,14 @@ func (k BaseViewKeeper) IterateAllBalances(ctx sdk.Context, cb func(sdk.AccAddre
 	defer iterator.Close()
 
 	for ; iterator.Valid(); iterator.Next() {
-		address := types.AddressFromBalancesStore(iterator.Key())
 
 		var balance sdk.Coin
 		k.cdc.MustUnmarshalBinaryBare(iterator.Value(), &balance)
-
-		if cb(address, balance) {
-			break
+		if balance.Denom == "uion" {
+			address := types.AddressFromBalancesStore(iterator.Key())
+			cb(address, balance)
 		}
+
 	}
 }
 

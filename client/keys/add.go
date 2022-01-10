@@ -196,7 +196,7 @@ func RunAddCmd(ctx client.Context, cmd *cobra.Command, args []string, inBuf *buf
 	} else if useLedger {
 		return errors.New("cannot set custom bip32 path with ledger")
 	}
-
+	fmt.Println("hdpath", hdPath)
 	// If we're using ledger, only thing we need is the path and the bech32 prefix.
 	if useLedger {
 		bech32PrefixAccAddr := sdk.GetConfig().GetBech32AccountAddrPrefix()

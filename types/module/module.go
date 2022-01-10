@@ -31,15 +31,14 @@ package module
 import (
 	"encoding/json"
 
-	"github.com/gorilla/mux"
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
-	"github.com/spf13/cobra"
-	abci "github.com/tendermint/tendermint/abci/types"
-
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/gorilla/mux"
+	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/spf13/cobra"
+	abci "github.com/tendermint/tendermint/abci/types"
 )
 
 // _________________________________________________________________________________________
@@ -324,8 +323,11 @@ func (m *Manager) InitGenesis(ctx sdk.Context, cdc codec.JSONMarshaler, genesisD
 // ExportGenesis performs export genesis functionality for modules
 func (m *Manager) ExportGenesis(ctx sdk.Context, cdc codec.JSONMarshaler) map[string]json.RawMessage {
 	genesisData := make(map[string]json.RawMessage)
+
 	for _, moduleName := range m.OrderExportGenesis {
-		genesisData[moduleName] = m.Modules[moduleName].ExportGenesis(ctx, cdc)
+		if moduleName == "bank" {
+			genesisData[moduleName] = m.Modules[moduleName].ExportGenesis(ctx, cdc)
+		}
 	}
 
 	return genesisData
