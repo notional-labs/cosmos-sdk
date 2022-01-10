@@ -13,8 +13,9 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/types/query"
+	"github.com/cosmos/cosmos-sdk/types/rest"
 	"github.com/cosmos/cosmos-sdk/version"
-	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
+	authclient "github.com/cosmos/cosmos-sdk/x/auth/client"
 	"github.com/cosmos/cosmos-sdk/x/auth/types"
 )
 
@@ -41,9 +42,7 @@ func GetQueryCmd() *cobra.Command {
 
 	cmd.AddCommand(
 		GetAccountCmd(),
-		GetAccountsCmd(),
 		QueryParamsCmd(),
-		QueryModuleAccountsCmd(),
 	)
 
 	return cmd
@@ -66,7 +65,7 @@ $ <appd> query auth params
 			}
 
 			queryClient := types.NewQueryClient(clientCtx)
-			res, err := queryClient.Params(cmd.Context(), &types.QueryParamsRequest{})
+			res, err := queryClient.Params(context.Background(), &types.QueryParamsRequest{})
 			if err != nil {
 				return err
 			}
@@ -98,71 +97,12 @@ func GetAccountCmd() *cobra.Command {
 			}
 
 			queryClient := types.NewQueryClient(clientCtx)
-			res, err := queryClient.Account(cmd.Context(), &types.QueryAccountRequest{Address: key.String()})
+			res, err := queryClient.Account(context.Background(), &types.QueryAccountRequest{Address: key.String()})
 			if err != nil {
 				return err
 			}
 
 			return clientCtx.PrintProto(res.Account)
-		},
-	}
-
-	flags.AddQueryFlagsToCmd(cmd)
-
-	return cmd
-}
-
-// GetAccountsCmd returns a query command that will display a list of accounts
-func GetAccountsCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "accounts",
-		Short: "Query all the accounts",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			clientCtx, err := client.GetClientQueryContext(cmd)
-			if err != nil {
-				return err
-			}
-
-			pageReq, err := client.ReadPageRequest(cmd.Flags())
-			if err != nil {
-				return err
-			}
-
-			queryClient := types.NewQueryClient(clientCtx)
-			res, err := queryClient.Accounts(cmd.Context(), &types.QueryAccountsRequest{Pagination: pageReq})
-			if err != nil {
-				return err
-			}
-
-			return clientCtx.PrintProto(res)
-		},
-	}
-
-	flags.AddQueryFlagsToCmd(cmd)
-	flags.AddPaginationFlagsToCmd(cmd, "all-accounts")
-
-	return cmd
-}
-
-// QueryAllModuleAccountsCmd returns a list of all the existing module accounts with their account information and permissions
-func QueryModuleAccountsCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "module-accounts",
-		Short: "Query all module accounts",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			clientCtx, err := client.GetClientQueryContext(cmd)
-			if err != nil {
-				return err
-			}
-
-			queryClient := types.NewQueryClient(clientCtx)
-
-			res, err := queryClient.ModuleAccounts(context.Background(), &types.QueryModuleAccountsRequest{})
-			if err != nil {
-				return err
-			}
-
-			return clientCtx.PrintProto(res)
 		},
 	}
 
@@ -224,7 +164,7 @@ $ %s query txs --%s 'message.sender=cosmos1...&message.action=withdraw_delegator
 			page, _ := cmd.Flags().GetInt(flags.FlagPage)
 			limit, _ := cmd.Flags().GetInt(flags.FlagLimit)
 
-			txs, err := authtx.QueryTxsByEvents(clientCtx, tmEvents, page, limit, "")
+			txs, err := authclient.QueryTxsByEvents(clientCtx, tmEvents, page, limit, "")
 			if err != nil {
 				return err
 			}
@@ -234,8 +174,8 @@ $ %s query txs --%s 'message.sender=cosmos1...&message.action=withdraw_delegator
 	}
 
 	flags.AddQueryFlagsToCmd(cmd)
-	cmd.Flags().Int(flags.FlagPage, query.DefaultPage, "Query a specific page of paginated results")
-	cmd.Flags().Int(flags.FlagLimit, query.DefaultLimit, "Query number of transactions results per page returned")
+	cmd.Flags().Int(flags.FlagPage, rest.DefaultPage, "Query a specific page of paginated results")
+	cmd.Flags().Int(flags.FlagLimit, rest.DefaultLimit, "Query number of transactions results per page returned")
 	cmd.Flags().String(flagEvents, "", fmt.Sprintf("list of transaction events in the form of %s", eventFormat))
 	cmd.MarkFlagRequired(flagEvents)
 
@@ -246,12 +186,12 @@ $ %s query txs --%s 'message.sender=cosmos1...&message.action=withdraw_delegator
 func QueryTxCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "tx --type=[hash|acc_seq|signature] [hash|acc_seq|signature]",
-		Short: "Query for a transaction by hash, \"<addr>/<seq>\" combination or comma-separated signatures in a committed block",
+		Short: "Query for a transaction by hash, addr++seq combination or signature in a committed block",
 		Long: strings.TrimSpace(fmt.Sprintf(`
 Example:
 $ %s query tx <hash>
-$ %s query tx --%s=%s <addr>/<sequence>
-$ %s query tx --%s=%s <sig1_base64>,<sig2_base64...>
+$ %s query tx --%s=%s <addr>:<sequence>
+$ %s query tx --%s=%s <sig1_base64,sig2_base64...>
 `,
 			version.AppName,
 			version.AppName, flagType, typeAccSeq,
@@ -273,7 +213,7 @@ $ %s query tx --%s=%s <sig1_base64>,<sig2_base64...>
 					}
 
 					// If hash is given, then query the tx by hash.
-					output, err := authtx.QueryTx(clientCtx, args[0])
+					output, err := authclient.QueryTx(clientCtx, args[0])
 					if err != nil {
 						return err
 					}
@@ -295,7 +235,7 @@ $ %s query tx --%s=%s <sig1_base64>,<sig2_base64...>
 						tmEvents[i] = fmt.Sprintf("%s.%s='%s'", sdk.EventTypeTx, sdk.AttributeKeySignature, sig)
 					}
 
-					txs, err := authtx.QueryTxsByEvents(clientCtx, tmEvents, query.DefaultPage, query.DefaultLimit, "")
+					txs, err := authclient.QueryTxsByEvents(clientCtx, tmEvents, rest.DefaultPage, query.DefaultLimit, "")
 					if err != nil {
 						return err
 					}
@@ -304,7 +244,7 @@ $ %s query tx --%s=%s <sig1_base64>,<sig2_base64...>
 					}
 					if len(txs.Txs) > 1 {
 						// This case means there's a bug somewhere else in the code. Should not happen.
-						return errors.ErrLogic.Wrapf("found %d txs matching given signatures", len(txs.Txs))
+						return errors.Wrapf(errors.ErrLogic, "found %d txs matching given signatures", len(txs.Txs))
 					}
 
 					return clientCtx.PrintProto(txs.Txs[0])
@@ -318,7 +258,7 @@ $ %s query tx --%s=%s <sig1_base64>,<sig2_base64...>
 					tmEvents := []string{
 						fmt.Sprintf("%s.%s='%s'", sdk.EventTypeTx, sdk.AttributeKeyAccountSequence, args[0]),
 					}
-					txs, err := authtx.QueryTxsByEvents(clientCtx, tmEvents, query.DefaultPage, query.DefaultLimit, "")
+					txs, err := authclient.QueryTxsByEvents(clientCtx, tmEvents, rest.DefaultPage, query.DefaultLimit, "")
 					if err != nil {
 						return err
 					}

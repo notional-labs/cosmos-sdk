@@ -13,7 +13,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
 	"github.com/cosmos/cosmos-sdk/x/bank/simulation"
-	"github.com/cosmos/cosmos-sdk/x/bank/testutil"
 	"github.com/cosmos/cosmos-sdk/x/bank/types"
 )
 
@@ -26,7 +25,7 @@ type SimTestSuite struct {
 
 func (suite *SimTestSuite) SetupTest() {
 	checkTx := false
-	app := simapp.Setup(suite.T(), checkTx)
+	app := simapp.Setup(checkTx)
 	suite.app = app
 	suite.ctx = app.BaseApp.NewContext(checkTx, tmproto.Header{})
 }
@@ -105,80 +104,18 @@ func (suite *SimTestSuite) TestSimulateMsgMultiSend() {
 	// execute operation
 	op := simulation.SimulateMsgMultiSend(suite.app.AccountKeeper, suite.app.BankKeeper)
 	operationMsg, futureOperations, err := op(r, suite.app.BaseApp, suite.ctx, accounts, "")
-	require := suite.Require()
-	require.NoError(err)
+	suite.Require().NoError(err)
 
 	var msg types.MsgMultiSend
 	types.ModuleCdc.UnmarshalJSON(operationMsg.Msg, &msg)
 
-	require.True(operationMsg.OK)
-	require.Len(msg.Inputs, 3)
-	require.Equal("cosmos1p8wcgrjr4pjju90xg6u9cgq55dxwq8j7u4x9a0", msg.Inputs[1].Address)
-	require.Equal("185121068stake", msg.Inputs[1].Coins.String())
-	require.Len(msg.Outputs, 2)
-	require.Equal("cosmos1ghekyjucln7y67ntx7cf27m9dpuxxemn4c8g4r", msg.Outputs[1].Address)
-	require.Equal("260469617stake", msg.Outputs[1].Coins.String())
-	require.Equal(types.TypeMsgMultiSend, msg.Type())
-	require.Equal(types.ModuleName, msg.Route())
-	require.Len(futureOperations, 0)
-}
-
-func (suite *SimTestSuite) TestSimulateModuleAccountMsgSend() {
-	const (
-		accCount       = 1
-		moduleAccCount = 1
-	)
-
-	s := rand.NewSource(1)
-	r := rand.New(s)
-	accounts := suite.getTestingAccounts(r, accCount)
-
-	// begin a new block
-	suite.app.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{Height: suite.app.LastBlockHeight() + 1, AppHash: suite.app.LastCommitID().Hash}})
-
-	// execute operation
-	op := simulation.SimulateMsgSendToModuleAccount(suite.app.AccountKeeper, suite.app.BankKeeper, moduleAccCount)
-
-	s = rand.NewSource(1)
-	r = rand.New(s)
-
-	operationMsg, futureOperations, err := op(r, suite.app.BaseApp, suite.ctx, accounts, "")
-	suite.Require().Error(err)
-
-	var msg types.MsgSend
-	types.ModuleCdc.UnmarshalJSON(operationMsg.Msg, &msg)
-
-	suite.Require().False(operationMsg.OK)
-	suite.Require().Equal(operationMsg.Comment, "invalid transfers")
-	suite.Require().Equal(types.TypeMsgSend, msg.Type())
-	suite.Require().Equal(types.ModuleName, msg.Route())
-	suite.Require().Len(futureOperations, 0)
-}
-
-func (suite *SimTestSuite) TestSimulateMsgMultiSendToModuleAccount() {
-	const (
-		accCount  = 2
-		mAccCount = 2
-	)
-
-	s := rand.NewSource(1)
-	r := rand.New(s)
-	accounts := suite.getTestingAccounts(r, accCount)
-
-	// begin a new block
-	suite.app.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{Height: suite.app.LastBlockHeight() + 1, AppHash: suite.app.LastCommitID().Hash}})
-
-	// execute operation
-	op := simulation.SimulateMsgMultiSendToModuleAccount(suite.app.AccountKeeper, suite.app.BankKeeper, mAccCount)
-
-	operationMsg, futureOperations, err := op(r, suite.app.BaseApp, suite.ctx, accounts, "")
-	suite.Require().Error(err)
-
-	var msg types.MsgMultiSend
-	types.ModuleCdc.UnmarshalJSON(operationMsg.Msg, &msg)
-
-	suite.Require().False(operationMsg.OK) // sending tokens to a module account should fail
-	suite.Require().Equal(operationMsg.Comment, "invalid transfers")
+	suite.Require().True(operationMsg.OK)
+	suite.Require().Len(msg.Inputs, 3)
+	suite.Require().Equal("cosmos1p8wcgrjr4pjju90xg6u9cgq55dxwq8j7u4x9a0", msg.Inputs[1].Address)
+	suite.Require().Equal("185121068stake", msg.Inputs[1].Coins.String())
+	suite.Require().Len(msg.Outputs, 2)
+	suite.Require().Equal("cosmos1ghekyjucln7y67ntx7cf27m9dpuxxemn4c8g4r", msg.Outputs[1].Address)
+	suite.Require().Equal("260469617stake", msg.Outputs[1].Coins.String())
 	suite.Require().Equal(types.TypeMsgMultiSend, msg.Type())
 	suite.Require().Equal(types.ModuleName, msg.Route())
 	suite.Require().Len(futureOperations, 0)
@@ -187,14 +124,15 @@ func (suite *SimTestSuite) TestSimulateMsgMultiSendToModuleAccount() {
 func (suite *SimTestSuite) getTestingAccounts(r *rand.Rand, n int) []simtypes.Account {
 	accounts := simtypes.RandomAccounts(r, n)
 
-	initAmt := suite.app.StakingKeeper.TokensFromConsensusPower(suite.ctx, 200)
+	initAmt := sdk.TokensFromConsensusPower(200)
 	initCoins := sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, initAmt))
 
 	// add coins to the accounts
 	for _, account := range accounts {
 		acc := suite.app.AccountKeeper.NewAccountWithAddress(suite.ctx, account.Address)
 		suite.app.AccountKeeper.SetAccount(suite.ctx, acc)
-		suite.Require().NoError(testutil.FundAccount(suite.app.BankKeeper, suite.ctx, account.Address, initCoins))
+		err := suite.app.BankKeeper.SetBalances(suite.ctx, account.Address, initCoins)
+		suite.Require().NoError(err)
 	}
 
 	return accounts

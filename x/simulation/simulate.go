@@ -23,22 +23,17 @@ const AverageBlockTime = 6 * time.Second
 
 // initialize the chain for the simulation
 func initChain(
-	r *rand.Rand,
-	params Params,
-	accounts []simulation.Account,
-	app *baseapp.BaseApp,
-	appStateFn simulation.AppStateFn,
-	config simulation.Config,
-	cdc codec.JSONCodec,
+	r *rand.Rand, params Params, accounts []simulation.Account, app *baseapp.BaseApp,
+	appStateFn simulation.AppStateFn, config simulation.Config, cdc codec.JSONMarshaler,
 ) (mockValidators, time.Time, []simulation.Account, string) {
-
 	appState, accounts, chainID, genesisTimestamp := appStateFn(r, accounts, config)
+
 	consensusParams := randomConsensusParams(r, appState, cdc)
+
 	req := abci.RequestInitChain{
 		AppStateBytes:   appState,
 		ChainId:         chainID,
 		ConsensusParams: consensusParams,
-		Time:            genesisTimestamp,
 	}
 	res := app.InitChain(req)
 	validators := newMockValidators(r, res.Validators, params)
@@ -58,7 +53,7 @@ func SimulateFromSeed(
 	ops WeightedOperations,
 	blockedAddrs map[string]bool,
 	config simulation.Config,
-	cdc codec.JSONCodec,
+	cdc codec.JSONMarshaler,
 ) (stopEarly bool, exportedParams Params, err error) {
 	// in case we have to end early, don't os.Exit so that we can run cleanup code.
 	testingMode, _, b := getTestingMode(tb)
@@ -244,6 +239,8 @@ func SimulateFromSeed(
 
 	return false, exportedParams, nil
 }
+
+// _____________________________________________________________________________
 
 type blockSimFn func(r *rand.Rand, app *baseapp.BaseApp, ctx sdk.Context,
 	accounts []simulation.Account, header tmproto.Header) (opCount int)

@@ -9,6 +9,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	gov "github.com/cosmos/cosmos-sdk/x/gov/types"
+	clienttypes "github.com/cosmos/cosmos-sdk/x/ibc/core/02-client/types"
+	ibctmtypes "github.com/cosmos/cosmos-sdk/x/ibc/light-clients/07-tendermint/types"
 	"github.com/cosmos/cosmos-sdk/x/upgrade/types"
 )
 
@@ -26,9 +28,9 @@ func TestContentAccessors(t *testing.T) {
 	}{
 		"upgrade": {
 			p: types.NewSoftwareUpgradeProposal("Title", "desc", types.Plan{
-				Name:   "due_height",
-				Info:   "https://foo.bar",
-				Height: 99999999999,
+				Name: "due_time",
+				Info: "https://foo.bar",
+				Time: mustParseTime("2019-07-08T11:33:55Z"),
 			}),
 			title: "Title",
 			desc:  "desc",
@@ -59,10 +61,10 @@ func TestContentAccessors(t *testing.T) {
 
 			// try to encode and decode type to ensure codec works
 			wrap := ProposalWrapper{tc.p}
-			bz, err := cdc.Marshal(&wrap)
+			bz, err := cdc.MarshalBinaryBare(&wrap)
 			require.NoError(t, err)
 			unwrap := ProposalWrapper{}
-			err = cdc.Unmarshal(bz, &unwrap)
+			err = cdc.UnmarshalBinaryBare(bz, &unwrap)
 			require.NoError(t, err)
 
 			// all methods should look the same
@@ -77,12 +79,17 @@ func TestContentAccessors(t *testing.T) {
 	}
 }
 
-// tests a software update proposal can be marshaled and unmarshaled
+// tests a software update proposal can be marshaled and unmarshaled, and the
+// client state can be unpacked
 func TestMarshalSoftwareUpdateProposal(t *testing.T) {
+	cs, err := clienttypes.PackClientState(&ibctmtypes.ClientState{})
+	require.NoError(t, err)
+
 	// create proposal
 	plan := types.Plan{
-		Name:   "upgrade",
-		Height: 1000,
+		Name:                "upgrade ibc",
+		Height:              1000,
+		UpgradedClientState: cs,
 	}
 	content := types.NewSoftwareUpgradeProposal("title", "description", plan)
 	sup, ok := content.(*types.SoftwareUpgradeProposal)
@@ -91,7 +98,9 @@ func TestMarshalSoftwareUpdateProposal(t *testing.T) {
 	// create codec
 	ir := codectypes.NewInterfaceRegistry()
 	types.RegisterInterfaces(ir)
+	clienttypes.RegisterInterfaces(ir)
 	gov.RegisterInterfaces(ir)
+	ibctmtypes.RegisterInterfaces(ir)
 	cdc := codec.NewProtoCodec(ir)
 
 	// marshal message
@@ -101,5 +110,9 @@ func TestMarshalSoftwareUpdateProposal(t *testing.T) {
 	// unmarshal proposal
 	newSup := &types.SoftwareUpgradeProposal{}
 	err = cdc.UnmarshalJSON(bz, newSup)
+	require.NoError(t, err)
+
+	// unpack client state
+	_, err = clienttypes.UnpackClientState(newSup.Plan.UpgradedClientState)
 	require.NoError(t, err)
 }

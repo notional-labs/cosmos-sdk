@@ -16,14 +16,14 @@ import (
 )
 
 func TestUnJailNotBonded(t *testing.T) {
-	app := simapp.Setup(t, false)
+	app := simapp.Setup(false)
 	ctx := app.BaseApp.NewContext(false, tmproto.Header{})
 
 	p := app.StakingKeeper.GetParams(ctx)
 	p.MaxValidators = 5
 	app.StakingKeeper.SetParams(ctx, p)
 
-	addrDels := simapp.AddTestAddrsIncremental(app, ctx, 6, app.StakingKeeper.TokensFromConsensusPower(ctx, 200))
+	addrDels := simapp.AddTestAddrsIncremental(app, ctx, 6, sdk.TokensFromConsensusPower(200))
 	valAddrs := simapp.ConvertAddrsToValAddrs(addrDels)
 	pks := simapp.CreateTestPubKeys(6)
 	tstaking := teststaking.NewHelper(t, ctx, app.StakingKeeper)
@@ -39,12 +39,10 @@ func TestUnJailNotBonded(t *testing.T) {
 
 	// create a 6th validator with less power than the cliff validator (won't be bonded)
 	addr, val := valAddrs[5], pks[5]
-	amt := app.StakingKeeper.TokensFromConsensusPower(ctx, 50)
+	amt := sdk.TokensFromConsensusPower(50)
 	msg := tstaking.CreateValidatorMsg(addr, val, amt)
 	msg.MinSelfDelegation = amt
-	res, err := tstaking.CreateValidatorWithMsg(sdk.WrapSDKContext(ctx), msg)
-	require.NoError(t, err)
-	require.NotNil(t, res)
+	tstaking.Handle(msg, true)
 
 	staking.EndBlocker(ctx, app.StakingKeeper)
 	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + 1)
@@ -53,7 +51,7 @@ func TestUnJailNotBonded(t *testing.T) {
 
 	// unbond below minimum self-delegation
 	require.Equal(t, p.BondDenom, tstaking.Denom)
-	tstaking.Undelegate(sdk.AccAddress(addr), addr, app.StakingKeeper.TokensFromConsensusPower(ctx, 1), true)
+	tstaking.Undelegate(sdk.AccAddress(addr), addr, sdk.TokensFromConsensusPower(1), true)
 
 	staking.EndBlocker(ctx, app.StakingKeeper)
 	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + 1)
@@ -82,10 +80,10 @@ func TestUnJailNotBonded(t *testing.T) {
 // Ensure that SigningInfo.StartHeight is set correctly
 // and that they are not immediately jailed
 func TestHandleNewValidator(t *testing.T) {
-	app := simapp.Setup(t, false)
+	app := simapp.Setup(false)
 	ctx := app.BaseApp.NewContext(false, tmproto.Header{})
 
-	addrDels := simapp.AddTestAddrsIncremental(app, ctx, 1, app.StakingKeeper.TokensFromConsensusPower(ctx, 200))
+	addrDels := simapp.AddTestAddrsIncremental(app, ctx, 1, sdk.TokensFromConsensusPower(200))
 	valAddrs := simapp.ConvertAddrsToValAddrs(addrDels)
 	pks := simapp.CreateTestPubKeys(1)
 	addr, val := valAddrs[0], pks[0]
@@ -118,9 +116,7 @@ func TestHandleNewValidator(t *testing.T) {
 	validator, _ := app.StakingKeeper.GetValidatorByConsAddr(ctx, sdk.GetConsAddress(val))
 	require.Equal(t, stakingtypes.Bonded, validator.GetStatus())
 	bondPool := app.StakingKeeper.GetBondedPool(ctx)
-	expTokens := app.StakingKeeper.TokensFromConsensusPower(ctx, 100)
-	// adding genesis validator tokens
-	expTokens = expTokens.Add(app.StakingKeeper.TokensFromConsensusPower(ctx, 1))
+	expTokens := sdk.TokensFromConsensusPower(100)
 	require.True(t, expTokens.Equal(app.BankKeeper.GetBalance(ctx, bondPool.GetAddress(), app.StakingKeeper.BondDenom(ctx)).Amount))
 }
 
@@ -128,10 +124,10 @@ func TestHandleNewValidator(t *testing.T) {
 // Ensure that they're only slashed once
 func TestHandleAlreadyJailed(t *testing.T) {
 	// initial setup
-	app := simapp.Setup(t, false)
+	app := simapp.Setup(false)
 	ctx := app.BaseApp.NewContext(false, tmproto.Header{})
 
-	addrDels := simapp.AddTestAddrsIncremental(app, ctx, 1, app.StakingKeeper.TokensFromConsensusPower(ctx, 200))
+	addrDels := simapp.AddTestAddrsIncremental(app, ctx, 1, sdk.TokensFromConsensusPower(200))
 	valAddrs := simapp.ConvertAddrsToValAddrs(addrDels)
 	pks := simapp.CreateTestPubKeys(1)
 	addr, val := valAddrs[0], pks[0]
@@ -163,7 +159,7 @@ func TestHandleAlreadyJailed(t *testing.T) {
 	require.Equal(t, stakingtypes.Unbonding, validator.GetStatus())
 
 	// validator should have been slashed
-	resultingTokens := amt.Sub(app.StakingKeeper.TokensFromConsensusPower(ctx, 1))
+	resultingTokens := amt.Sub(sdk.TokensFromConsensusPower(1))
 	require.Equal(t, resultingTokens, validator.GetTokens())
 
 	// another block missed
@@ -182,7 +178,7 @@ func TestValidatorDippingInAndOut(t *testing.T) {
 
 	// initial setup
 	// TestParams set the SignedBlocksWindow to 1000 and MaxMissedBlocksPerWindow to 500
-	app := simapp.Setup(t, false)
+	app := simapp.Setup(false)
 	ctx := app.BaseApp.NewContext(false, tmproto.Header{})
 	app.SlashingKeeper.SetParams(ctx, testslashing.TestParams())
 
@@ -192,7 +188,7 @@ func TestValidatorDippingInAndOut(t *testing.T) {
 	power := int64(100)
 
 	pks := simapp.CreateTestPubKeys(3)
-	simapp.AddTestAddrsFromPubKeys(app, ctx, pks, app.StakingKeeper.TokensFromConsensusPower(ctx, 200))
+	simapp.AddTestAddrsFromPubKeys(app, ctx, pks, sdk.TokensFromConsensusPower(200))
 
 	addr, val := pks[0].Address(), pks[0]
 	consAddr := sdk.ConsAddress(addr)

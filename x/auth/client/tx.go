@@ -18,8 +18,17 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
-	"github.com/cosmos/cosmos-sdk/x/auth/migrations/legacytx"
+	"github.com/cosmos/cosmos-sdk/x/auth/legacy/legacytx"
 )
+
+// Codec defines the x/auth account codec to be used for use with the
+// AccountRetriever. The application must be sure to set this to their respective
+// codec that implements the Codec interface and must be the same codec that
+// passed to the x/auth module.
+//
+// TODO:/XXX: Using a package-level global isn't ideal and we should consider
+// refactoring the module manager to allow passing in the correct module codec.
+var Codec codec.Marshaler
 
 // GasEstimateResponse defines a response definition for tx gas estimation.
 type GasEstimateResponse struct {
@@ -30,26 +39,28 @@ func (gr GasEstimateResponse) String() string {
 	return fmt.Sprintf("gas estimate: %d", gr.GasEstimate)
 }
 
+// PrintUnsignedStdTx builds an unsigned StdTx and prints it to os.Stdout.
+func PrintUnsignedStdTx(txBldr tx.Factory, clientCtx client.Context, msgs []sdk.Msg) error {
+	err := tx.GenerateTx(clientCtx, txBldr, msgs...)
+	return err
+}
+
 // SignTx signs a transaction managed by the TxBuilder using a `name` key stored in Keybase.
 // The new signature is appended to the TxBuilder when overwrite=false or overwritten otherwise.
 // Don't perform online validation or lookups if offline is true.
 func SignTx(txFactory tx.Factory, clientCtx client.Context, name string, txBuilder client.TxBuilder, offline, overwriteSig bool) error {
-	k, err := txFactory.Keybase().Key(name)
+	info, err := txFactory.Keybase().Key(name)
 	if err != nil {
 		return err
 	}
 
 	// Ledger and Multisigs only support LEGACY_AMINO_JSON signing.
 	if txFactory.SignMode() == signing.SignMode_SIGN_MODE_UNSPECIFIED &&
-		(k.GetType() == keyring.TypeLedger || k.GetType() == keyring.TypeMulti) {
+		(info.GetType() == keyring.TypeLedger || info.GetType() == keyring.TypeMulti) {
 		txFactory = txFactory.WithSignMode(signing.SignMode_SIGN_MODE_LEGACY_AMINO_JSON)
 	}
 
-	pubKey, err := k.GetPubKey()
-	if err != nil {
-		return err
-	}
-	addr := sdk.AccAddress(pubKey.Address())
+	addr := sdk.AccAddress(info.GetPubKey().Address())
 	if !isTxSigner(addr, txBuilder.GetTx().GetSigners()) {
 		return fmt.Errorf("%s: %s", sdkerrors.ErrorInvalidSigner, name)
 	}

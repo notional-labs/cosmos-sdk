@@ -116,11 +116,8 @@ func TestQueries(t *testing.T) {
 	types.RegisterLegacyAminoCodec(cdc)
 	banktypes.RegisterLegacyAminoCodec(cdc)
 
-	app := simapp.Setup(t, false)
+	app := simapp.Setup(false)
 	ctx := app.BaseApp.NewContext(false, tmproto.Header{})
-
-	// reset fee pool
-	app.DistrKeeper.SetFeePool(ctx, types.InitialFeePool())
 
 	addr := simapp.AddTestAddrs(app, ctx, 1, sdk.NewInt(1000000000))
 	valAddrs := simapp.ConvertAddrsToValAddrs(addr)

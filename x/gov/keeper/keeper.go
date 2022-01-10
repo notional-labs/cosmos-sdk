@@ -7,7 +7,6 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 
 	"github.com/cosmos/cosmos-sdk/codec"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/cosmos-sdk/x/gov/types"
@@ -24,14 +23,14 @@ type Keeper struct {
 	// The reference to the DelegationSet and ValidatorSet to get information about validators and delegators
 	sk types.StakingKeeper
 
+	// The (unexposed) keys used to access the stores from the Context.
+	storeKey sdk.StoreKey
+
 	// GovHooks
 	hooks types.GovHooks
 
-	// The (unexposed) keys used to access the stores from the Context.
-	storeKey storetypes.StoreKey
-
 	// The codec codec for binary encoding/decoding.
-	cdc codec.BinaryCodec
+	cdc codec.BinaryMarshaler
 
 	// Proposal router
 	router types.Router
@@ -45,7 +44,7 @@ type Keeper struct {
 //
 // CONTRACT: the parameter Subspace must have the param key table already initialized
 func NewKeeper(
-	cdc codec.BinaryCodec, key storetypes.StoreKey, paramSpace types.ParamSubspace,
+	cdc codec.BinaryMarshaler, key sdk.StoreKey, paramSpace types.ParamSubspace,
 	authKeeper types.AccountKeeper, bankKeeper types.BankKeeper, sk types.StakingKeeper, rtr types.Router,
 ) Keeper {
 
@@ -70,6 +69,11 @@ func NewKeeper(
 	}
 }
 
+// Logger returns a module-specific logger.
+func (keeper Keeper) Logger(ctx sdk.Context) log.Logger {
+	return ctx.Logger().With("module", "x/"+types.ModuleName)
+}
+
 // SetHooks sets the hooks for governance
 func (keeper *Keeper) SetHooks(gh types.GovHooks) *Keeper {
 	if keeper.hooks != nil {
@@ -79,11 +83,6 @@ func (keeper *Keeper) SetHooks(gh types.GovHooks) *Keeper {
 	keeper.hooks = gh
 
 	return keeper
-}
-
-// Logger returns a module-specific logger.
-func (keeper Keeper) Logger(ctx sdk.Context) log.Logger {
-	return ctx.Logger().With("module", "x/"+types.ModuleName)
 }
 
 // Router returns the gov Keeper's Router

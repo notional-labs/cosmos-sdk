@@ -57,11 +57,11 @@ $ %s gentx my-key-name 1000000stake --home=/path/to/home/dir --keyring-backend=o
 		),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			serverCtx := server.GetServerContextFromCmd(cmd)
-			clientCtx, err := client.GetClientTxContext(cmd)
+			clientCtx, err := client.GetClientQueryContext(cmd)
 			if err != nil {
 				return err
 			}
-			cdc := clientCtx.Codec
+			cdc := clientCtx.JSONMarshaler
 
 			config := serverCtx.Config
 			config.SetRoot(clientCtx.HomeDir)
@@ -77,9 +77,10 @@ $ %s gentx my-key-name 1000000stake --home=/path/to/home/dir --keyring-backend=o
 			}
 
 			// read --pubkey, if empty take it from priv_validator.json
-			if pkStr, _ := cmd.Flags().GetString(cli.FlagPubKey); pkStr != "" {
-				if err := clientCtx.Codec.UnmarshalInterfaceJSON([]byte(pkStr), &valPubKey); err != nil {
-					return errors.Wrap(err, "failed to unmarshal validator public key")
+			if valPubKeyString, _ := cmd.Flags().GetString(cli.FlagPubKey); valPubKeyString != "" {
+				valPubKey, err = sdk.GetPubKeyFromBech32(sdk.Bech32PubKeyTypeConsPub, valPubKeyString)
+				if err != nil {
+					return errors.Wrap(err, "failed to get consensus node public key")
 				}
 			}
 
@@ -121,11 +122,8 @@ $ %s gentx my-key-name 1000000stake --home=/path/to/home/dir --keyring-backend=o
 			if err != nil {
 				return errors.Wrap(err, "failed to parse coins")
 			}
-			addr, err := key.GetAddress()
-			if err != nil {
-				return err
-			}
-			err = genutil.ValidateAccountInGenesis(genesisState, genBalIterator, addr, coins, cdc)
+
+			err = genutil.ValidateAccountInGenesis(genesisState, genBalIterator, key.GetAddress(), coins, cdc)
 			if err != nil {
 				return errors.Wrap(err, "failed to validate account in genesis")
 			}
@@ -134,11 +132,8 @@ $ %s gentx my-key-name 1000000stake --home=/path/to/home/dir --keyring-backend=o
 			if err != nil {
 				return errors.Wrap(err, "error creating tx builder")
 			}
-			pub, err := key.GetAddress()
-			if err != nil {
-				return err
-			}
-			clientCtx = clientCtx.WithInput(inBuf).WithFromAddress(pub)
+
+			clientCtx = clientCtx.WithInput(inBuf).WithFromAddress(key.GetAddress())
 
 			// The following line comes from a discrepancy between the `gentx`
 			// and `create-validator` commands:
@@ -161,14 +156,14 @@ $ %s gentx my-key-name 1000000stake --home=/path/to/home/dir --keyring-backend=o
 
 			if key.GetType() == keyring.TypeOffline || key.GetType() == keyring.TypeMulti {
 				cmd.PrintErrln("Offline key passed in. Use `tx sign` command to sign.")
-				return txBldr.PrintUnsignedTx(clientCtx, msg)
+				return authclient.PrintUnsignedStdTx(txBldr, clientCtx, []sdk.Msg{msg})
 			}
 
 			// write the unsigned transaction to the buffer
 			w := bytes.NewBuffer([]byte{})
 			clientCtx = clientCtx.WithOutput(w)
 
-			if err = txBldr.PrintUnsignedTx(clientCtx, msg); err != nil {
+			if err = authclient.PrintUnsignedStdTx(txBldr, clientCtx, []sdk.Msg{msg}); err != nil {
 				return errors.Wrap(err, "failed to print unsigned std tx")
 			}
 

@@ -6,12 +6,18 @@ order: 3
 
 ## Proposal Submission
 
-Proposals can be submitted by any account via a `MsgSubmitProposal`
+Proposals can be submitted by any Atom holder via a `TxGovSubmitProposal`
 transaction.
 
-+++ https://github.com/cosmos/cosmos-sdk/blob/v0.40.0/proto/cosmos/gov/v1beta1/tx.proto#L24-L39
+```go
+type TxGovSubmitProposal struct {
+	Content        Content
+	InitialDeposit sdk.Coins
+	Proposer       sdk.AccAddress
+}
+```
 
-The `Content` of a `MsgSubmitProposal` message must have an appropriate router
+The `Content` of a `TxGovSubmitProposal` message must have an appropriate router
 set in the governance module.
 
 **State modifications:**
@@ -21,15 +27,15 @@ set in the governance module.
 - Initialise `Proposals` attributes
 - Decrease balance of sender by `InitialDeposit`
 - If `MinDeposit` is reached:
-    - Push `proposalID` in `ProposalProcessingQueue`
+  - Push `proposalID` in `ProposalProcessingQueue`
 - Transfer `InitialDeposit` from the `Proposer` to the governance `ModuleAccount`
 
-A `MsgSubmitProposal` transaction can be handled according to the following
+A `TxGovSubmitProposal` transaction can be handled according to the following
 pseudocode.
 
 ```go
 // PSEUDOCODE //
-// Check if MsgSubmitProposal is valid. If it is, create proposal //
+// Check if TxGovSubmitProposal is valid. If it is, create proposal //
 
 upon receiving txGovSubmitProposal from sender do
 
@@ -73,9 +79,14 @@ upon receiving txGovSubmitProposal from sender do
 
 Once a proposal is submitted, if
 `Proposal.TotalDeposit < ActiveParam.MinDeposit`, Atom holders can send
-`MsgDeposit` transactions to increase the proposal's deposit.
+`TxGovDeposit` transactions to increase the proposal's deposit.
 
-+++ https://github.com/cosmos/cosmos-sdk/blob/v0.40.0/proto/cosmos/gov/v1beta1/tx.proto#L61-L72
+```go
+type TxGovDeposit struct {
+  ProposalID    int64       // ID of the proposal
+  Deposit       sdk.Coins   // Number of Atoms to add to the proposal's deposit
+}
+```
 
 **State modifications:**
 
@@ -83,15 +94,15 @@ Once a proposal is submitted, if
 - Add `deposit` of sender in `proposal.Deposits`
 - Increase `proposal.TotalDeposit` by sender's `deposit`
 - If `MinDeposit` is reached:
-    - Push `proposalID` in `ProposalProcessingQueueEnd`
+  - Push `proposalID` in `ProposalProcessingQueueEnd`
 - Transfer `Deposit` from the `proposer` to the governance `ModuleAccount`
 
-A `MsgDeposit` transaction has to go through a number of checks to be valid.
+A `TxGovDeposit` transaction has to go through a number of checks to be valid.
 These checks are outlined in the following pseudocode.
 
 ```go
 // PSEUDOCODE //
-// Check if MsgDeposit is valid. If it is, increase deposit and check if MinDeposit is reached
+// Check if TxGovDeposit is valid. If it is, increase deposit and check if MinDeposit is reached
 
 upon receiving txGovDeposit from sender do
   // check if proposal is correctly formatted. Includes fee payment.
@@ -138,10 +149,15 @@ upon receiving txGovDeposit from sender do
 ## Vote
 
 Once `ActiveParam.MinDeposit` is reached, voting period starts. From there,
-bonded Atom holders are able to send `MsgVote` transactions to cast their
+bonded Atom holders are able to send `TxGovVote` transactions to cast their
 vote on the proposal.
 
-+++ https://github.com/cosmos/cosmos-sdk/blob/v0.40.0/proto/cosmos/gov/v1beta1/tx.proto#L46-L56
+```go
+  type TxGovVote struct {
+    ProposalID           int64         //  proposalID of the proposal
+    Vote                 byte          //  option from OptionSet chosen by the voter
+  }
+```
 
 **State modifications:**
 
@@ -149,12 +165,12 @@ vote on the proposal.
 
 _Note: Gas cost for this message has to take into account the future tallying of the vote in EndBlocker_
 
-Next is a pseudocode outline of the way `MsgVote` transactions are
+Next is a pseudocode proposal of the way `TxGovVote` transactions are
 handled:
 
 ```go
   // PSEUDOCODE //
-  // Check if MsgVote is valid. If it is, count vote//
+  // Check if TxGovVote is valid. If it is, count vote//
 
   upon receiving txGovVote from sender do
     // check if proposal is correctly formatted. Includes fee payment.

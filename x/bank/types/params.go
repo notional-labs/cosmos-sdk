@@ -3,9 +3,8 @@ package types
 import (
 	"fmt"
 
-	"sigs.k8s.io/yaml"
+	yaml "gopkg.in/yaml.v2"
 
-	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 )
@@ -122,16 +121,7 @@ func NewSendEnabled(denom string, sendEnabled bool) *SendEnabled {
 
 // String implements stringer insterface
 func (se SendEnabled) String() string {
-	bz, err := codec.ProtoMarshalJSON(&se, nil)
-	if err != nil {
-		panic(err)
-	}
-
-	out, err := yaml.JSONToYAML(bz)
-	if err != nil {
-		panic(err)
-	}
-
+	out, _ := yaml.Marshal(se)
 	return string(out)
 }
 

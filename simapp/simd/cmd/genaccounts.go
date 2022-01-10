@@ -10,6 +10,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
+	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/server"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -39,37 +40,31 @@ contain valid denominations. Accounts may optionally be supplied with vesting pa
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx := client.GetClientContextFromCmd(cmd)
+			depCdc := clientCtx.JSONMarshaler
+			cdc := depCdc.(codec.Marshaler)
 
 			serverCtx := server.GetServerContextFromCmd(cmd)
 			config := serverCtx.Config
 
 			config.SetRoot(clientCtx.HomeDir)
 
-			var kr keyring.Keyring
 			addr, err := sdk.AccAddressFromBech32(args[0])
 			if err != nil {
 				inBuf := bufio.NewReader(cmd.InOrStdin())
 				keyringBackend, _ := cmd.Flags().GetString(flags.FlagKeyringBackend)
 
-				if keyringBackend != "" && clientCtx.Keyring == nil {
-					var err error
-					kr, err = keyring.New(sdk.KeyringServiceName(), keyringBackend, clientCtx.HomeDir, inBuf, clientCtx.Codec)
-					if err != nil {
-						return err
-					}
-				} else {
-					kr = clientCtx.Keyring
-				}
-
-				k, err := kr.Key(args[0])
-				if err != nil {
-					return fmt.Errorf("failed to get address from Keyring: %w", err)
-				}
-
-				addr, err = k.GetAddress()
+				// attempt to lookup address from Keybase if no address was provided
+				kb, err := keyring.New(sdk.KeyringServiceName(), keyringBackend, clientCtx.HomeDir, inBuf)
 				if err != nil {
 					return err
 				}
+
+				info, err := kb.Key(args[0])
+				if err != nil {
+					return fmt.Errorf("failed to get address from Keybase: %w", err)
+				}
+
+				addr = info.GetAddress()
 			}
 
 			coins, err := sdk.ParseCoinsNormalized(args[1])
@@ -124,7 +119,7 @@ contain valid denominations. Accounts may optionally be supplied with vesting pa
 				return fmt.Errorf("failed to unmarshal genesis state: %w", err)
 			}
 
-			authGenState := authtypes.GetGenesisStateFromAppState(clientCtx.Codec, appState)
+			authGenState := authtypes.GetGenesisStateFromAppState(cdc, appState)
 
 			accs, err := authtypes.UnpackAccounts(authGenState.Accounts)
 			if err != nil {
@@ -146,19 +141,19 @@ contain valid denominations. Accounts may optionally be supplied with vesting pa
 			}
 			authGenState.Accounts = genAccs
 
-			authGenStateBz, err := clientCtx.Codec.MarshalJSON(&authGenState)
+			authGenStateBz, err := cdc.MarshalJSON(&authGenState)
 			if err != nil {
 				return fmt.Errorf("failed to marshal auth genesis state: %w", err)
 			}
 
 			appState[authtypes.ModuleName] = authGenStateBz
 
-			bankGenState := banktypes.GetGenesisStateFromAppState(clientCtx.Codec, appState)
+			bankGenState := banktypes.GetGenesisStateFromAppState(depCdc, appState)
 			bankGenState.Balances = append(bankGenState.Balances, balances)
 			bankGenState.Balances = banktypes.SanitizeGenesisBalances(bankGenState.Balances)
 			bankGenState.Supply = bankGenState.Supply.Add(balances.Coins...)
 
-			bankGenStateBz, err := clientCtx.Codec.MarshalJSON(bankGenState)
+			bankGenStateBz, err := cdc.MarshalJSON(bankGenState)
 			if err != nil {
 				return fmt.Errorf("failed to marshal bank genesis state: %w", err)
 			}

@@ -17,14 +17,13 @@ var _ stakingtypes.StakingHooks = Hooks{}
 func (k Keeper) Hooks() Hooks { return Hooks{k} }
 
 // initialize validator distribution record
-func (h Hooks) AfterValidatorCreated(ctx sdk.Context, valAddr sdk.ValAddress) error {
+func (h Hooks) AfterValidatorCreated(ctx sdk.Context, valAddr sdk.ValAddress) {
 	val := h.k.stakingKeeper.Validator(ctx, valAddr)
 	h.k.initializeValidator(ctx, val)
-	return nil
 }
 
-// AfterValidatorRemoved performs clean up after a validator is removed
-func (h Hooks) AfterValidatorRemoved(ctx sdk.Context, _ sdk.ConsAddress, valAddr sdk.ValAddress) error {
+// cleanup for after validator is removed
+func (h Hooks) AfterValidatorRemoved(ctx sdk.Context, _ sdk.ConsAddress, valAddr sdk.ValAddress) {
 	// fetch outstanding
 	outstanding := h.k.GetValidatorOutstandingRewardsCoins(ctx, valAddr)
 
@@ -48,14 +47,12 @@ func (h Hooks) AfterValidatorRemoved(ctx sdk.Context, _ sdk.ConsAddress, valAddr
 			withdrawAddr := h.k.GetDelegatorWithdrawAddr(ctx, accAddr)
 
 			if err := h.k.bankKeeper.SendCoinsFromModuleToAccount(ctx, types.ModuleName, withdrawAddr, coins); err != nil {
-				return err
+				panic(err)
 			}
 		}
 	}
 
-	// Add outstanding to community pool
-	// The validator is removed only after it has no more delegations.
-	// This operation sends only the remaining dust to the community pool.
+	// add outstanding to community pool
 	feePool := h.k.GetFeePool(ctx)
 	feePool.CommunityPool = feePool.CommunityPool.Add(outstanding...)
 	h.k.SetFeePool(ctx, feePool)
@@ -74,48 +71,35 @@ func (h Hooks) AfterValidatorRemoved(ctx sdk.Context, _ sdk.ConsAddress, valAddr
 
 	// clear current rewards
 	h.k.DeleteValidatorCurrentRewards(ctx, valAddr)
-
-	return nil
 }
 
 // increment period
-func (h Hooks) BeforeDelegationCreated(ctx sdk.Context, delAddr sdk.AccAddress, valAddr sdk.ValAddress) error {
+func (h Hooks) BeforeDelegationCreated(ctx sdk.Context, delAddr sdk.AccAddress, valAddr sdk.ValAddress) {
 	val := h.k.stakingKeeper.Validator(ctx, valAddr)
-	_ = h.k.IncrementValidatorPeriod(ctx, val)
-	return nil
+	h.k.IncrementValidatorPeriod(ctx, val)
 }
 
 // withdraw delegation rewards (which also increments period)
-func (h Hooks) BeforeDelegationSharesModified(ctx sdk.Context, delAddr sdk.AccAddress, valAddr sdk.ValAddress) error {
+func (h Hooks) BeforeDelegationSharesModified(ctx sdk.Context, delAddr sdk.AccAddress, valAddr sdk.ValAddress) {
 	val := h.k.stakingKeeper.Validator(ctx, valAddr)
 	del := h.k.stakingKeeper.Delegation(ctx, delAddr, valAddr)
 
 	if _, err := h.k.withdrawDelegationRewards(ctx, val, del); err != nil {
-		return err
+		panic(err)
 	}
-
-	return nil
 }
 
 // create new delegation period record
-func (h Hooks) AfterDelegationModified(ctx sdk.Context, delAddr sdk.AccAddress, valAddr sdk.ValAddress) error {
+func (h Hooks) AfterDelegationModified(ctx sdk.Context, delAddr sdk.AccAddress, valAddr sdk.ValAddress) {
 	h.k.initializeDelegation(ctx, valAddr, delAddr)
-	return nil
 }
 
 // record the slash event
-func (h Hooks) BeforeValidatorSlashed(ctx sdk.Context, valAddr sdk.ValAddress, fraction sdk.Dec) error {
+func (h Hooks) BeforeValidatorSlashed(ctx sdk.Context, valAddr sdk.ValAddress, fraction sdk.Dec) {
 	h.k.updateValidatorSlashFraction(ctx, valAddr, fraction)
-	return nil
 }
 
-func (h Hooks) BeforeValidatorModified(_ sdk.Context, _ sdk.ValAddress) error { return nil }
-func (h Hooks) AfterValidatorBonded(_ sdk.Context, _ sdk.ConsAddress, _ sdk.ValAddress) error {
-	return nil
-}
-func (h Hooks) AfterValidatorBeginUnbonding(_ sdk.Context, _ sdk.ConsAddress, _ sdk.ValAddress) error {
-	return nil
-}
-func (h Hooks) BeforeDelegationRemoved(_ sdk.Context, _ sdk.AccAddress, _ sdk.ValAddress) error {
-	return nil
-}
+func (h Hooks) BeforeValidatorModified(_ sdk.Context, _ sdk.ValAddress)                         {}
+func (h Hooks) AfterValidatorBonded(_ sdk.Context, _ sdk.ConsAddress, _ sdk.ValAddress)         {}
+func (h Hooks) AfterValidatorBeginUnbonding(_ sdk.Context, _ sdk.ConsAddress, _ sdk.ValAddress) {}
+func (h Hooks) BeforeDelegationRemoved(_ sdk.Context, _ sdk.AccAddress, _ sdk.ValAddress)       {}

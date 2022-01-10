@@ -3,10 +3,13 @@ package rpc
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 
+	"github.com/gorilla/mux"
 	"github.com/spf13/cobra"
+
 	tmtypes "github.com/tendermint/tendermint/types"
 
 	"github.com/cosmos/cosmos-sdk/client"
@@ -14,7 +17,7 @@ import (
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/types/query"
+	"github.com/cosmos/cosmos-sdk/types/rest"
 )
 
 // TODO these next two functions feel kinda hacky based on their placement
@@ -47,7 +50,7 @@ func ValidatorCommand() *cobra.Command {
 			page, _ := cmd.Flags().GetInt(flags.FlagPage)
 			limit, _ := cmd.Flags().GetInt(flags.FlagLimit)
 
-			result, err := GetValidators(cmd.Context(), clientCtx, height, &page, &limit)
+			result, err := GetValidators(clientCtx, height, &page, &limit)
 			if err != nil {
 				return err
 			}
@@ -58,13 +61,13 @@ func ValidatorCommand() *cobra.Command {
 
 	cmd.Flags().StringP(flags.FlagNode, "n", "tcp://localhost:26657", "Node to connect to")
 	cmd.Flags().String(flags.FlagKeyringBackend, flags.DefaultKeyringBackend, "Select keyring's backend (os|file|kwallet|pass|test)")
-	cmd.Flags().Int(flags.FlagPage, query.DefaultPage, "Query a specific page of paginated results")
+	cmd.Flags().Int(flags.FlagPage, rest.DefaultPage, "Query a specific page of paginated results")
 	cmd.Flags().Int(flags.FlagLimit, 100, "Query number of results returned per page")
 
 	return cmd
 }
 
-// Validator output
+// Validator output in bech32 format
 type ValidatorOutput struct {
 	Address          sdk.ConsAddress    `json:"address"`
 	PubKey           cryptotypes.PubKey `json:"pub_key"`
@@ -76,14 +79,12 @@ type ValidatorOutput struct {
 type ResultValidatorsOutput struct {
 	BlockHeight int64             `json:"block_height"`
 	Validators  []ValidatorOutput `json:"validators"`
-	Total       uint64            `json:"total"`
 }
 
 func (rvo ResultValidatorsOutput) String() string {
 	var b strings.Builder
 
 	b.WriteString(fmt.Sprintf("block height: %d\n", rvo.BlockHeight))
-	b.WriteString(fmt.Sprintf("total count: %d\n", rvo.Total))
 
 	for _, val := range rvo.Validators {
 		b.WriteString(
@@ -116,33 +117,83 @@ func validatorOutput(validator *tmtypes.Validator) (ValidatorOutput, error) {
 }
 
 // GetValidators from client
-func GetValidators(ctx context.Context, clientCtx client.Context, height *int64, page, limit *int) (ResultValidatorsOutput, error) {
+func GetValidators(clientCtx client.Context, height *int64, page, limit *int) (ResultValidatorsOutput, error) {
 	// get the node
 	node, err := clientCtx.GetNode()
 	if err != nil {
 		return ResultValidatorsOutput{}, err
 	}
 
-	validatorsRes, err := node.Validators(ctx, height, page, limit)
+	validatorsRes, err := node.Validators(context.Background(), height, page, limit)
 	if err != nil {
 		return ResultValidatorsOutput{}, err
 	}
 
-	total := validatorsRes.Total
-	if validatorsRes.Total < 0 {
-		total = 0
-	}
-	out := ResultValidatorsOutput{
+	outputValidatorsRes := ResultValidatorsOutput{
 		BlockHeight: validatorsRes.BlockHeight,
 		Validators:  make([]ValidatorOutput, len(validatorsRes.Validators)),
-		Total:       uint64(total),
 	}
+
 	for i := 0; i < len(validatorsRes.Validators); i++ {
-		out.Validators[i], err = validatorOutput(validatorsRes.Validators[i])
+		outputValidatorsRes.Validators[i], err = validatorOutput(validatorsRes.Validators[i])
 		if err != nil {
-			return out, err
+			return ResultValidatorsOutput{}, err
 		}
 	}
 
-	return out, nil
+	return outputValidatorsRes, nil
+}
+
+// REST
+
+// Validator Set at a height REST handler
+func ValidatorSetRequestHandlerFn(clientCtx client.Context) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		_, page, limit, err := rest.ParseHTTPArgsWithLimit(r, 100)
+		if err != nil {
+			rest.WriteErrorResponse(w, http.StatusBadRequest, "failed to parse pagination parameters")
+			return
+		}
+
+		vars := mux.Vars(r)
+		height, err := strconv.ParseInt(vars["height"], 10, 64)
+		if err != nil {
+			rest.WriteErrorResponse(w, http.StatusBadRequest, "failed to parse block height")
+			return
+		}
+
+		chainHeight, err := GetChainHeight(clientCtx)
+		if err != nil {
+			rest.WriteErrorResponse(w, http.StatusInternalServerError, "failed to parse chain height")
+			return
+		}
+		if height > chainHeight {
+			rest.WriteErrorResponse(w, http.StatusNotFound, "requested block height is bigger then the chain length")
+			return
+		}
+
+		output, err := GetValidators(clientCtx, &height, &page, &limit)
+		if rest.CheckInternalServerError(w, err) {
+			return
+		}
+		rest.PostProcessResponse(w, clientCtx, output)
+	}
+}
+
+// Latest Validator Set REST handler
+func LatestValidatorSetRequestHandlerFn(clientCtx client.Context) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		_, page, limit, err := rest.ParseHTTPArgsWithLimit(r, 100)
+		if err != nil {
+			rest.WriteErrorResponse(w, http.StatusBadRequest, "failed to parse pagination parameters")
+			return
+		}
+
+		output, err := GetValidators(clientCtx, nil, &page, &limit)
+		if rest.CheckInternalServerError(w, err) {
+			return
+		}
+
+		rest.PostProcessResponse(w, clientCtx, output)
+	}
 }

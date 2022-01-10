@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
+	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/simapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -18,6 +19,7 @@ import (
 type KeeperTestSuite struct {
 	suite.Suite
 
+	cdc    codec.Marshaler
 	ctx    sdk.Context
 	app    *simapp.SimApp
 	keeper *keeper.Keeper
@@ -25,7 +27,7 @@ type KeeperTestSuite struct {
 
 func (suite *KeeperTestSuite) SetupTest() {
 	checkTx := false
-	app := simapp.Setup(suite.T(), checkTx)
+	app := simapp.Setup(checkTx)
 	cdc := app.AppCodec()
 
 	// create new keeper so we can define custom scoping before init and seal
@@ -34,9 +36,10 @@ func (suite *KeeperTestSuite) SetupTest() {
 	suite.app = app
 	suite.ctx = app.BaseApp.NewContext(checkTx, tmproto.Header{Height: 1})
 	suite.keeper = keeper
+	suite.cdc = cdc
 }
 
-func (suite *KeeperTestSuite) TestSeal() {
+func (suite *KeeperTestSuite) TestInitializeAndSeal() {
 	sk := suite.keeper.ScopeToModule(banktypes.ModuleName)
 	suite.Require().Panics(func() {
 		suite.keeper.ScopeToModule("  ")
@@ -56,7 +59,7 @@ func (suite *KeeperTestSuite) TestSeal() {
 	}
 
 	suite.Require().NotPanics(func() {
-		suite.keeper.Seal()
+		suite.keeper.InitializeAndSeal(suite.ctx)
 	})
 
 	for i, cap := range caps {
@@ -67,7 +70,7 @@ func (suite *KeeperTestSuite) TestSeal() {
 	}
 
 	suite.Require().Panics(func() {
-		suite.keeper.Seal()
+		suite.keeper.InitializeAndSeal(suite.ctx)
 	})
 
 	suite.Require().Panics(func() {
@@ -112,6 +115,16 @@ func (suite *KeeperTestSuite) TestNewCapability() {
 	cap, err = sk.NewCapability(suite.ctx, "   ")
 	suite.Require().Error(err)
 	suite.Require().Nil(cap)
+}
+
+func (suite *KeeperTestSuite) TestOriginalCapabilityKeeper() {
+	got, ok := suite.app.ScopedIBCKeeper.GetCapability(suite.ctx, "invalid")
+	suite.Require().False(ok)
+	suite.Require().Nil(got)
+
+	port, ok := suite.app.ScopedIBCKeeper.GetCapability(suite.ctx, "ports/transfer")
+	suite.Require().True(ok)
+	suite.Require().NotNil(port)
 }
 
 func (suite *KeeperTestSuite) TestAuthenticateCapability() {

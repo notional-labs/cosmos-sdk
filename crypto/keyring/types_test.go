@@ -2,7 +2,6 @@ package keyring
 
 import (
 	"encoding/hex"
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -14,46 +13,31 @@ import (
 
 func Test_writeReadLedgerInfo(t *testing.T) {
 	tmpKey := make([]byte, secp256k1.PubKeySize)
-	hexPK := "035AD6810A47F073553FF30D2FCC7E0D3B1C0B74B61A1AAA2582344037151E143A"
-	bz, err := hex.DecodeString(hexPK)
-	require.NoError(t, err)
+	bz, _ := hex.DecodeString("035AD6810A47F073553FF30D2FCC7E0D3B1C0B74B61A1AAA2582344037151E143A")
 	copy(tmpKey[:], bz)
 
-	pk := &secp256k1.PubKey{Key: tmpKey}
-	path := hd.NewFundraiserParams(5, sdk.CoinType, 1)
-	k, err := NewLedgerRecord("some_name", pk, path)
-	require.NoError(t, err)
+	lInfo := newLedgerInfo("some_name", &secp256k1.PubKey{Key: tmpKey}, *hd.NewFundraiserParams(5, sdk.CoinType, 1), hd.Secp256k1Type)
+	require.Equal(t, TypeLedger, lInfo.GetType())
 
-	l := k.GetLedger()
-	require.NotNil(t, l)
-	path = l.Path
-	require.Equal(t, "m/44'/118'/5'/0/1", path.String())
-	pubKey, err := k.GetPubKey()
+	path, err := lInfo.GetPath()
 	require.NoError(t, err)
+	require.Equal(t, "m/44'/118'/5'/0/1", path.String())
 	require.Equal(t,
-		fmt.Sprintf("PubKeySecp256k1{%s}", hexPK),
-		pubKey.String())
+		"cosmospub1addwnpepqddddqg2glc8x4fl7vxjlnr7p5a3czm5kcdp4239sg6yqdc4rc2r5wmxv8p",
+		sdk.MustBech32ifyPubKey(sdk.Bech32PubKeyTypeAccPub, lInfo.GetPubKey()))
 
 	// Serialize and restore
-	cdc := getCodec()
-	serialized, err := cdc.Marshal(k)
+	serialized := marshalInfo(lInfo)
+	restoredInfo, err := unmarshalInfo(serialized)
 	require.NoError(t, err)
-	var restoredRecord Record
-	err = cdc.Unmarshal(serialized, &restoredRecord)
-	require.NoError(t, err)
-	require.NotNil(t, restoredRecord)
+	require.NotNil(t, restoredInfo)
 
 	// Check both keys match
-	require.Equal(t, k.Name, restoredRecord.Name)
-	require.Equal(t, k.GetType(), restoredRecord.GetType())
+	require.Equal(t, lInfo.GetName(), restoredInfo.GetName())
+	require.Equal(t, lInfo.GetType(), restoredInfo.GetType())
+	require.Equal(t, lInfo.GetPubKey(), restoredInfo.GetPubKey())
 
-	restoredPubKey, err := restoredRecord.GetPubKey()
-	require.NoError(t, err)
-	require.Equal(t, pubKey, restoredPubKey)
-
-	l = restoredRecord.GetLedger()
-	require.NotNil(t, l)
-	restoredPath := l.GetPath()
+	restoredPath, err := restoredInfo.GetPath()
 	require.NoError(t, err)
 	require.Equal(t, path, restoredPath)
 }

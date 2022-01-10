@@ -6,8 +6,7 @@
 - 2020 Feb 24: Updates to handle messages with interface fields
 - 2020 Apr 27: Convert usages of `oneof` for interfaces to `Any`
 - 2020 May 15: Describe `cosmos_proto` extensions and amino compatibility
-- 2020 Dec 4: Move and rename `MarshalAny` and `UnmarshalAny` into the `codec.Codec` interface.
-- 2021 Feb 24: Remove mentions of `HybridCodec`, which has been abandoned in [#6843](https://github.com/cosmos/cosmos-sdk/pull/6843).
+- 2020 Dec 4: Move and rename `MarshalAny` and `UnmarshalAny` into the `codec.Marshaler` interface.
 
 ## Status
 
@@ -60,26 +59,24 @@ We will adopt [Protocol Buffers](https://developers.google.com/protocol-buffers)
 persisted structured data in the Cosmos SDK while providing a clean mechanism and developer UX for
 applications wishing to continue to use Amino. We will provide this mechanism by updating modules to
 accept a codec interface, `Marshaler`, instead of a concrete Amino codec. Furthermore, the Cosmos SDK
-will provide two concrete implementations of the `Marshaler` interface: `AminoCodec` and `ProtoCodec`.
+will provide three concrete implementations of the `Marshaler` interface: `AminoCodec`, `ProtoCodec`,
+and `HybridCodec`.
 
 - `AminoCodec`: Uses Amino for both binary and JSON encoding.
-- `ProtoCodec`: Uses Protobuf for both binary and JSON encoding.
+- `ProtoCodec`: Uses Protobuf for or both binary and JSON encoding.
+- `HybridCodec`: Uses Amino for JSON encoding and Protobuf for binary encoding.
 
-Modules will use whichever codec that is instantiated in the app. By default, the Cosmos SDK's `simapp`
-instantiates a `ProtoCodec` as the concrete implementation of `Marshaler`, inside the `MakeTestEncodingConfig`
-function. This can be easily overwritten by app developers if they so desire.
-
-The ultimate goal will be to replace Amino JSON encoding with Protobuf encoding and thus have
-modules accept and/or extend `ProtoCodec`. Until then, Amino JSON is still provided for legacy use-cases.
-A handful of places in the Cosmos SDK still have Amino JSON hardcoded, such as the Legacy API REST endpoints
-and the `x/params` store. They are planned to be converted to Protobuf in a gradual manner.
+Until the client migration landscape is fully understood and designed, modules will use a `HybridCodec`
+as the concrete codec it accepts and/or extends. This means that all client JSON encoding, including
+genesis state, will still use Amino. The ultimate goal will be to replace Amino JSON encoding with
+Protbuf encoding and thus have modules accept and/or extend `ProtoCodec`.
 
 ### Module Codecs
 
 Modules that do not require the ability to work with and serialize interfaces, the path to Protobuf
 migration is pretty straightforward. These modules are to simply migrate any existing types that
 are encoded and persisted via their concrete Amino codec to Protobuf and have their keeper accept a
-`Marshaler` that will be a `ProtoCodec`. This migration is simple as things will just work as-is.
+`Marshaler` that will be a `HybridCodec`. This migration is simple as things will just work as-is.
 
 Note, any business logic that needs to encode primitive types like `bool` or `int64` should use
 [gogoprotobuf](https://github.com/gogo/protobuf) Value types.
@@ -92,7 +89,7 @@ Example:
     // ...
   }
 
-  bz := cdc.MustMarshal(ts)
+  bz := cdc.MustMarshalBinaryBare(ts)
 ```
 
 However, modules can vary greatly in purpose and design and so we must support the ability for modules
@@ -106,7 +103,7 @@ Example:
 // x/auth/types/codec.go
 
 type Codec interface {
-  codec.Codec
+  codec.Marshaler
 
   MarshalAccount(acc exported.Account) ([]byte, error)
   UnmarshalAccount(bz []byte) (exported.Account, error)
@@ -139,7 +136,7 @@ compression at the persistence layer in the future and the performance impact
 is likely to be small. Thus, not using `Any` is seem as a pre-mature optimization,
 with user experience as the higher order concern.
 
-Note, that given the Cosmos SDK's decision to adopt the `Codec` interfaces described
+Note, that given the SDK's decision to adopt the `Codec` interfaces described
 above, apps can still choose to use `oneof` to encode state and transactions
 but it is not the recommended approach. If apps do choose to use `oneof`s
 instead of `Any` they will likely lose compatibility with client apps that
@@ -182,7 +179,6 @@ In addition to serving as a whitelist, `InterfaceRegistry` can also serve
 to communicate the list of concrete types that satisfy an interface to clients.
 
 In .proto files:
-
 * fields which accept interfaces should be annotated with `cosmos_proto.accepts_interface`
 using the same full-qualified name passed as `protoName` to `InterfaceRegistry.RegisterInterface`
 * interface implementations should be annotated with `cosmos_proto.implements_interface`
@@ -211,7 +207,7 @@ Note that `InterfaceRegistry` usage does not deviate from standard protobuf
 usage of `Any`, it just introduces a security and introspection layer for
 golang usage.
 
-`InterfaceRegistry` will be a member of `ProtoCodec`
+`InterfaceRegistry` will be a member of `ProtoCodec` and `HybridCodec` as
 described above. In order for modules to register interface types, app modules
 can optionally implement the following interface:
 
@@ -226,17 +222,17 @@ every module that implements it in order to populate the `InterfaceRegistry`.
 
 ### Using `Any` to encode state
 
-The Cosmos SDK will provide support methods `MarshalInterface` and `UnmarshalInterface` to hide a complexity of wrapping interface types into `Any` and allow easy serialization.
+The SDK will provide support methods `MarshalInterface` and `UnmarshalInterface` to hide a complexity of wrapping interface types into `Any` and allow easy serialization.
 
 ```go
 import "github.com/cosmos/cosmos-sdk/codec"
 
 // note: eviexported.Evidence is an interface type
-func MarshalEvidence(cdc codec.BinaryCodec, e eviexported.Evidence) ([]byte, error) {
+func MarshalEvidence(cdc codec.BinaryMarshaler, e eviexported.Evidence) ([]byte, error) {
 	return cdc.MarshalInterface(e)
 }
 
-func UnmarshalEvidence(cdc codec.BinaryCodec, bz []byte) (eviexported.Evidence, error) {
+func UnmarshalEvidence(cdc codec.BinaryMarshaler, bz []byte) (eviexported.Evidence, error) {
 	var evi eviexported.Evidence
 	err := cdc.UnmarshalInterface(&evi, bz)
     return err, nil

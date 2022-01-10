@@ -11,17 +11,26 @@ be one active parameter set at any given time. If governance wants to change a
 parameter set, either to modify a value or add/remove a parameter field, a new
 parameter set has to be created and the previous one rendered inactive.
 
-### DepositParams
+```go
+type DepositParams struct {
+  MinDeposit        sdk.Coins  //  Minimum deposit for a proposal to enter voting period.
+  MaxDepositPeriod  time.Time  //  Maximum period for Atom holders to deposit on a proposal. Initial value: 2 months
+}
+```
 
-+++ https://github.com/cosmos/cosmos-sdk/blob/v0.40.0/proto/cosmos/gov/v1beta1/gov.proto#L127-L145
+```go
+type VotingParams struct {
+  VotingPeriod      time.Time  //  Length of the voting period. Initial value: 2 weeks
+}
+```
 
-### VotingParams
-
-+++ https://github.com/cosmos/cosmos-sdk/blob/v0.40.0/proto/cosmos/gov/v1beta1/gov.proto#L147-L156
-
-### TallyParams
-
-+++ https://github.com/cosmos/cosmos-sdk/blob/v0.40.0/proto/cosmos/gov/v1beta1/gov.proto#L158-L183
+```go
+type TallyParams struct {
+  Quorum            sdk.Dec  //  Minimum percentage of stake that needs to vote for a proposal to be considered valid
+  Threshold         sdk.Dec  //  Minimum proportion of Yes votes for proposal to pass. Initial value: 0.5
+  Veto              sdk.Dec  //  Minimum proportion of Veto votes to Total votes ratio for proposal to be vetoed. Initial value: 1/3
+}
+```
 
 Parameters are stored in a global `GlobalParams` KVStore.
 
@@ -59,7 +68,12 @@ const (
 
 ## Deposit
 
-+++ https://github.com/cosmos/cosmos-sdk/blob/v0.40.0/proto/cosmos/gov/v1beta1/gov.proto#L43-L53
+```go
+  type Deposit struct {
+    Amount      sdk.Coins       //  Amount of coins deposited by depositor
+    Depositor   crypto.address  //  Address of depositor
+  }
+```
 
 ## ValidatorGovInfo
 
@@ -78,7 +92,22 @@ This type is used in a temp map when tallying
 what this proposal is about, and other fields, which are the mutable state of
 the governance process.
 
-+++ https://github.com/cosmos/cosmos-sdk/blob/v0.40.0/proto/cosmos/gov/v1beta1/gov.proto#L55-L77
+```go
+type Proposal struct {
+	Content  // Proposal content interface
+
+	ProposalID       uint64
+	Status           ProposalStatus  // Status of the Proposal {Pending, Active, Passed, Rejected}
+	FinalTallyResult TallyResult     // Result of Tallies
+
+	SubmitTime     time.Time  // Time of the block where TxGovSubmitProposal was included
+	DepositEndTime time.Time  // Time that the Proposal would expire if deposit amount isn't met
+	TotalDeposit   sdk.Coins  // Current deposit on this proposal. Initial value is set at InitialDeposit
+
+	VotingStartTime time.Time  //  Time of the block where MinDeposit was reached. -1 if MinDeposit is not reached
+	VotingEndTime   time.Time  // Time that the VotingPeriod for this proposal will end and votes will be tallied
+}
+```
 
 ```go
 type Content interface {

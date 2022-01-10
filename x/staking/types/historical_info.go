@@ -8,17 +8,14 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
 // NewHistoricalInfo will create a historical information struct from header and valset
 // it will first sort valset before inclusion into historical info
-func NewHistoricalInfo(header tmproto.Header, valSet Validators, powerReduction sdk.Int) HistoricalInfo {
+func NewHistoricalInfo(header tmproto.Header, valSet Validators) HistoricalInfo {
 	// Must sort in the same way that tendermint does
-	sort.SliceStable(valSet, func(i, j int) bool {
-		return ValidatorsByVotingPower(valSet).Less(i, j, powerReduction)
-	})
+	sort.Sort(ValidatorsByVotingPower(valSet))
 
 	return HistoricalInfo{
 		Header: header,
@@ -27,7 +24,7 @@ func NewHistoricalInfo(header tmproto.Header, valSet Validators, powerReduction 
 }
 
 // MustUnmarshalHistoricalInfo wll unmarshal historical info and panic on error
-func MustUnmarshalHistoricalInfo(cdc codec.BinaryCodec, value []byte) HistoricalInfo {
+func MustUnmarshalHistoricalInfo(cdc codec.BinaryMarshaler, value []byte) HistoricalInfo {
 	hi, err := UnmarshalHistoricalInfo(cdc, value)
 	if err != nil {
 		panic(err)
@@ -37,8 +34,8 @@ func MustUnmarshalHistoricalInfo(cdc codec.BinaryCodec, value []byte) Historical
 }
 
 // UnmarshalHistoricalInfo will unmarshal historical info and return any error
-func UnmarshalHistoricalInfo(cdc codec.BinaryCodec, value []byte) (hi HistoricalInfo, err error) {
-	err = cdc.Unmarshal(value, &hi)
+func UnmarshalHistoricalInfo(cdc codec.BinaryMarshaler, value []byte) (hi HistoricalInfo, err error) {
+	err = cdc.UnmarshalBinaryBare(value, &hi)
 	return hi, err
 }
 

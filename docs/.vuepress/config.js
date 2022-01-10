@@ -5,14 +5,14 @@ module.exports = {
     "/": {
       lang: "en-US"
     },
-    ko: {
-      lang: "ko"
+    kr: {
+      lang: "kr"
+    },
+    cn: {
+      lang: "cn"
     },
     ru: {
       lang: "ru"
-    },
-    zh: {
-      lang: "zh-CN"
     }
   },
   base: process.env.VUEPRESS_BASE || "/",
@@ -47,8 +47,8 @@ module.exports = {
         "key": "v0.42"
       },
       {
-        "label": "v0.44",
-        "key": "v0.44"
+        "label": "v0.43",
+        "key": "v0.43"
       },
       {
         "label": "master",
@@ -113,7 +113,7 @@ module.exports = {
     },
     footer: {
       question: {
-        text: "Chat with Cosmos developers in <a href='https://discord.gg/cosmosnetwork' target='_blank'>Discord</a> or reach out on the <a href='https://forum.cosmos.network/c/tendermint' target='_blank'>SDK Developer Forum</a> to learn more."
+        text: "Chat with Cosmos developers in <a href='https://discord.gg/W8trcGV' target='_blank'>Discord</a> or reach out on the <a href='https://forum.cosmos.network/c/tendermint' target='_blank'>SDK Developer Forum</a> to learn more."
       },
       logo: "/logo-bw.svg",
       textLink: {
@@ -179,7 +179,7 @@ module.exports = {
             },
             {
               title: "Chat",
-              url: "https://discord.gg/cosmosnetwork"
+              url: "https://discord.gg/W8trcGV"
             }
           ]
         },
@@ -204,7 +204,7 @@ module.exports = {
     [
       "@vuepress/google-analytics",
       {
-        ga: "UA-51029217-2"
+        ga: "UA-51029217-12"
       }
     ],
     [

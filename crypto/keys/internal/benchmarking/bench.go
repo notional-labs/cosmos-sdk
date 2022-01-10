@@ -1,7 +1,6 @@
 package benchmarking
 
 import (
-	"crypto/rand"
 	"io"
 	"testing"
 
@@ -14,12 +13,21 @@ import (
 // Use of this source code is governed by a BSD-style
 // license that can be found at the bottom of this file.
 
+type zeroReader struct{}
+
+func (zeroReader) Read(buf []byte) (int, error) {
+	for i := range buf {
+		buf[i] = 0
+	}
+	return len(buf), nil
+}
+
 // BenchmarkKeyGeneration benchmarks the given key generation algorithm using
 // a dummy reader.
 func BenchmarkKeyGeneration(b *testing.B, generateKey func(reader io.Reader) types.PrivKey) {
-	b.ReportAllocs()
+	var zero zeroReader
 	for i := 0; i < b.N; i++ {
-		generateKey(rand.Reader)
+		generateKey(zero)
 	}
 }
 

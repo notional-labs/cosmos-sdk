@@ -57,14 +57,17 @@ func (k BaseKeeper) AllBalances(ctx context.Context, req *types.QueryAllBalances
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 
 	balances := sdk.NewCoins()
-	accountStore := k.getAccountStore(sdkCtx, addr)
+	store := sdkCtx.KVStore(k.storeKey)
+	balancesStore := prefix.NewStore(store, types.BalancesPrefix)
+	accountStore := prefix.NewStore(balancesStore, addr.Bytes())
 
-	pageRes, err := query.Paginate(accountStore, req.Pagination, func(key, value []byte) error {
-		var amount sdk.Int
-		if err := amount.Unmarshal(value); err != nil {
+	pageRes, err := query.Paginate(accountStore, req.Pagination, func(_, value []byte) error {
+		var result sdk.Coin
+		err := k.cdc.UnmarshalBinaryBare(value, &result)
+		if err != nil {
 			return err
 		}
-		balances = append(balances, sdk.NewCoin(string(key), amount))
+		balances = append(balances, result)
 		return nil
 	})
 
@@ -76,14 +79,11 @@ func (k BaseKeeper) AllBalances(ctx context.Context, req *types.QueryAllBalances
 }
 
 // TotalSupply implements the Query/TotalSupply gRPC method
-func (k BaseKeeper) TotalSupply(ctx context.Context, req *types.QueryTotalSupplyRequest) (*types.QueryTotalSupplyResponse, error) {
+func (k BaseKeeper) TotalSupply(ctx context.Context, _ *types.QueryTotalSupplyRequest) (*types.QueryTotalSupplyResponse, error) {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
-	totalSupply, pageRes, err := k.GetPaginatedTotalSupply(sdkCtx, req.Pagination)
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
+	totalSupply := k.GetSupply(sdkCtx).GetTotal()
 
-	return &types.QueryTotalSupplyResponse{Supply: totalSupply, Pagination: pageRes}, nil
+	return &types.QueryTotalSupplyResponse{Supply: totalSupply}, nil
 }
 
 // SupplyOf implements the Query/SupplyOf gRPC method
@@ -97,9 +97,9 @@ func (k BaseKeeper) SupplyOf(c context.Context, req *types.QuerySupplyOfRequest)
 	}
 
 	ctx := sdk.UnwrapSDKContext(c)
-	supply := k.GetSupply(ctx, req.Denom)
+	supply := k.GetSupply(ctx).GetTotal().AmountOf(req.Denom)
 
-	return &types.QuerySupplyOfResponse{Amount: sdk.NewCoin(req.Denom, supply.Amount)}, nil
+	return &types.QuerySupplyOfResponse{Amount: sdk.NewCoin(req.Denom, supply)}, nil
 }
 
 // Params implements the gRPC service handler for querying x/bank parameters.
@@ -126,7 +126,7 @@ func (k BaseKeeper) DenomsMetadata(c context.Context, req *types.QueryDenomsMeta
 	metadatas := []types.Metadata{}
 	pageRes, err := query.Paginate(store, req.Pagination, func(_, value []byte) error {
 		var metadata types.Metadata
-		k.cdc.MustUnmarshal(value, &metadata)
+		k.cdc.MustUnmarshalBinaryBare(value, &metadata)
 
 		metadatas = append(metadatas, metadata)
 		return nil
@@ -154,59 +154,12 @@ func (k BaseKeeper) DenomMetadata(c context.Context, req *types.QueryDenomMetada
 
 	ctx := sdk.UnwrapSDKContext(c)
 
-	metadata, found := k.GetDenomMetaData(ctx, req.Denom)
-	if !found {
+	metadata := k.GetDenomMetaData(ctx, req.Denom)
+	if metadata.Base == "" && metadata.Display == "" && metadata.Description == "" && len(metadata.DenomUnits) == 0 {
 		return nil, status.Errorf(codes.NotFound, "client metadata for denom %s", req.Denom)
 	}
 
 	return &types.QueryDenomMetadataResponse{
 		Metadata: metadata,
 	}, nil
-}
-
-func (k BaseKeeper) DenomOwners(
-	goCtx context.Context,
-	req *types.QueryDenomOwnersRequest,
-) (*types.QueryDenomOwnersResponse, error) {
-
-	if req == nil {
-		return nil, status.Errorf(codes.InvalidArgument, "empty request")
-	}
-
-	if req.Denom == "" {
-		return nil, status.Error(codes.InvalidArgument, "empty denom")
-	}
-
-	ctx := sdk.UnwrapSDKContext(goCtx)
-	denomPrefixStore := k.getDenomAddressPrefixStore(ctx, req.Denom)
-
-	var denomOwners []*types.DenomOwner
-	pageRes, err := query.FilteredPaginate(
-		denomPrefixStore,
-		req.Pagination,
-		func(key []byte, value []byte, accumulate bool) (bool, error) {
-			if accumulate {
-				address, _, err := types.AddressAndDenomFromBalancesStore(key)
-				if err != nil {
-					return false, err
-				}
-
-				denomOwners = append(
-					denomOwners,
-					&types.DenomOwner{
-						Address: address.String(),
-						Balance: k.GetBalance(ctx, address, req.Denom),
-					},
-				)
-			}
-
-			return true, nil
-		},
-	)
-
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-
-	return &types.QueryDenomOwnersResponse{DenomOwners: denomOwners, Pagination: pageRes}, nil
 }

@@ -12,8 +12,7 @@ import (
 type VestingAccount interface {
 	types.AccountI
 
-	// LockedCoins returns the set of coins that are not spendable (i.e. locked),
-	// defined as the vesting coins that are not delegated.
+	// LockedCoins returns the set of coins that are not spendable (i.e. locked).
 	//
 	// To get spendable coins of a vesting account, first the total balance must
 	// be retrieved and the locked tokens can be subtracted from the total balance.
@@ -32,6 +31,9 @@ type VestingAccount interface {
 
 	GetVestedCoins(blockTime time.Time) sdk.Coins
 	GetVestingCoins(blockTime time.Time) sdk.Coins
+
+	// Mutates vesting account in place
+	AddToOriginalVestedCoins(coins sdk.Coins)
 
 	GetStartTime() int64
 	GetEndTime() int64

@@ -3,7 +3,7 @@ package types
 import (
 	"fmt"
 
-	"sigs.k8s.io/yaml"
+	yaml "gopkg.in/yaml.v2"
 
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 )
@@ -67,16 +67,6 @@ func DefaultParams() Params {
 		SigVerifyCostED25519:   DefaultSigVerifyCostED25519,
 		SigVerifyCostSecp256k1: DefaultSigVerifyCostSecp256k1,
 	}
-}
-
-// SigVerifyCostSecp256r1 returns gas fee of secp256r1 signature verification.
-// Set by benchmarking current implementation:
-//     BenchmarkSig/secp256k1     4334   277167 ns/op   4128 B/op   79 allocs/op
-//     BenchmarkSig/secp256r1    10000   108769 ns/op   1672 B/op   33 allocs/op
-// Based on the results above secp256k1 is 2.7x is slwer. However we propose to discount it
-// because we are we don't compare the cgo implementation of secp256k1, which is faster.
-func (p Params) SigVerifyCostSecp256r1() uint64 {
-	return p.SigVerifyCostSecp256k1 / 2
 }
 
 // String implements the stringer interface.

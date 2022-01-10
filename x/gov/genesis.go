@@ -41,15 +41,13 @@ func InitGenesis(ctx sdk.Context, ak types.AccountKeeper, bk types.BankKeeper, k
 		k.SetProposal(ctx, proposal)
 	}
 
-	// if account has zero balance it probably means it's not set, so we set it
-	balance := bk.GetAllBalances(ctx, moduleAcc.GetAddress())
-	if balance.IsZero() {
-		ak.SetModuleAccount(ctx, moduleAcc)
-	}
+	// add coins if not provided on genesis
+	if bk.GetAllBalances(ctx, moduleAcc.GetAddress()).IsZero() {
+		if err := bk.SetBalances(ctx, moduleAcc.GetAddress(), totalDeposits); err != nil {
+			panic(err)
+		}
 
-	// check if total deposits equals balance, if it doesn't panic because there were export/import errors
-	if !balance.IsEqual(totalDeposits) {
-		panic(fmt.Sprintf("expected module account was %s but we got %s", balance.String(), totalDeposits.String()))
+		ak.SetModuleAccount(ctx, moduleAcc)
 	}
 }
 

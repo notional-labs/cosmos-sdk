@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"sigs.k8s.io/yaml"
+	yaml "gopkg.in/yaml.v2"
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -33,11 +33,18 @@ const (
 )
 
 var (
+	// DefaultMinCommissionRate is set to 0%
+	DefaultMinCommissionRate = sdk.ZeroDec()
+)
+
+var (
 	KeyUnbondingTime     = []byte("UnbondingTime")
 	KeyMaxValidators     = []byte("MaxValidators")
 	KeyMaxEntries        = []byte("MaxEntries")
 	KeyBondDenom         = []byte("BondDenom")
 	KeyHistoricalEntries = []byte("HistoricalEntries")
+	KeyPowerReduction    = []byte("PowerReduction")
+	KeyMinCommissionRate = []byte("MinCommissionRate")
 )
 
 var _ paramtypes.ParamSet = (*Params)(nil)
@@ -48,13 +55,14 @@ func ParamKeyTable() paramtypes.KeyTable {
 }
 
 // NewParams creates a new Params instance
-func NewParams(unbondingTime time.Duration, maxValidators, maxEntries, historicalEntries uint32, bondDenom string) Params {
+func NewParams(unbondingTime time.Duration, maxValidators, maxEntries, historicalEntries uint32, bondDenom string, minCommissionRate sdk.Dec) Params {
 	return Params{
 		UnbondingTime:     unbondingTime,
 		MaxValidators:     maxValidators,
 		MaxEntries:        maxEntries,
 		HistoricalEntries: historicalEntries,
 		BondDenom:         bondDenom,
+		MinCommissionRate: minCommissionRate,
 	}
 }
 
@@ -66,6 +74,7 @@ func (p *Params) ParamSetPairs() paramtypes.ParamSetPairs {
 		paramtypes.NewParamSetPair(KeyMaxEntries, &p.MaxEntries, validateMaxEntries),
 		paramtypes.NewParamSetPair(KeyHistoricalEntries, &p.HistoricalEntries, validateHistoricalEntries),
 		paramtypes.NewParamSetPair(KeyBondDenom, &p.BondDenom, validateBondDenom),
+		paramtypes.NewParamSetPair(KeyMinCommissionRate, &p.MinCommissionRate, validateMinCommissionRate),
 	}
 }
 
@@ -77,6 +86,7 @@ func DefaultParams() Params {
 		DefaultMaxEntries,
 		DefaultHistoricalEntries,
 		sdk.DefaultBondDenom,
+		DefaultMinCommissionRate,
 	)
 }
 
@@ -98,7 +108,7 @@ func MustUnmarshalParams(cdc *codec.LegacyAmino, value []byte) Params {
 
 // unmarshal the current staking params value from store key
 func UnmarshalParams(cdc *codec.LegacyAmino, value []byte) (params Params, err error) {
-	err = cdc.Unmarshal(value, &params)
+	err = cdc.UnmarshalBinaryBare(value, &params)
 	if err != nil {
 		return
 	}
@@ -121,6 +131,10 @@ func (p Params) Validate() error {
 	}
 
 	if err := validateBondDenom(p.BondDenom); err != nil {
+		return err
+	}
+
+	if err := validateMinCommissionRate(p.MinCommissionRate); err != nil {
 		return err
 	}
 
@@ -192,14 +206,18 @@ func validateBondDenom(i interface{}) error {
 	return nil
 }
 
-func ValidatePowerReduction(i interface{}) error {
-	v, ok := i.(sdk.Int)
+func validateMinCommissionRate(i interface{}) error {
+	v, ok := i.(sdk.Dec)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", i)
 	}
 
-	if v.LT(sdk.NewInt(1)) {
-		return fmt.Errorf("power reduction cannot be lower than 1")
+	if v.IsNegative() {
+		return fmt.Errorf("minimum commission rate cannot be negative: %s", v)
+	}
+
+	if v.GT(sdk.OneDec()) {
+		return fmt.Errorf("minimum commission rate cannot be greater than 100%%: %s", v)
 	}
 
 	return nil

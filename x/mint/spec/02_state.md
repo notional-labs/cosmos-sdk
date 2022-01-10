@@ -8,14 +8,28 @@ order: 2
 
 The minter is a space for holding current inflation information.
 
-- Minter: `0x00 -> ProtocolBuffer(minter)`
+ - Minter: `0x00 -> amino(minter)`
 
-+++ https://github.com/cosmos/cosmos-sdk/blob/v0.40.0-rc7/proto/cosmos/mint/v1beta1/mint.proto#L8-L19
+```go
+type Minter struct {
+	Inflation        sdk.Dec   // current annual inflation rate
+	AnnualProvisions sdk.Dec   // current annual exptected provisions
+}
+```
 
 ## Params
 
-Minting params are held in the global params store.
+Minting params are held in the global params store. 
 
-- Params: `mint/params -> legacy_amino(params)`
+ - Params: `mint/params -> amino(params)`
 
-+++ https://github.com/cosmos/cosmos-sdk/blob/v0.40.0-rc7/proto/cosmos/mint/v1beta1/mint.proto#L21-L53
+```go
+type Params struct {
+	MintDenom           string  // type of coin to mint
+	InflationRateChange sdk.Dec // maximum annual change in inflation rate
+	InflationMax        sdk.Dec // maximum inflation rate
+	InflationMin        sdk.Dec // minimum inflation rate
+	GoalBonded          sdk.Dec // goal of percent bonded atoms
+	BlocksPerYear       uint64   // expected blocks per year
+}
+```

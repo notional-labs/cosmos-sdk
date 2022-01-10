@@ -101,19 +101,15 @@ func (k Keeper) SetDelegation(ctx sdk.Context, delegation types.Delegation) {
 }
 
 // remove a delegation
-func (k Keeper) RemoveDelegation(ctx sdk.Context, delegation types.Delegation) error {
+func (k Keeper) RemoveDelegation(ctx sdk.Context, delegation types.Delegation) {
 	delegatorAddress, err := sdk.AccAddressFromBech32(delegation.DelegatorAddress)
 	if err != nil {
 		panic(err)
 	}
 	// TODO: Consider calling hooks outside of the store wrapper functions, it's unobvious.
-	if err := k.BeforeDelegationRemoved(ctx, delegatorAddress, delegation.GetValidatorAddr()); err != nil {
-		return err
-	}
-
+	k.BeforeDelegationRemoved(ctx, delegatorAddress, delegation.GetValidatorAddr())
 	store := ctx.KVStore(k.storeKey)
 	store.Delete(types.GetDelegationKey(delegatorAddress, delegation.GetValidatorAddr()))
-	return nil
 }
 
 // return a given amount of all the delegator unbonding-delegations
@@ -263,7 +259,7 @@ func (k Keeper) GetUBDQueueTimeSlice(ctx sdk.Context, timestamp time.Time) (dvPa
 	}
 
 	pairs := types.DVPairs{}
-	k.cdc.MustUnmarshal(bz, &pairs)
+	k.cdc.MustUnmarshalBinaryBare(bz, &pairs)
 
 	return pairs.Pairs
 }
@@ -271,7 +267,7 @@ func (k Keeper) GetUBDQueueTimeSlice(ctx sdk.Context, timestamp time.Time) (dvPa
 // Sets a specific unbonding queue timeslice.
 func (k Keeper) SetUBDQueueTimeSlice(ctx sdk.Context, timestamp time.Time, keys []types.DVPair) {
 	store := ctx.KVStore(k.storeKey)
-	bz := k.cdc.MustMarshal(&types.DVPairs{Pairs: keys})
+	bz := k.cdc.MustMarshalBinaryBare(&types.DVPairs{Pairs: keys})
 	store.Set(types.GetUnbondingDelegationTimeKey(timestamp), bz)
 }
 
@@ -308,7 +304,7 @@ func (k Keeper) DequeueAllMatureUBDQueue(ctx sdk.Context, currTime time.Time) (m
 	for ; unbondingTimesliceIterator.Valid(); unbondingTimesliceIterator.Next() {
 		timeslice := types.DVPairs{}
 		value := unbondingTimesliceIterator.Value()
-		k.cdc.MustUnmarshal(value, &timeslice)
+		k.cdc.MustUnmarshalBinaryBare(value, &timeslice)
 
 		matureUnbonds = append(matureUnbonds, timeslice.Pairs...)
 
@@ -489,7 +485,7 @@ func (k Keeper) GetRedelegationQueueTimeSlice(ctx sdk.Context, timestamp time.Ti
 	}
 
 	triplets := types.DVVTriplets{}
-	k.cdc.MustUnmarshal(bz, &triplets)
+	k.cdc.MustUnmarshalBinaryBare(bz, &triplets)
 
 	return triplets.Triplets
 }
@@ -497,7 +493,7 @@ func (k Keeper) GetRedelegationQueueTimeSlice(ctx sdk.Context, timestamp time.Ti
 // Sets a specific redelegation queue timeslice.
 func (k Keeper) SetRedelegationQueueTimeSlice(ctx sdk.Context, timestamp time.Time, keys []types.DVVTriplet) {
 	store := ctx.KVStore(k.storeKey)
-	bz := k.cdc.MustMarshal(&types.DVVTriplets{Triplets: keys})
+	bz := k.cdc.MustMarshalBinaryBare(&types.DVVTriplets{Triplets: keys})
 	store.Set(types.GetRedelegationTimeKey(timestamp), bz)
 }
 
@@ -536,7 +532,7 @@ func (k Keeper) DequeueAllMatureRedelegationQueue(ctx sdk.Context, currTime time
 	for ; redelegationTimesliceIterator.Valid(); redelegationTimesliceIterator.Next() {
 		timeslice := types.DVVTriplets{}
 		value := redelegationTimesliceIterator.Value()
-		k.cdc.MustUnmarshal(value, &timeslice)
+		k.cdc.MustUnmarshalBinaryBare(value, &timeslice)
 
 		matureRedelegations = append(matureRedelegations, timeslice.Triplets...)
 
@@ -567,13 +563,9 @@ func (k Keeper) Delegate(
 
 	// call the appropriate hook if present
 	if found {
-		err = k.BeforeDelegationSharesModified(ctx, delAddr, validator.GetOperator())
+		k.BeforeDelegationSharesModified(ctx, delAddr, validator.GetOperator())
 	} else {
-		err = k.BeforeDelegationCreated(ctx, delAddr, validator.GetOperator())
-	}
-
-	if err != nil {
-		return sdk.ZeroDec(), err
+		k.BeforeDelegationCreated(ctx, delAddr, validator.GetOperator())
 	}
 
 	delegatorAddress, err := sdk.AccAddressFromBech32(delegation.DelegatorAddress)
@@ -629,9 +621,7 @@ func (k Keeper) Delegate(
 	k.SetDelegation(ctx, delegation)
 
 	// Call the after-modification hook
-	if err := k.AfterDelegationModified(ctx, delegatorAddress, delegation.GetValidatorAddr()); err != nil {
-		return newShares, err
-	}
+	k.AfterDelegationModified(ctx, delegatorAddress, delegation.GetValidatorAddr())
 
 	return newShares, nil
 }
@@ -647,9 +637,7 @@ func (k Keeper) Unbond(
 	}
 
 	// call the before-delegation-modified hook
-	if err := k.BeforeDelegationSharesModified(ctx, delAddr, valAddr); err != nil {
-		return amount, err
-	}
+	k.BeforeDelegationSharesModified(ctx, delAddr, valAddr)
 
 	// ensure that we have enough shares to remove
 	if delegation.Shares.LT(shares) {
@@ -682,15 +670,11 @@ func (k Keeper) Unbond(
 
 	// remove the delegation
 	if delegation.Shares.IsZero() {
-		err = k.RemoveDelegation(ctx, delegation)
+		k.RemoveDelegation(ctx, delegation)
 	} else {
 		k.SetDelegation(ctx, delegation)
 		// call the after delegation modification hook
-		err = k.AfterDelegationModified(ctx, delegatorAddress, delegation.GetValidatorAddr())
-	}
-
-	if err != nil {
-		return amount, err
+		k.AfterDelegationModified(ctx, delegatorAddress, delegation.GetValidatorAddr())
 	}
 
 	// remove the shares and coins from the validator
@@ -939,7 +923,7 @@ func (k Keeper) ValidateUnbondAmount(
 
 	delShares := del.GetShares()
 	if sharesTruncated.GT(delShares) {
-		return shares, sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "invalid shares amount")
+		return shares, types.ErrBadSharesAmount
 	}
 
 	// Cap the shares at the delegation's shares. Shares being greater could occur

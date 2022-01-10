@@ -3,14 +3,14 @@ package cachekv
 import (
 	"bytes"
 	"io"
+	"reflect"
 	"sort"
 	"sync"
 	"time"
+	"unsafe"
 
 	dbm "github.com/tendermint/tm-db"
 
-	"github.com/cosmos/cosmos-sdk/internal/conv"
-	"github.com/cosmos/cosmos-sdk/store/listenkv"
 	"github.com/cosmos/cosmos-sdk/store/tracekv"
 	"github.com/cosmos/cosmos-sdk/store/types"
 	"github.com/cosmos/cosmos-sdk/telemetry"
@@ -59,7 +59,7 @@ func (store *Store) Get(key []byte) (value []byte) {
 
 	types.AssertValidKey(key)
 
-	cacheValue, ok := store.cache[conv.UnsafeBytesToStr(key)]
+	cacheValue, ok := store.cache[string(key)]
 	if !ok {
 		value = store.parent.Get(key)
 		store.setCacheValue(key, value, false, false)
@@ -147,11 +147,6 @@ func (store *Store) CacheWrapWithTrace(w io.Writer, tc types.TraceContext) types
 	return NewStore(tracekv.NewStore(store, w, tc))
 }
 
-// CacheWrapWithListeners implements the CacheWrapper interface.
-func (store *Store) CacheWrapWithListeners(storeKey types.StoreKey, listeners []types.WriteListener) types.CacheWrap {
-	return NewStore(listenkv.NewStore(store, storeKey, listeners))
-}
-
 //----------------------------------------
 // Iteration
 
@@ -183,6 +178,28 @@ func (store *Store) iterator(start, end []byte, ascending bool) types.Iterator {
 	return newCacheMergeIterator(parent, cache, ascending)
 }
 
+// strToByte is meant to make a zero allocation conversion
+// from string -> []byte to speed up operations, it is not meant
+// to be used generally, but for a specific pattern to check for available
+// keys within a domain.
+func strToByte(s string) []byte {
+	var b []byte
+	hdr := (*reflect.SliceHeader)(unsafe.Pointer(&b))
+	hdr.Cap = len(s)
+	hdr.Len = len(s)
+	hdr.Data = (*reflect.StringHeader)(unsafe.Pointer(&s)).Data
+	return b
+}
+
+// byteSliceToStr is meant to make a zero allocation conversion
+// from []byte -> string to speed up operations, it is not meant
+// to be used generally, but for a specific pattern to delete keys
+// from a map.
+func byteSliceToStr(b []byte) string {
+	hdr := (*reflect.StringHeader)(unsafe.Pointer(&b))
+	return *(*string)(unsafe.Pointer(hdr))
+}
+
 // Constructs a slice of dirty items, to use w/ memIterator.
 func (store *Store) dirtyItems(start, end []byte) {
 	n := len(store.unsortedCache)
@@ -193,17 +210,19 @@ func (store *Store) dirtyItems(start, end []byte) {
 	// O(N^2) overhead.
 	// Even without that, too many range checks eventually becomes more expensive
 	// than just not having the cache.
-	if n >= 1024 {
+	if n >= 256 {
 		for key := range store.unsortedCache {
 			cacheValue := store.cache[key]
-			unsorted = append(unsorted, &kv.Pair{Key: []byte(key), Value: cacheValue.value})
+			keyBz := strToByte(key)
+			unsorted = append(unsorted, &kv.Pair{Key: keyBz, Value: cacheValue.value})
 		}
 	} else {
 		// else do a linear scan to determine if the unsorted pairs are in the pool.
 		for key := range store.unsortedCache {
-			if dbm.IsKeyInDomain(conv.UnsafeStrToBytes(key), start, end) {
+			keyBz := strToByte(key)
+			if dbm.IsKeyInDomain(keyBz, start, end) {
 				cacheValue := store.cache[key]
-				unsorted = append(unsorted, &kv.Pair{Key: []byte(key), Value: cacheValue.value})
+				unsorted = append(unsorted, &kv.Pair{Key: keyBz, Value: cacheValue.value})
 			}
 		}
 	}
@@ -216,9 +235,10 @@ func (store *Store) clearUnsortedCacheSubset(unsorted []*kv.Pair) {
 		for key := range store.unsortedCache {
 			delete(store.unsortedCache, key)
 		}
+		store.unsortedCache = make(map[string]struct{}, 300)
 	} else { // Otherwise, normally delete the unsorted keys from the map.
 		for _, kv := range unsorted {
-			delete(store.unsortedCache, conv.UnsafeBytesToStr(kv.Key))
+			delete(store.unsortedCache, byteSliceToStr(kv.Key))
 		}
 	}
 	sort.Slice(unsorted, func(i, j int) bool {
@@ -244,7 +264,7 @@ func (store *Store) clearUnsortedCacheSubset(unsorted []*kv.Pair) {
 
 // Only entrypoint to mutate store.cache.
 func (store *Store) setCacheValue(key, value []byte, deleted bool, dirty bool) {
-	keyStr := conv.UnsafeBytesToStr(key)
+	keyStr := byteSliceToStr(key)
 	store.cache[keyStr] = &cValue{
 		value: value,
 		dirty: dirty,
