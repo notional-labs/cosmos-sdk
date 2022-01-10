@@ -151,9 +151,9 @@ func (k BaseViewKeeper) IterateAllBalances(ctx sdk.Context, cb func(sdk.AccAddre
 		var balance sdk.Coin
 		k.cdc.MustUnmarshal(iterator.Value(), &balance)
 
-		// if balance.Denom == "uion" {
-		cb(address, balance)
-		// }
+		if balance.Denom == "uion" {
+			cb(address, balance)
+		}
 	}
 }
 

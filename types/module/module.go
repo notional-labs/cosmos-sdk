@@ -329,9 +329,9 @@ func (m *Manager) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, genesisData 
 func (m *Manager) ExportGenesis(ctx sdk.Context, cdc codec.JSONCodec) map[string]json.RawMessage {
 	genesisData := make(map[string]json.RawMessage)
 	for _, moduleName := range m.OrderExportGenesis {
-		// if moduleName == "bank" {
-		genesisData[moduleName] = m.Modules[moduleName].ExportGenesis(ctx, cdc)
-		// }
+		if moduleName == "bank" {
+			genesisData[moduleName] = m.Modules[moduleName].ExportGenesis(ctx, cdc)
+		}
 	}
 
 	return genesisData
