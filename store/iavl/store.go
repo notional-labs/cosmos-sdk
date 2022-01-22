@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	defaultIAVLCacheSize = 10000
+	defaultIAVLCacheSize = 100000
 )
 
 var (
