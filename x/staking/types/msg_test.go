@@ -11,7 +11,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
 var (
@@ -22,7 +21,7 @@ var (
 func TestMsgDecode(t *testing.T) {
 	registry := codectypes.NewInterfaceRegistry()
 	cryptocodec.RegisterInterfaces(registry)
-	types.RegisterInterfaces(registry)
+	RegisterInterfaces(registry)
 	cdc := codec.NewProtoCodec(registry)
 
 	// firstly we start testing the pubkey serialization
@@ -36,8 +35,8 @@ func TestMsgDecode(t *testing.T) {
 
 	// now let's try to serialize the whole message
 
-	commission1 := types.NewCommissionRates(sdk.ZeroDec(), sdk.ZeroDec(), sdk.ZeroDec())
-	msg, err := types.NewMsgCreateValidator(valAddr1, pk1, coinPos, types.Description{}, commission1, sdk.OneInt())
+	commission1 := NewCommissionRates(sdk.ZeroDec(), sdk.ZeroDec(), sdk.ZeroDec())
+	msg, err := NewMsgCreateValidator(valAddr1, pk1, coinPos, Description{}, commission1, sdk.OneInt())
 	require.NoError(t, err)
 	msgSerialized, err := cdc.MarshalInterface(msg)
 	require.NoError(t, err)
@@ -45,7 +44,7 @@ func TestMsgDecode(t *testing.T) {
 	var msgUnmarshaled sdk.Msg
 	err = cdc.UnmarshalInterface(msgSerialized, &msgUnmarshaled)
 	require.NoError(t, err)
-	msg2, ok := msgUnmarshaled.(*types.MsgCreateValidator)
+	msg2, ok := msgUnmarshaled.(*MsgCreateValidator)
 	require.True(t, ok)
 	require.True(t, msg.Value.IsEqual(msg2.Value))
 	require.True(t, msg.Pubkey.Equal(msg2.Pubkey))
@@ -53,12 +52,12 @@ func TestMsgDecode(t *testing.T) {
 
 // test ValidateBasic for MsgCreateValidator
 func TestMsgCreateValidator(t *testing.T) {
-	commission1 := types.NewCommissionRates(sdk.ZeroDec(), sdk.ZeroDec(), sdk.ZeroDec())
-	commission2 := types.NewCommissionRates(sdk.NewDec(5), sdk.NewDec(5), sdk.NewDec(5))
+	commission1 := NewCommissionRates(sdk.ZeroDec(), sdk.ZeroDec(), sdk.ZeroDec())
+	commission2 := NewCommissionRates(sdk.NewDec(5), sdk.NewDec(5), sdk.NewDec(5))
 
 	tests := []struct {
 		name, moniker, identity, website, securityContact, details string
-		CommissionRates                                            types.CommissionRates
+		CommissionRates                                            CommissionRates
 		minSelfDelegation                                          sdk.Int
 		validatorAddr                                              sdk.ValAddress
 		pubkey                                                     cryptotypes.PubKey
@@ -78,8 +77,8 @@ func TestMsgCreateValidator(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		description := types.NewDescription(tc.moniker, tc.identity, tc.website, tc.securityContact, tc.details)
-		msg, err := types.NewMsgCreateValidator(tc.validatorAddr, tc.pubkey, tc.bond, description, tc.CommissionRates, tc.minSelfDelegation)
+		description := NewDescription(tc.moniker, tc.identity, tc.website, tc.securityContact, tc.details)
+		msg, err := NewMsgCreateValidator(tc.validatorAddr, tc.pubkey, tc.bond, description, tc.CommissionRates, tc.minSelfDelegation)
 		require.NoError(t, err)
 		if tc.expectPass {
 			require.Nil(t, msg.ValidateBasic(), "test: %v", tc.name)
@@ -105,10 +104,10 @@ func TestMsgEditValidator(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		description := types.NewDescription(tc.moniker, tc.identity, tc.website, tc.securityContact, tc.details)
+		description := NewDescription(tc.moniker, tc.identity, tc.website, tc.securityContact, tc.details)
 		newRate := sdk.ZeroDec()
 
-		msg := types.NewMsgEditValidator(tc.validatorAddr, description, &newRate, &tc.minSelfDelegation)
+		msg := NewMsgEditValidator(tc.validatorAddr, description, &newRate, &tc.minSelfDelegation)
 		if tc.expectPass {
 			require.Nil(t, msg.ValidateBasic(), "test: %v", tc.name)
 		} else {
@@ -135,7 +134,7 @@ func TestMsgDelegate(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		msg := types.NewMsgDelegate(tc.delegatorAddr, tc.validatorAddr, tc.bond)
+		msg := NewMsgDelegate(tc.delegatorAddr, tc.validatorAddr, tc.bond)
 		if tc.expectPass {
 			require.Nil(t, msg.ValidateBasic(), "test: %v", tc.name)
 		} else {
@@ -163,7 +162,7 @@ func TestMsgBeginRedelegate(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		msg := types.NewMsgBeginRedelegate(tc.delegatorAddr, tc.validatorSrcAddr, tc.validatorDstAddr, tc.amount)
+		msg := NewMsgBeginRedelegate(tc.delegatorAddr, tc.validatorSrcAddr, tc.validatorDstAddr, tc.amount)
 		if tc.expectPass {
 			require.Nil(t, msg.ValidateBasic(), "test: %v", tc.name)
 		} else {
@@ -189,7 +188,7 @@ func TestMsgUndelegate(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		msg := types.NewMsgUndelegate(tc.delegatorAddr, tc.validatorAddr, tc.amount)
+		msg := NewMsgUndelegate(tc.delegatorAddr, tc.validatorAddr, tc.amount)
 		if tc.expectPass {
 			require.Nil(t, msg.ValidateBasic(), "test: %v", tc.name)
 		} else {
