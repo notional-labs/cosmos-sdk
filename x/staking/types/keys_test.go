@@ -11,7 +11,6 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
 var (
@@ -34,7 +33,7 @@ func TestGetValidatorPowerRank(t *testing.T) {
 	val4.Tokens = sdk.TokensFromConsensusPower(x.Int64(), sdk.DefaultPowerReduction)
 
 	tests := []struct {
-		validator types.Validator
+		validator Validator
 		wantHex   string
 	}{
 		{val1, "230000000000000000149c288ede7df62742fc3b7d0962045a8cef0f79f6"},
@@ -43,7 +42,7 @@ func TestGetValidatorPowerRank(t *testing.T) {
 		{val4, "230000010000000000149c288ede7df62742fc3b7d0962045a8cef0f79f6"},
 	}
 	for i, tt := range tests {
-		got := hex.EncodeToString(types.GetValidatorsByPowerIndexKey(tt.validator, sdk.DefaultPowerReduction))
+		got := hex.EncodeToString(GetValidatorsByPowerIndexKey(tt.validator, sdk.DefaultPowerReduction))
 
 		require.Equal(t, tt.wantHex, got, "Keys did not match on test case %d", i)
 	}
@@ -64,7 +63,7 @@ func TestGetREDByValDstIndexKey(t *testing.T) {
 			"36143ab62f0d93849be495e21e3e9013a517038f45bd145ef3b5f25c54946d4a89fc0d09d2f126614540f21463d771218209d8bd03c482f69dfba57310f08609"},
 	}
 	for i, tt := range tests {
-		got := hex.EncodeToString(types.GetREDByValDstIndexKey(tt.delAddr, tt.valSrcAddr, tt.valDstAddr))
+		got := hex.EncodeToString(GetREDByValDstIndexKey(tt.delAddr, tt.valSrcAddr, tt.valDstAddr))
 
 		require.Equal(t, tt.wantHex, got, "Keys did not match on test case %d", i)
 	}
@@ -85,7 +84,7 @@ func TestGetREDByValSrcIndexKey(t *testing.T) {
 			"351463d771218209d8bd03c482f69dfba57310f08609145ef3b5f25c54946d4a89fc0d09d2f126614540f2143ab62f0d93849be495e21e3e9013a517038f45bd"},
 	}
 	for i, tt := range tests {
-		got := hex.EncodeToString(types.GetREDByValSrcIndexKey(tt.delAddr, tt.valSrcAddr, tt.valDstAddr))
+		got := hex.EncodeToString(GetREDByValSrcIndexKey(tt.delAddr, tt.valSrcAddr, tt.valDstAddr))
 
 		require.Equal(t, tt.wantHex, got, "Keys did not match on test case %d", i)
 	}
@@ -95,8 +94,8 @@ func TestGetValidatorQueueKey(t *testing.T) {
 	ts := time.Now()
 	height := int64(1024)
 
-	bz := types.GetValidatorQueueKey(ts, height)
-	rTs, rHeight, err := types.ParseValidatorQueueKey(bz)
+	bz := GetValidatorQueueKey(ts, height)
+	rTs, rHeight, err := ParseValidatorQueueKey(bz)
 	require.NoError(t, err)
 	require.Equal(t, ts.UTC(), rTs.UTC())
 	require.Equal(t, rHeight, height)
@@ -106,11 +105,11 @@ func TestTestGetValidatorQueueKeyOrder(t *testing.T) {
 	ts := time.Now().UTC()
 	height := int64(1000)
 
-	endKey := types.GetValidatorQueueKey(ts, height)
+	endKey := GetValidatorQueueKey(ts, height)
 
-	keyA := types.GetValidatorQueueKey(ts.Add(-10*time.Minute), height-10)
-	keyB := types.GetValidatorQueueKey(ts.Add(-5*time.Minute), height+50)
-	keyC := types.GetValidatorQueueKey(ts.Add(10*time.Minute), height+100)
+	keyA := GetValidatorQueueKey(ts.Add(-10*time.Minute), height-10)
+	keyB := GetValidatorQueueKey(ts.Add(-5*time.Minute), height+50)
+	keyC := GetValidatorQueueKey(ts.Add(10*time.Minute), height+100)
 
 	require.Equal(t, -1, bytes.Compare(keyA, endKey)) // keyA <= endKey
 	require.Equal(t, -1, bytes.Compare(keyB, endKey)) // keyB <= endKey
