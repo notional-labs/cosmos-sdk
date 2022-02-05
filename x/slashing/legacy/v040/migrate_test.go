@@ -8,7 +8,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	simapp "github.com/cosmos/cosmos-sdk/app"
+	simapp "github.com/cosmos/cosmos-sdk/simapp"
 	v039slashing "github.com/cosmos/cosmos-sdk/x/slashing/legacy/v039"
 	v040slashing "github.com/cosmos/cosmos-sdk/x/slashing/legacy/v040"
 )
