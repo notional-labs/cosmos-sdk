@@ -3,6 +3,7 @@ package iavl
 import (
 	crand "crypto/rand"
 	"fmt"
+	"github.com/tendermint/tendermint/libs/log"
 	"testing"
 
 	"github.com/cosmos/cosmos-sdk/store/cachekv"
@@ -93,17 +94,17 @@ func TestLoadStore(t *testing.T) {
 	require.Equal(t, string(hcStore.Get([]byte("hello"))), "ciao")
 
 	// Querying a new store at some previous non-pruned height H
-	newHStore, err := LoadStore(db, cIDH, false)
+	newHStore, err := LoadStore(db, log.NewNopLogger(), cIDH, false)
 	require.NoError(t, err)
 	require.Equal(t, string(newHStore.Get([]byte("hello"))), "hallo")
 
 	// Querying a new store at some previous pruned height Hp
-	newHpStore, err := LoadStore(db, cIDHp, false)
+	newHpStore, err := LoadStore(db, log.NewNopLogger(), cIDHp, false)
 	require.NoError(t, err)
 	require.Equal(t, string(newHpStore.Get([]byte("hello"))), "hola")
 
 	// Querying a new store at current height H
-	newHcStore, err := LoadStore(db, cIDHc, false)
+	newHcStore, err := LoadStore(db, log.NewNopLogger(), cIDHc, false)
 	require.NoError(t, err)
 	require.Equal(t, string(newHcStore.Get([]byte("hello"))), "ciao")
 }
