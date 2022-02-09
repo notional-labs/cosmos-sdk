@@ -63,13 +63,6 @@ func LoadStoreWithInitialVersion(db dbm.DB, logger log.Logger, id types.CommitID
 			"commit", fmt.Sprintf("%X", id),
 			"is_lazy", lazyLoading,
 		)
-		defer func() {
-			if err != nil {
-				logger.Info("failed upgrading while loading storage", "error", err.Error())
-			} else {
-				logger.Info("storage upgrade is now complete")
-			}
-		}()
 	}
 
 	if lazyLoading {
@@ -80,6 +73,10 @@ func LoadStoreWithInitialVersion(db dbm.DB, logger log.Logger, id types.CommitID
 
 	if err != nil {
 		return nil, err
+	}
+
+	if logger != nil {
+		logger.Debug("Finished loading IAVL tree")
 	}
 
 	return &Store{
