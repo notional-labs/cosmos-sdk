@@ -58,7 +58,7 @@ func LoadStoreWithInitialVersion(db dbm.DB, logger log.Logger, id types.CommitID
 
 	if tree.IsUpgradeable() && logger != nil {
 		logger.Info(
-			"module's storage upgrade is in progress while loading",
+			"Upgrading IAVL storage for faster queries + execution on live state. This may take awhile",
 			"version", initialVersion,
 			"commit", fmt.Sprintf("%X", id),
 			"is_lazy", lazyLoading,
