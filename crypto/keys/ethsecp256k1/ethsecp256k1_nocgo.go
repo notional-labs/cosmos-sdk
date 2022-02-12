@@ -4,7 +4,6 @@
 package ethsecp256k1
 
 import (
-	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"math/big"
 
 	ethsecp256k1 "github.com/btcsuite/btcd/btcec"
@@ -33,15 +32,6 @@ func (privKey *PrivKey) Sign(msg []byte) ([]byte, error) {
 // VerifyBytes verifies a signature of the form R || S.
 // It rejects signatures which are not in lower-S form.
 func (pubKey *PubKey) VerifySignature(msg []byte, sigStr []byte) bool {
-	if len(sigStr) == ethcrypto.SignatureLength {
-		// remove recovery ID (V) if contained in the signature
-		sigStr = sigStr[:len(sigStr)-1]
-		// the signature needs to be in [R || S] format when provided to VerifySignature
-		if ethcrypto.VerifySignature(pubKey.Key, ethcrypto.Keccak256Hash(msg).Bytes(), sigStr) == true {
-			return true
-		}
-	}
-
 	if len(sigStr) != 64 {
 		return false
 	}
@@ -56,7 +46,6 @@ func (pubKey *PubKey) VerifySignature(msg []byte, sigStr []byte) bool {
 	if signature.S.Cmp(ethsecp256k1halfN) > 0 {
 		return false
 	}
-
 	return signature.Verify(crypto.Sha256(msg), pub)
 }
 
