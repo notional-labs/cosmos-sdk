@@ -91,7 +91,7 @@ func updateValidators(
 
 		if update.Power == 0 {
 			if _, ok := current[str]; !ok {
-				tb.Fatalf("tried to delete a nonexistent validator: %s", str)
+				continue
 			}
 
 			event("end_block", "validator_updates", "kicked")
