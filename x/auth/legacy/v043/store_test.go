@@ -10,6 +10,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/simapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/vesting/exported"
@@ -106,13 +107,16 @@ func TestMigrateVestingAccounts(t *testing.T) {
 
 				app.AccountKeeper.SetAccount(ctx, delayedAccount)
 
+				// failed because spendable balances is 100
 				_, err := app.StakingKeeper.Delegate(ctx, delegatorAddr, sdk.NewInt(300), stakingtypes.Unbonded, validator, true)
+				require.ErrorIs(t, err, sdkerrors.ErrInsufficientFunds)
+				_, err = app.StakingKeeper.Delegate(ctx, delegatorAddr, sdk.NewInt(100), stakingtypes.Unbonded, validator, true)
 				require.NoError(t, err)
 			},
 			cleartTrackingFields,
 			300,
-			200,
 			100,
+			0,
 			0,
 		},
 		{
@@ -126,15 +130,16 @@ func TestMigrateVestingAccounts(t *testing.T) {
 
 				_, err := app.StakingKeeper.Delegate(ctx, delegatorAddr, sdk.NewInt(100), stakingtypes.Unbonded, validator, true)
 				require.NoError(t, err)
+				// failed because of no more spendable balances
 				_, err = app.StakingKeeper.Delegate(ctx, delegatorAddr, sdk.NewInt(100), stakingtypes.Unbonded, validator, true)
-				require.NoError(t, err)
+				require.ErrorIs(t, err, sdkerrors.ErrInsufficientFunds)
 				_, err = app.StakingKeeper.Delegate(ctx, delegatorAddr, sdk.NewInt(100), stakingtypes.Unbonded, validator, true)
-				require.NoError(t, err)
+				require.ErrorIs(t, err, sdkerrors.ErrInsufficientFunds)
 			},
 			cleartTrackingFields,
 			300,
-			200,
 			100,
+			0,
 			0,
 		},
 		{
@@ -146,16 +151,17 @@ func TestMigrateVestingAccounts(t *testing.T) {
 
 				app.AccountKeeper.SetAccount(ctx, delayedAccount)
 
+				// failed because of no spendable balances
 				_, err := app.StakingKeeper.Delegate(ctx, delegatorAddr, sdk.NewInt(100), stakingtypes.Unbonded, validator, true)
-				require.NoError(t, err)
+				require.ErrorIs(t, err, sdkerrors.ErrInsufficientFunds)
 				_, err = app.StakingKeeper.Delegate(ctx, delegatorAddr, sdk.NewInt(100), stakingtypes.Unbonded, validator, true)
-				require.NoError(t, err)
+				require.ErrorIs(t, err, sdkerrors.ErrInsufficientFunds)
 				_, err = app.StakingKeeper.Delegate(ctx, delegatorAddr, sdk.NewInt(100), stakingtypes.Unbonded, validator, true)
-				require.NoError(t, err)
+				require.ErrorIs(t, err, sdkerrors.ErrInsufficientFunds)
 			},
 			cleartTrackingFields,
 			300,
-			300,
+			0,
 			0,
 			0,
 		},
@@ -168,12 +174,13 @@ func TestMigrateVestingAccounts(t *testing.T) {
 
 				app.AccountKeeper.SetAccount(ctx, delayedAccount)
 
+				// failed because of no spendable balances
 				_, err := app.StakingKeeper.Delegate(ctx, delegatorAddr, sdk.NewInt(300), stakingtypes.Unbonded, validator, true)
-				require.NoError(t, err)
+				require.ErrorIs(t, err, sdkerrors.ErrInsufficientFunds)
 			},
 			cleartTrackingFields,
 			300,
-			300,
+			0,
 			0,
 			0,
 		},
@@ -211,11 +218,11 @@ func TestMigrateVestingAccounts(t *testing.T) {
 				app.AccountKeeper.SetAccount(ctx, delayedAccount)
 
 				_, err := app.StakingKeeper.Delegate(ctx, delegatorAddr, sdk.NewInt(300), stakingtypes.Unbonded, validator, true)
-				require.NoError(t, err)
+				require.ErrorIs(t, err, sdkerrors.ErrInsufficientFunds)
 			},
 			cleartTrackingFields,
 			300,
-			300,
+			0,
 			0,
 			0,
 		},
@@ -232,13 +239,16 @@ func TestMigrateVestingAccounts(t *testing.T) {
 
 				app.AccountKeeper.SetAccount(ctx, delayedAccount)
 
+				// failed because spendable balances is 100
 				_, err := app.StakingKeeper.Delegate(ctx, delegatorAddr, sdk.NewInt(300), stakingtypes.Unbonded, validator, true)
+				require.ErrorIs(t, err, sdkerrors.ErrInsufficientFunds)
+				_, err = app.StakingKeeper.Delegate(ctx, delegatorAddr, sdk.NewInt(100), stakingtypes.Unbonded, validator, true)
 				require.NoError(t, err)
 			},
 			cleartTrackingFields,
 			300,
-			200,
 			100,
+			0,
 			0,
 		},
 		{
@@ -299,9 +309,8 @@ func TestMigrateVestingAccounts(t *testing.T) {
 					 - periodic vesting account starts at time 1601042400
 					 - account balance and original vesting: 3666666670000
 					 - nothing has vested, we put the block time slightly after start time
-					 - expected vested: original vesting amount
+					 - expected vested: zero
 					 - expected free: zero
-					 - we're delegating the full original vesting
 				*/
 				startTime := int64(1601042400)
 				baseAccount := authtypes.NewBaseAccountWithAddress(delegatorAddr)
@@ -325,13 +334,13 @@ func TestMigrateVestingAccounts(t *testing.T) {
 
 				app.AccountKeeper.SetAccount(ctx, delayedAccount)
 
-				// delegation of the original vesting
+				// delegation of the original vesting, failed because of no spendable balances
 				_, err := app.StakingKeeper.Delegate(ctx, delegatorAddr, sdk.NewInt(3666666670000), stakingtypes.Unbonded, validator, true)
-				require.NoError(t, err)
+				require.ErrorIs(t, err, sdkerrors.ErrInsufficientFunds)
 			},
 			cleartTrackingFields,
 			3666666670000,
-			3666666670000,
+			0,
 			0,
 			1601042400 + 1,
 		},
@@ -389,9 +398,9 @@ func TestMigrateVestingAccounts(t *testing.T) {
 					 - periodic vesting account starts at time 1601042400
 					 - account balance and original vesting: 3666666670000
 					 - first period have vested, so we set the block time at initial time + time of the first periods + 1 => 1601042400 + 31536000 + 1
-					 - expected vested: original vesting - first period amount
-					 - expected free: first period amount
-					 - we're delegating the full original vesting
+					 - expected vested: first period amount
+					 - expected free: zero
+					 - we're delegating the vested amount
 				*/
 				startTime := int64(1601042400)
 				baseAccount := authtypes.NewBaseAccountWithAddress(delegatorAddr)
@@ -417,14 +426,17 @@ func TestMigrateVestingAccounts(t *testing.T) {
 
 				app.AccountKeeper.SetAccount(ctx, delayedAccount)
 
-				// delegation of the original vesting
+				// delegation of the original vesting, failed because of no spendable balances
 				_, err := app.StakingKeeper.Delegate(ctx, delegatorAddr, sdk.NewInt(3666666670000), stakingtypes.Unbonded, validator, true)
+				require.ErrorIs(t, err, sdkerrors.ErrInsufficientFunds)
+				// delegation of vested spendable amount
+				_, err = app.StakingKeeper.Delegate(ctx, delegatorAddr, sdk.NewInt(1833333335000), stakingtypes.Unbonded, validator, true)
 				require.NoError(t, err)
 			},
 			cleartTrackingFields,
 			3666666670000,
-			3666666670000 - 1833333335000,
 			1833333335000,
+			0,
 			1601042400 + 31536000 + 1,
 		},
 		{
@@ -435,9 +447,9 @@ func TestMigrateVestingAccounts(t *testing.T) {
 					 - periodic vesting account starts at time 1601042400
 					 - account balance and original vesting: 3666666670000
 					 - first 2 periods have vested, so we set the block time at initial time + time of the two periods + 1 => 1601042400 + 31536000 + 15638400 + 1
-					 - expected vested: original vesting - (sum of the first two periods amounts)
-					 - expected free: sum of the first two periods
-					 - we're delegating the full original vesting
+					 - expected vested: amount of the second periods
+					 - expected free: amount of the second periods
+					 - we're delegating the first period have vested
 				*/
 				startTime := int64(1601042400)
 				baseAccount := authtypes.NewBaseAccountWithAddress(delegatorAddr)
@@ -463,14 +475,17 @@ func TestMigrateVestingAccounts(t *testing.T) {
 
 				app.AccountKeeper.SetAccount(ctx, delayedAccount)
 
-				// delegation of the original vesting
+				// delegation of the original vesting, failed because of no spendable balances
 				_, err := app.StakingKeeper.Delegate(ctx, delegatorAddr, sdk.NewInt(3666666670000), stakingtypes.Unbonded, validator, true)
+				require.ErrorIs(t, err, sdkerrors.ErrInsufficientFunds)
+				// delegation of the first period have vested
+				_, err = app.StakingKeeper.Delegate(ctx, delegatorAddr, sdk.NewInt(1833333335000), stakingtypes.Unbonded, validator, true)
 				require.NoError(t, err)
 			},
 			cleartTrackingFields,
 			3666666670000,
-			3666666670000 - 1833333335000 - 916666667500,
-			1833333335000 + 916666667500,
+			916666667500,
+			916666667500,
 			1601042400 + 31536000 + 15638400 + 1,
 		},
 		{
@@ -483,22 +498,15 @@ func TestMigrateVestingAccounts(t *testing.T) {
 
 				app.AccountKeeper.SetAccount(ctx, delayedAccount)
 
-				// delegation of the original vesting
+				// delegation of the original vesting, failed because of no spendable balances
 				_, err := app.StakingKeeper.Delegate(ctx, delegatorAddr, sdk.NewInt(300), stakingtypes.Unbonded, validator, true)
-				require.NoError(t, err)
+				require.ErrorIs(t, err, sdkerrors.ErrInsufficientFunds)
 
 				ctx = ctx.WithBlockTime(ctx.BlockTime().AddDate(1, 0, 0))
-
-				valAddr, err := sdk.ValAddressFromBech32(validator.OperatorAddress)
-				require.NoError(t, err)
-
-				// un-delegation of the original vesting
-				_, err = app.StakingKeeper.Undelegate(ctx, delegatorAddr, valAddr, sdk.NewDecFromInt(sdk.NewInt(300)))
-				require.NoError(t, err)
 			},
 			cleartTrackingFields,
 			450,
-			300,
+			0,
 			0,
 			0,
 		},
