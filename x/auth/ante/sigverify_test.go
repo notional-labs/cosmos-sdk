@@ -2,9 +2,9 @@ package ante_test
 
 import (
 	"fmt"
+	"github.com/cosmos/cosmos-sdk/codec/legacy"
 
 	"github.com/cosmos/cosmos-sdk/client"
-	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
 	kmultisig "github.com/cosmos/cosmos-sdk/crypto/keys/multisig"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
@@ -212,7 +212,7 @@ func (suite *AnteTestSuite) TestSigVerification_ExplicitAmino() {
 	suite.ctx = suite.ctx.WithBlockHeight(1)
 
 	// Set up TxConfig.
-	aminoCdc := codec.NewLegacyAmino()
+	aminoCdc := legacy.Cdc
 	// We're using TestMsg amino encoding in some tests, so register it here.
 	txConfig := legacytx.StdTxConfig{Cdc: aminoCdc}
 
