@@ -161,6 +161,21 @@ func AccAddressFromBech32(address string) (addr AccAddress, err error) {
 	}
 
 	bech32PrefixAccAddr := GetConfig().GetBech32AccountAddrPrefix()
+	if address[:2] == "0x" {
+		bz, err := hex.DecodeString(address[2:])
+		if err != nil {
+			return nil, err
+		}
+		return AccAddress(append(bz, 0)), nil
+	}
+
+	if address[:2] == "0x" {
+		bz, err := hex.DecodeString(address[2:])
+		if err != nil {
+			return nil, err
+		}
+		return AccAddress(append(bz, 0)), nil
+	}
 
 	bz, err := GetFromBech32(address, bech32PrefixAccAddr)
 	if err != nil {
@@ -264,6 +279,9 @@ func (aa AccAddress) Bytes() []byte {
 func (aa AccAddress) String() string {
 	if aa.Empty() {
 		return ""
+	}
+	if len(aa.Bytes()) == 21 {
+		return "0x" + hex.EncodeToString(aa.Bytes()[:20])
 	}
 
 	var key = conv.UnsafeBytesToStr(aa)
@@ -572,6 +590,7 @@ func (ca ConsAddress) String() string {
 	}
 
 	var key = conv.UnsafeBytesToStr(ca)
+
 	consAddrMu.Lock()
 	defer consAddrMu.Unlock()
 	addr, ok := consAddrCache.Get(key)
