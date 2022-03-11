@@ -42,3 +42,8 @@ func (h MultiGovHooks) AfterProposalVotingPeriodEnded(ctx sdk.Context, proposalI
 		h[i].AfterProposalVotingPeriodEnded(ctx, proposalID)
 	}
 }
+func (h MultiGovHooks) SetAdditionalVotingPowers(ctx sdk.Context, votes Votes, votingPowers *AdditionalVotingPowers) {
+	for i := range h {
+		h[i].SetAdditionalVotingPowers(ctx, votes, votingPowers)
+	}
+}

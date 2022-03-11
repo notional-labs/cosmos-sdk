@@ -33,14 +33,38 @@ func (keeper Keeper) Tally(ctx sdk.Context, proposal types.Proposal) (passes boo
 		return false
 	})
 
-	keeper.IterateVotes(ctx, proposal.ProposalId, func(vote types.Vote) bool {
+	additionalVotingPower := types.AdditionalVotingPowers{}
+	votes := keeper.GetVotes(ctx, proposal.ProposalId)
+	keeper.hooks.SetAdditionalVotingPowers(ctx, votes, &additionalVotingPower)
+	for _, vote := range votes {
 		// if validator, just record it in the map
-		voter := sdk.MustAccAddressFromBech32(vote.Voter)
+		voter, err := sdk.AccAddressFromBech32(vote.Voter)
+		if err != nil {
+			panic(err)
+		}
 
 		valAddrStr := sdk.ValAddress(voter.Bytes()).String()
 		if val, ok := currValidators[valAddrStr]; ok {
 			val.Vote = vote.Options
 			currValidators[valAddrStr] = val
+		}
+
+		if aVote, ok := additionalVotingPower[vote.Voter]; ok {
+			for valAddrStr, votingPower := range aVote {
+				if val, ok := currValidators[valAddrStr]; ok && val.BondedTokens.IsPositive() {
+
+					// total shares * voting power tokens / bonded
+					delShares := val.DelegatorShares.MulInt(votingPower.TruncateInt()).QuoInt(val.BondedTokens)
+					val.DelegatorDeductions = val.DelegatorDeductions.Add(delShares)
+					currValidators[valAddrStr] = val
+
+					for _, option := range vote.Options {
+						subPower := votingPower.Mul(option.Weight)
+						results[option.Option] = results[option.Option].Add(subPower)
+					}
+					totalVotingPower = totalVotingPower.Add(votingPower)
+				}
+			}
 		}
 
 		// iterate over all delegations from voter, deduct from any delegated-to validators
@@ -67,8 +91,7 @@ func (keeper Keeper) Tally(ctx sdk.Context, proposal types.Proposal) (passes boo
 		})
 
 		keeper.deleteVote(ctx, vote.ProposalId, voter)
-		return false
-	})
+	}
 
 	// iterate over the validators again to tally their voting power
 	for _, val := range currValidators {
