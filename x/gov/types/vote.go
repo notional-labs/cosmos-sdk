@@ -24,6 +24,9 @@ func (v Vote) String() string {
 // Votes is a collection of Vote objects
 type Votes []Vote
 
+// AdditionalVotingPowers is additional votingPower map by validators by voters
+type AdditionalVotingPowers map[string]map[string]sdk.Dec
+
 // Equal returns true if two slices (order-dependant) of votes are equal.
 func (v Votes) Equal(other Votes) bool {
 	if len(v) != len(other) {
