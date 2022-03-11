@@ -159,8 +159,14 @@ And the pseudocode for the `ProposalProcessingQueue`:
         tmpValMap(validator.OperatorAddr).Minus = 0
 
       // Tally
-      voterIterator = rangeQuery(Governance, <proposalID|'addresses'>) //return all the addresses that voted on the proposal
-      for each (voterAddress, vote) in voterIterator
+      voters = rangeQuery(Governance, <proposalID|'addresses'>) //return all the addresses that voted on the proposal
+      // set additional voting powers by hooking other modules
+      additionalVotingPowersMap = SetAdditionalVotingPowers(voters)
+      for each (voterAddress, vote) in voters
+        for each (validator, votingPower) in additionalVotingPowersMap[voterAddress]
+          tmpValMap(validator).Minus += votingPower.Shares
+          proposal.updateTally(vote, votingPower.Shares)
+        
         delegations = stakingKeeper.getDelegations(voterAddress) // get all delegations for current voter
 
         for each delegation in delegations

@@ -42,3 +42,10 @@ func (keeper Keeper) AfterProposalVotingPeriodEnded(ctx sdk.Context, proposalID 
 		keeper.hooks.AfterProposalVotingPeriodEnded(ctx, proposalID)
 	}
 }
+
+// SetAdditionalVotingPowers - call hook if registered
+func (keeper Keeper) SetAdditionalVotingPowers(ctx sdk.Context, votes types.Votes, votingPowers *types.AdditionalVotingPowers) {
+	if keeper.hooks != nil {
+		keeper.hooks.SetAdditionalVotingPowers(ctx, votes, votingPowers)
+	}
+}
