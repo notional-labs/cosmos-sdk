@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v2"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -24,6 +24,10 @@ func (v Vote) String() string {
 
 // Votes is a collection of Vote objects
 type Votes []Vote
+
+// AdditionalVotingPowers is additional votingPower map by validators by voters
+// voter addr => (validator addr => additional voting power)
+type AdditionalVotingPowers map[string]map[string]sdk.Dec
 
 // Equal returns true if two slices (order-dependant) of votes are equal.
 func (v Votes) Equal(other Votes) bool {

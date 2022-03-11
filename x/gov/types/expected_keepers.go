@@ -60,4 +60,6 @@ type GovHooks interface {
 	AfterProposalVote(ctx sdk.Context, proposalID uint64, voterAddr sdk.AccAddress)        // Must be called after a vote on a proposal is cast
 	AfterProposalFailedMinDeposit(ctx sdk.Context, proposalID uint64)                      // Must be called when proposal fails to reach min deposit
 	AfterProposalVotingPeriodEnded(ctx sdk.Context, proposalID uint64)                     // Must be called when proposal's finishes it's voting period
+	// SetAdditionalVotingPowers is a hook for calculating and setting additional voting power for votes in modules other than gov.
+	SetAdditionalVotingPowers(ctx sdk.Context, votes Votes, votingPowers *AdditionalVotingPowers) // Must be called after get votes on tally
 }
