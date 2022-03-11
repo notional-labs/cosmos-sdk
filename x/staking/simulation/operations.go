@@ -106,7 +106,7 @@ func SimulateMsgCreateValidator(ak types.AccountKeeper, bk types.BankKeeper, k k
 
 		denom := k.GetParams(ctx).BondDenom
 
-		balance := bk.GetBalance(ctx, simAccount.Address, denom).Amount
+		balance := bk.SpendableCoins(ctx, simAccount.Address).AmountOf(denom)
 		if !balance.IsPositive() {
 			return simtypes.NoOpMsg(types.ModuleName, types.TypeMsgCreateValidator, "balance is negative"), nil, nil
 		}
@@ -248,7 +248,7 @@ func SimulateMsgDelegate(ak types.AccountKeeper, bk types.BankKeeper, k keeper.K
 			return simtypes.NoOpMsg(types.ModuleName, types.TypeMsgDelegate, "validator's invalid echange rate"), nil, nil
 		}
 
-		amount := bk.GetBalance(ctx, simAccount.Address, denom).Amount
+		amount := bk.SpendableCoins(ctx, simAccount.Address).AmountOf(denom)
 		if !amount.IsPositive() {
 			return simtypes.NoOpMsg(types.ModuleName, types.TypeMsgDelegate, "balance is negative"), nil, nil
 		}
@@ -345,7 +345,7 @@ func SimulateMsgUndelegate(ak types.AccountKeeper, bk types.BankKeeper, k keeper
 		}
 		// if simaccount.PrivKey == nil, delegation address does not exist in accs. Return error
 		if simAccount.PrivKey == nil {
-			return simtypes.NoOpMsg(types.ModuleName, msg.Type(), "account private key is nil"), nil, fmt.Errorf("delegation addr: %s does not exist in simulation accounts", delAddr)
+			return simtypes.NoOpMsg(types.ModuleName, msg.Type(), "account private key is nil"), nil, nil
 		}
 
 		account := ak.GetAccount(ctx, delAddr)
@@ -442,7 +442,7 @@ func SimulateMsgBeginRedelegate(ak types.AccountKeeper, bk types.BankKeeper, k k
 
 		// if simaccount.PrivKey == nil, delegation address does not exist in accs. Return error
 		if simAccount.PrivKey == nil {
-			return simtypes.NoOpMsg(types.ModuleName, types.TypeMsgBeginRedelegate, "account private key is nil"), nil, fmt.Errorf("delegation addr: %s does not exist in simulation accounts", delAddr)
+			return simtypes.NoOpMsg(types.ModuleName, types.TypeMsgBeginRedelegate, "account private key is nil"), nil, nil
 		}
 
 		account := ak.GetAccount(ctx, delAddr)

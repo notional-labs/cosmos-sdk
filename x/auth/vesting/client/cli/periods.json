@@ -1,0 +1,22 @@
+{
+    "start_time": 1645403872,
+    "period":
+    [
+        {
+            "coins": "1000000stake",
+            "length_seconds": 60000
+        },
+        {
+            "coins": "1000000stake",
+            "length_seconds": 60000
+        },
+        {
+            "coins": "1000000stake",
+            "length_seconds": 60000
+        },
+        {
+            "coins": "1000000stake",
+            "length_seconds": 60000
+        }
+    ]
+}
