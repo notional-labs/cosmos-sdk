@@ -1,6 +1,8 @@
 package types
 
 import (
+	"bytes"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/address"
 )
@@ -26,6 +28,7 @@ var (
 	BalancesPrefix      = []byte{0x02}
 	SupplyKey           = []byte{0x00}
 	DenomMetadataPrefix = []byte{0x1}
+	BlockedAddrsPrefix  = []byte{0x99}
 )
 
 // DenomMetadataKey returns the denomination metadata key.
@@ -54,4 +57,19 @@ func AddressFromBalancesStore(key []byte) (sdk.AccAddress, error) {
 // CreateAccountBalancesPrefix creates the prefix for an account's balances.
 func CreateAccountBalancesPrefix(addr []byte) []byte {
 	return append(BalancesPrefix, address.MustLengthPrefix(addr)...)
+}
+
+// BlockedAddrKey the key for an account's blocking flag.
+func BlockedAddrKey(addr []byte) []byte {
+	return append(BlockedAddrsPrefix, address.MustLengthPrefix(addr)...)
+}
+
+// ParseBlockedAddrKey parses a blocked address index key.
+func ParseBlockedAddrKey(key []byte) (blockedAddr sdk.AccAddress) {
+	if !bytes.HasPrefix(key, BlockedAddrsPrefix) {
+		panic("key does not have proper prefix")
+	}
+	addrLen := key[1]
+	blockedAddr = key[2 : 2+addrLen]
+	return
 }
