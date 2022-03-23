@@ -33,6 +33,8 @@ type Factory struct {
 	gasPrices          sdk.DecCoins
 	signMode           signing.SignMode
 	simulateAndExecute bool
+	feePayer           sdk.AccAddress
+	feeGranter         sdk.AccAddress
 }
 
 // NewFactoryCLI creates a new Factory.
@@ -63,6 +65,8 @@ func NewFactoryCLI(clientCtx client.Context, flagSet *pflag.FlagSet) Factory {
 		accountRetriever:   clientCtx.AccountRetriever,
 		keybase:            clientCtx.Keyring,
 		chainID:            clientCtx.ChainID,
+		feePayer:           clientCtx.FeePayer,
+		feeGranter:         clientCtx.FeeGranter,
 		gas:                gasSetting.Gas,
 		simulateAndExecute: gasSetting.Simulate,
 		accountNumber:      accNum,
@@ -234,6 +238,8 @@ func (f Factory) BuildUnsignedTx(msgs ...sdk.Msg) (client.TxBuilder, error) {
 	tx.SetFeeAmount(fees)
 	tx.SetGasLimit(f.gas)
 	tx.SetTimeoutHeight(f.TimeoutHeight())
+	tx.SetFeePayer(f.feePayer)
+	tx.SetFeeGranter(f.feeGranter)
 
 	return tx, nil
 }
