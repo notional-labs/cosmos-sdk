@@ -7440,6 +7440,11 @@ MsgEditValidatorResponse defines the Msg/EditValidator response type.
 
 
 
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| `amount` | [cosmos.base.v1beta1.Coin](#cosmos.base.v1beta1.Coin) |  |  |
+
+
 
 
 

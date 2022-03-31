@@ -579,7 +579,7 @@ func (k msgServer) RedeemTokens(goCtx context.Context, msg *types.MsgRedeemToken
 		return nil, err
 	}
 
-	return &types.MsgRedeemTokensforSharesResponse{}, nil
+	return &types.MsgRedeemTokensforSharesResponse{Amount: returnCoin}, nil
 }
 
 func (k msgServer) TransferTokenizeShareRecord(goCtx context.Context, msg *types.MsgTransferTokenizeShareRecord) (*types.MsgTransferTokenizeShareRecordResponse, error) {
