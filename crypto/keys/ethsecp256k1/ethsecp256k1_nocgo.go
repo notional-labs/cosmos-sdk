@@ -4,8 +4,9 @@
 package ethsecp256k1
 
 import (
-	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"math/big"
+
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 
 	ethsecp256k1 "github.com/btcsuite/btcd/btcec"
 
