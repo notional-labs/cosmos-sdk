@@ -57,7 +57,7 @@ For more information, see the [Cosmos SDK Documentation](./docs/).
 
 ## Contributing
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for details how to contribute and participate in our [dev calls](./CONTRIBUTE.md#dev-calls).
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for details how to contribute and participate in our [dev calls](./CONTRIBUTING.md#teams-dev-calls).
 If you want to follow the updates or learn more about the latest design then join our [Discord](https://discord.com/invite/cosmosnetwork).
 
 ## Tools and Frameworks
@@ -75,9 +75,9 @@ The Cosmos Hub application, `gaia`, has moved to its own [cosmos/gaia repository
 
 The IBC module for the Cosmos SDK has moved to its own [cosmos/ibc-go repository](https://github.com/cosmos/ibc-go). Go there to build and integrate with the IBC module.
 
-### Starport
+### Ignite CLI
 
-Starport is the all-in-one platform to build, launch, and maintain any crypto application on a sovereign and secured blockchain. If you are building a new app or a new module, use [Starport](https://github.com/tendermint/starport) to get started and speed up development.
+Ignite CLI is the all-in-one platform to build, launch, and maintain any crypto application on a sovereign and secured blockchain. If you are building a new app or a new module, use [Ignite CLI](https://github.com/ignite-hq/cli) to get started and speed up development.
 
 ## Disambiguation
 
