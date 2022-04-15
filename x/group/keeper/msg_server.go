@@ -670,11 +670,15 @@ func (k Keeper) Vote(goCtx context.Context, req *group.MsgVote) (*group.MsgVoteR
 	return &group.MsgVoteResponse{}, nil
 }
 
-// doTallyAndUpdate performs a tally, and, if the tally result is final, then:
-// - updates the proposal's `Status` and `FinalTallyResult` fields,
-// - prune all the votes.
+// doTallyAndUpdate performs a tally, and updates the proposal's
+// `FinalTallyResult` field only if the tally is final.
 func (k Keeper) doTallyAndUpdate(ctx sdk.Context, p *group.Proposal, electorate group.GroupInfo, policyInfo group.GroupPolicyInfo) error {
-	policy, err := policyInfo.GetDecisionPolicy()
+	policy := policyInfo.GetDecisionPolicy()
+	pSubmittedAt, err := gogotypes.TimestampProto(p.SubmitTime)
+	if err != nil {
+		return err
+	}
+	submittedAt, err := gogotypes.TimestampFromProto(pSubmittedAt)
 	if err != nil {
 		return err
 	}
@@ -684,25 +688,21 @@ func (k Keeper) doTallyAndUpdate(ctx sdk.Context, p *group.Proposal, electorate 
 		return err
 	}
 
-	sinceSubmission := ctx.BlockTime().Sub(p.SubmitTime) // duration passed since proposal submission.
-	result, err := policy.Allow(tallyResult, electorate.TotalWeight, sinceSubmission)
-	// If the result was final (i.e. enough votes to pass) or if the voting
-	// period ended, then we consider the proposal as final.
-	isFinal := result.Final || ctx.BlockTime().After(p.VotingPeriodEnd)
-
+	result, err := policy.Allow(tallyResult, electorate.TotalWeight, ctx.BlockTime().Sub(submittedAt))
 	switch {
 	case err != nil:
 		return sdkerrors.Wrap(err, "policy allow")
-
-	case isFinal:
+	case result.Final:
 		if err := k.pruneVotes(ctx, p.Id); err != nil {
 			return err
 		}
 		p.FinalTallyResult = tallyResult
 		if result.Allow {
-			p.Status = group.PROPOSAL_STATUS_ACCEPTED
+			p.Result = group.PROPOSAL_RESULT_ACCEPTED
+			p.Status = group.PROPOSAL_STATUS_CLOSED
 		} else {
-			p.Status = group.PROPOSAL_STATUS_REJECTED
+			p.Result = group.PROPOSAL_RESULT_REJECTED
+			p.Status = group.PROPOSAL_STATUS_CLOSED
 		}
 	}
 
@@ -745,6 +745,7 @@ func (k Keeper) Exec(goCtx context.Context, req *group.MsgExec) (*group.MsgExecR
 	// Execute proposal payload.
 	var logs string
 	if proposal.Status == group.PROPOSAL_STATUS_ACCEPTED && proposal.ExecutorResult != group.PROPOSAL_EXECUTOR_RESULT_SUCCESS {
+		logger := ctx.Logger().With("module", fmt.Sprintf("x/%s", group.ModuleName))
 		// Caching context so that we don't update the store in case of failure.
 		ctx, flush := ctx.CacheContext()
 
@@ -755,8 +756,8 @@ func (k Keeper) Exec(goCtx context.Context, req *group.MsgExec) (*group.MsgExecR
 		_, err = k.doExecuteMsgs(ctx, k.router, proposal, addr)
 		if err != nil {
 			proposal.ExecutorResult = group.PROPOSAL_EXECUTOR_RESULT_FAILURE
-			logs = fmt.Sprintf("proposal execution failed on proposal %d, because of error %+v", id, err)
-			k.Logger(ctx).Info("proposal execution failed", "cause", err, "proposalID", id)
+			proposalType := reflect.TypeOf(proposal).String()
+			logger.Info("proposal execution failed", "cause", err, "type", proposalType, "proposalID", id)
 		} else {
 			proposal.ExecutorResult = group.PROPOSAL_EXECUTOR_RESULT_SUCCESS
 			flush()
