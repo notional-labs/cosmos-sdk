@@ -252,13 +252,18 @@ func NewGroupPolicyInfo(address sdk.AccAddress, group uint64, admin sdk.AccAddre
 }
 
 func (g *GroupPolicyInfo) SetDecisionPolicy(decisionPolicy DecisionPolicy) error {
-	any, err := codectypes.NewAnyWithValue(decisionPolicy)
+	msg, ok := decisionPolicy.(proto.Message)
+	if !ok {
+		return fmt.Errorf("can't proto marshal %T", msg)
+	}
+	any, err := codectypes.NewAnyWithValue(msg)
 	if err != nil {
 		return err
 	}
 	g.DecisionPolicy = any
 	return nil
 }
+
 
 func (g GroupPolicyInfo) GetDecisionPolicy() (DecisionPolicy, error) {
 	decisionPolicy, ok := g.DecisionPolicy.GetCachedValue().(DecisionPolicy)
