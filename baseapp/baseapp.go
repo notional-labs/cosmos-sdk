@@ -144,9 +144,10 @@ func NewBaseApp(
 	name string, logger log.Logger, db dbm.DB, txDecoder sdk.TxDecoder, options ...func(*BaseApp),
 ) *BaseApp {
 	app := &BaseApp{
-		logger:           logger,
-		name:             name,
-		db:               db,
+		logger: logger,
+		name:   name,
+		db:     db,
+		// numm 3
 		cms:              store.NewCommitMultiStore(db),
 		storeLoader:      DefaultStoreLoader,
 		router:           NewRouter(),
@@ -276,6 +277,7 @@ func DefaultStoreLoader(ms sdk.CommitMultiStore) error {
 // LoadVersion loads the BaseApp application version. It will panic if called
 // more than once on a running baseapp.
 func (app *BaseApp) LoadVersion(version int64) error {
+	// load heightt 2
 	err := app.cms.LoadVersion(version)
 	if err != nil {
 		return fmt.Errorf("failed to load version %d: %w", version, err)
@@ -434,6 +436,10 @@ func (app *BaseApp) AddRunTxRecoveryHandler(handlers ...RecoveryHandler) {
 	for _, h := range handlers {
 		app.runTxRecoveryMiddleware = newRecoveryMiddleware(h, app.runTxRecoveryMiddleware)
 	}
+}
+
+func (ba *BaseApp) CMS() sdk.CommitMultiStore {
+	return ba.cms
 }
 
 // StoreConsensusParams sets the consensus parameters to the baseapp's param store.

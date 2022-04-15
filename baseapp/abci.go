@@ -634,7 +634,7 @@ func (app *BaseApp) createQueryContext(height int64, prove bool) (sdk.Context, e
 				"cannot query with proof when height <= 1; please provide a valid height",
 			)
 	}
-
+	// numm 4
 	cacheMS, err := app.cms.CacheMultiStoreWithVersion(height)
 	if err != nil {
 		return sdk.Context{},
@@ -645,6 +645,7 @@ func (app *BaseApp) createQueryContext(height int64, prove bool) (sdk.Context, e
 	}
 
 	// branch the commit-multistore for safety
+	// numm 5
 	ctx := sdk.NewContext(
 		cacheMS, app.checkState.ctx.BlockHeader(), true, app.logger,
 	).WithMinGasPrices(app.minGasPrices).WithBlockHeight(height)

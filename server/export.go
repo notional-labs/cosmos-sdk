@@ -38,7 +38,7 @@ func ExportCmd(appExporter types.AppExporter, defaultNodeHome string) *cobra.Com
 			if _, err := os.Stat(config.GenesisFile()); os.IsNotExist(err) {
 				return err
 			}
-
+			// numm
 			db, err := openDB(config.RootDir)
 			if err != nil {
 				return err
