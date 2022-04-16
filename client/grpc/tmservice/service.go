@@ -207,5 +207,5 @@ func RegisterTendermintService(
 // RegisterGRPCGatewayRoutes mounts the tendermint service's GRPC-gateway routes on the
 // given Mux.
 func RegisterGRPCGatewayRoutes(clientConn gogogrpc.ClientConn, mux *runtime.ServeMux) {
-	_ = RegisterServiceHandlerClient(context.Background(), mux, NewServiceClient(clientConn))
+	RegisterServiceHandlerClient(context.Background(), mux, NewServiceClient(clientConn))
 }

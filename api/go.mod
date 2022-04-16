@@ -1,11 +1,11 @@
 module github.com/cosmos/cosmos-sdk/api
 
-go 1.17
+go 1.18
 
 require (
-	github.com/cosmos/cosmos-proto v1.0.0-alpha7
-	github.com/cosmos/gogoproto v1.4.0
-	google.golang.org/genproto v0.0.0-20220314164441-57ef72a4c106
+	github.com/cosmos/cosmos-proto v1.0.0-alpha7.0.20220208174455-213b76899fac
+	github.com/cosmos/gogoproto v1.4.1-0.20220401124828-90e4c3283529
+	google.golang.org/genproto v0.0.0-20220414192740-2d67ff6cf2b4
 	google.golang.org/grpc v1.45.0
 	google.golang.org/protobuf v1.28.0
 )

@@ -4,27 +4,34 @@
 
 FROM bufbuild/buf:1.1.0 as BUILDER
 
-FROM golang:1.17-alpine
+FROM faddat/archlinux
 
-RUN apk add --no-cache \
-  nodejs \
-  npm \
-  git \
-  make
+RUN pacman -Sy
+RUN pacman -S --noconfirm archlinux-keyring
+RUN pacman -Syyu --noconfirm nodejs npm git make go
 
-ENV GOLANG_PROTOBUF_VERSION=1.28.0 \
-  GOGO_PROTOBUF_VERSION=1.4.0 \
-  GRPC_GATEWAY_VERSION=1.16.0
+ENV GOLANG_PROTOBUF_VERSION=1.28.0 
+ENV GOGO_PROTOBUF_VERSION=1.4.0 
+ENV GRPC_GATEWAY_VERSION=1.16.0 
+ENV GOPATH=/go 
+ENV PATH=$PATH:/go/bin
 
 
-RUN GO111MODULE=on go get github.com/cosmos/cosmos-proto/cmd/protoc-gen-go-pulsar@latest \
-  google.golang.org/protobuf/cmd/protoc-gen-go@v${GOLANG_PROTOBUF_VERSION} \
-  github.com/cosmos/gogoproto/protoc-gen-gogo@v${GOGO_PROTOBUF_VERSION} \
-  github.com/cosmos/gogoproto/protoc-gen-gogofast@v${GOGO_PROTOBUF_VERSION} \
-  github.com/cosmos/gogoproto/protoc-gen-gogofaster@v${GOGO_PROTOBUF_VERSION} \
-  github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway@v${GRPC_GATEWAY_VERSION} \
-  github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger@v${GRPC_GATEWAY_VERSION} \
-  github.com/regen-network/cosmos-proto/protoc-gen-gocosmos@latest 
+RUN go install github.com/cosmos/cosmos-proto/cmd/protoc-gen-go-pulsar@latest
+
+RUN git clone https://github.com/regen-network/cosmos-proto && \
+	cd cosmos-proto && \
+	go install ./...
+
+
+RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v${GOLANG_PROTOBUF_VERSION} && \
+go install github.com/cosmos/gogoproto/protoc-gen-gogo@v${GOGO_PROTOBUF_VERSION} && \
+go install github.com/cosmos/gogoproto/protoc-gen-gogofast@v${GOGO_PROTOBUF_VERSION} && \
+go install github.com/cosmos/gogoproto/protoc-gen-gogofaster@v${GOGO_PROTOBUF_VERSION} 
+
+
+RUN go install github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway@v${GRPC_GATEWAY_VERSION} && \
+go install github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger@v${GRPC_GATEWAY_VERSION} 
 
 
 RUN npm install -g swagger-combine

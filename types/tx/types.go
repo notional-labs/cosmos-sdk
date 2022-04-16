@@ -173,19 +173,7 @@ func (t *Tx) UnpackInterfaces(unpacker codectypes.AnyUnpacker) error {
 
 // UnpackInterfaces implements the UnpackInterfaceMessages.UnpackInterfaces method
 func (m *TxBody) UnpackInterfaces(unpacker codectypes.AnyUnpacker) error {
-	if err := UnpackInterfaces(unpacker, m.Messages); err != nil {
-		return err
-	}
-
-	if err := unpackTxExtensionOptionsI(unpacker, m.ExtensionOptions); err != nil {
-		return err
-	}
-
-	if err := unpackTxExtensionOptionsI(unpacker, m.NonCriticalExtensionOptions); err != nil {
-		return err
-	}
-
-	return nil
+	return UnpackInterfaces(unpacker, m.Messages)
 }
 
 // UnpackInterfaces implements the UnpackInterfaceMessages.UnpackInterfaces method
@@ -212,6 +200,4 @@ func RegisterInterfaces(registry codectypes.InterfaceRegistry) {
 
 	registry.RegisterInterface("cosmos.tx.v1beta1.Tx", (*sdk.Tx)(nil))
 	registry.RegisterImplementations((*sdk.Tx)(nil), &Tx{})
-
-	registry.RegisterInterface("cosmos.tx.v1beta1.TxExtensionOptionI", (*TxExtensionOptionI)(nil))
 }

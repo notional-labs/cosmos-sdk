@@ -316,7 +316,7 @@ func (s *IntegrationTestSuite) TestNewCmdFeeGrant() {
 	alreadyExistedGrantee := s.addedGrantee
 	clientCtx := val.ClientCtx
 
-	fromAddr, fromName, _, err := client.GetFromFields(clientCtx, clientCtx.Keyring, granter.String())
+	fromAddr, fromName, _, err := client.GetFromFields(clientCtx.Keyring, granter.String(), clientCtx.GenerateOnly)
 	s.Require().Equal(fromAddr, granter)
 	s.Require().NoError(err)
 
