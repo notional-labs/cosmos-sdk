@@ -2,7 +2,6 @@ package simulation_test
 
 import (
 	"fmt"
-	"github.com/cosmos/cosmos-sdk/codec/legacy"
 	"math/rand"
 	"testing"
 	"time"
@@ -114,7 +113,8 @@ func TestSimulateMsgSubmitProposal(t *testing.T) {
 	require.NoError(t, err)
 
 	var msg types.MsgSubmitProposal
-	legacy.Cdc.UnmarshalJSON(operationMsg.Msg, &msg)
+	err = types.ModuleCdc.UnmarshalJSON(operationMsg.Msg, &msg)
+	require.NoError(t, err)
 
 	require.True(t, operationMsg.OK)
 	require.Equal(t, "cosmos1p8wcgrjr4pjju90xg6u9cgq55dxwq8j7u4x9a0", msg.Proposer)
@@ -157,7 +157,8 @@ func TestSimulateMsgDeposit(t *testing.T) {
 	require.NoError(t, err)
 
 	var msg types.MsgDeposit
-	legacy.Cdc.UnmarshalJSON(operationMsg.Msg, &msg)
+	err = types.ModuleCdc.UnmarshalJSON(operationMsg.Msg, &msg)
+	require.NoError(t, err)
 
 	require.True(t, operationMsg.OK)
 	require.Equal(t, uint64(1), msg.ProposalId)
@@ -199,7 +200,7 @@ func TestSimulateMsgVote(t *testing.T) {
 	require.NoError(t, err)
 
 	var msg types.MsgVote
-	legacy.Cdc.UnmarshalJSON(operationMsg.Msg, &msg)
+	types.ModuleCdc.UnmarshalJSON(operationMsg.Msg, &msg)
 
 	require.True(t, operationMsg.OK)
 	require.Equal(t, uint64(1), msg.ProposalId)
@@ -241,7 +242,7 @@ func TestSimulateMsgVoteWeighted(t *testing.T) {
 	require.NoError(t, err)
 
 	var msg types.MsgVoteWeighted
-	legacy.Cdc.UnmarshalJSON(operationMsg.Msg, &msg)
+	types.ModuleCdc.UnmarshalJSON(operationMsg.Msg, &msg)
 
 	require.True(t, operationMsg.OK)
 	require.Equal(t, uint64(1), msg.ProposalId)
