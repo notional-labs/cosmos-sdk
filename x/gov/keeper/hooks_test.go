@@ -23,6 +23,7 @@ type MockGovHooksReceiver struct {
 	AfterProposalVoteValid              bool
 	AfterProposalFailedMinDepositValid  bool
 	AfterProposalVotingPeriodEndedValid bool
+	SetAdditionalVotingPowersValid      bool
 }
 
 func (h *MockGovHooksReceiver) AfterProposalSubmission(ctx sdk.Context, proposalID uint64) {
@@ -41,6 +42,9 @@ func (h *MockGovHooksReceiver) AfterProposalFailedMinDeposit(ctx sdk.Context, pr
 }
 func (h *MockGovHooksReceiver) AfterProposalVotingPeriodEnded(ctx sdk.Context, proposalID uint64) {
 	h.AfterProposalVotingPeriodEndedValid = true
+}
+func (h *MockGovHooksReceiver) SetAdditionalVotingPowers(ctx sdk.Context, votes types.Votes, votingPowers *types.AdditionalVotingPowers) {
+	h.SetAdditionalVotingPowersValid = true
 }
 
 func TestHooks(t *testing.T) {
@@ -61,6 +65,7 @@ func TestHooks(t *testing.T) {
 	require.False(t, govHooksReceiver.AfterProposalVoteValid)
 	require.False(t, govHooksReceiver.AfterProposalFailedMinDepositValid)
 	require.False(t, govHooksReceiver.AfterProposalVotingPeriodEndedValid)
+	require.False(t, govHooksReceiver.SetAdditionalVotingPowersValid)
 
 	tp := TestProposal
 	_, err := app.GovKeeper.SubmitProposal(ctx, tp)
@@ -91,4 +96,5 @@ func TestHooks(t *testing.T) {
 	ctx = ctx.WithBlockHeader(newHeader)
 	gov.EndBlocker(ctx, app.GovKeeper)
 	require.True(t, govHooksReceiver.AfterProposalVotingPeriodEndedValid)
+	require.True(t, govHooksReceiver.SetAdditionalVotingPowersValid)
 }
