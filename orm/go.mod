@@ -10,7 +10,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/tendermint/tm-db v0.6.6
 	google.golang.org/protobuf v1.27.1
-	gotest.tools/v3 v3.1.0
+	gotest.tools/v3 v3.2.0
 	pgregory.net/rapid v0.4.7
 )
 
