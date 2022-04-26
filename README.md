@@ -48,6 +48,13 @@ breaking changes.
 
 **Note**: Requires [Go 1.15+](https://golang.org/dl/)
 
+## Customized Cosmos-SDK containing state-breaking changes
+
+- [`x/staking`](https://github.com/cosmosquad-labs/cosmos-sdk/pull/10) fix: allow delegate only spendable coins
+- [`x/gov`](https://github.com/cosmosquad-labs/cosmos-sdk/pull/8) feat: add additional voting powers hook on tally
+- [`x/vesting`](https://github.com/cosmosquad-labs/cosmos-sdk/pull/11) feat: periodic vesting msg
+- [`x/bank`](https://github.com/cosmosquad-labs/cosmos-sdk/pull/7) feat: Add dynamic blockedAddrs
+
 ## Quick Start
 
 To learn how the SDK works from a high-level perspective, go to the [SDK Intro](./docs/intro/overview.md).
