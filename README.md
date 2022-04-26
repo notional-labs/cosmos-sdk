@@ -47,6 +47,15 @@ breaking changes.
 
 **Note**: Requires [Go 1.18+](https://golang.org/dl/)
 
+## Customized Cosmos SDK 
+
+This forked Cosmos SDK has the following changes and it contains state breaking changes.
+
+- [`x/staking`](https://github.com/cosmosquad-labs/cosmos-sdk/pull/10) fix: allow delegate only spendable coins
+- [`x/gov`](https://github.com/cosmosquad-labs/cosmos-sdk/pull/8) feat: add additional voting powers hook on tally
+- [`x/vesting`](https://github.com/cosmosquad-labs/cosmos-sdk/pull/11) feat: periodic vesting msg
+- [`x/bank`](https://github.com/cosmosquad-labs/cosmos-sdk/pull/7) feat: Add dynamic blockedAddrs
+
 ## Quick Start
 
 To learn how the Cosmos SDK works from a high-level perspective, see the Cosmos SDK [High-Level Intro](./docs/intro/overview.md).
@@ -82,3 +91,5 @@ Ignite CLI is the all-in-one platform to build, launch, and maintain any crypto 
 ## Disambiguation
 
 This Cosmos SDK project is not related to the [React-Cosmos](https://github.com/react-cosmos/react-cosmos) project (yet). Many thanks to Evan Coury and Ovidiu (@skidding) for this Github organization name. As per our agreement, this disambiguation notice will stay here.
+
+
