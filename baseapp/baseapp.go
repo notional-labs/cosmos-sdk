@@ -520,19 +520,22 @@ func (app *BaseApp) getState(mode runTxMode) *state {
 
 // retrieve the context for the tx w/ txBytes and other memoized values.
 func (app *BaseApp) getContextForTx(mode runTxMode, txBytes []byte) sdk.Context {
-	ctx := app.getState(mode).ctx.
-		WithTxBytes(txBytes).
-		WithVoteInfos(app.voteInfos)
 
-	ctx = ctx.WithConsensusParams(app.GetConsensusParams(ctx))
+	var ctx sdk.Context
 
 	if mode == runTxModeReCheck {
+		ctx = app.getState(mode).ctx
 		ctx = ctx.WithIsReCheckTx(true)
 	}
 
 	if mode == runTxModeSimulate {
-		ctx, _ = ctx.CacheContext()
+		ctx, _ = app.createQueryContext(app.LastBlockHeight(), false)
 	}
+
+	ctx = ctx.WithTxBytes(txBytes).
+		WithVoteInfos(app.voteInfos)
+
+	ctx = ctx.WithConsensusParams(app.GetConsensusParams(ctx))
 
 	return ctx
 }
