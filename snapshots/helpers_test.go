@@ -6,6 +6,7 @@ import (
 	"compress/zlib"
 	"crypto/sha256"
 	"errors"
+	"fmt"
 	"io"
 	"testing"
 	"time"
@@ -94,10 +95,56 @@ func snapshotItems(items [][]byte) [][]byte {
 	return chunks
 }
 
+// snapshotItems serialize a array of bytes as SnapshotItem_ExtensionPayload, and return the chunks.
+func snapshotExtensionItems(items [][]byte) [][]byte {
+	// copy the same parameters from the code
+	snapshotChunkSize := uint64(10e6)
+	snapshotBufferSize := int(snapshotChunkSize)
+
+	ch := make(chan io.ReadCloser)
+	go func() {
+		chunkWriter := snapshots.NewChunkWriter(ch, snapshotChunkSize)
+		bufWriter := bufio.NewWriterSize(chunkWriter, snapshotBufferSize)
+		zWriter, _ := zlib.NewWriterLevel(bufWriter, 7)
+		protoWriter := protoio.NewDelimitedWriter(zWriter)
+		for _, item := range items {
+			// write extension metadata
+			_ = protoWriter.WriteMsg(&snapshottypes.SnapshotItem{
+				Item: &snapshottypes.SnapshotItem_Extension{
+					Extension: &snapshottypes.SnapshotExtensionMeta{
+						Name:   "mock",
+						Format: snapshottypes.CurrentFormat,
+					},
+				},
+			})
+			_ = snapshottypes.WriteExtensionItem(protoWriter, item)
+		}
+		_ = protoWriter.Close()
+		_ = zWriter.Close()
+		_ = bufWriter.Flush()
+		_ = chunkWriter.Close()
+	}()
+
+	var chunks [][]byte
+	for chunkBody := range ch {
+		chunk, err := io.ReadAll(chunkBody)
+		if err != nil {
+			panic(err)
+		}
+		chunks = append(chunks, chunk)
+	}
+
+	return chunks
+}
+
 type mockSnapshotter struct {
 	items            [][]byte
 	prunedHeights    map[int64]struct{}
 	snapshotInterval uint64
+}
+
+func (m *mockSnapshotter) SnapshotName() string {
+	return "mock"
 }
 
 func (m *mockSnapshotter) Restore(
@@ -121,7 +168,8 @@ func (m *mockSnapshotter) Restore(
 		}
 		payload := item.GetExtensionPayload()
 		if payload == nil {
-			return snapshottypes.SnapshotItem{}, sdkerrors.Wrap(err, "invalid protobuf message")
+			fmt.Println(*item)
+			return *item, sdkerrors.Wrap(err, "invalid protobuf message")
 		}
 		m.items = append(m.items, payload.Payload)
 	}

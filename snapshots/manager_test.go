@@ -228,3 +228,62 @@ func TestManager_Restore(t *testing.T) {
 	})
 	require.NoError(t, err)
 }
+
+func TestManager_ExtensionsSnapshotter(t *testing.T) {
+	store := setupStore(t)
+	var err error
+	target := &mockSnapshotter{
+		prunedHeights: make(map[int64]struct{}),
+	}
+	extension := &mockSnapshotter{
+		prunedHeights: make(map[int64]struct{}),
+	}
+	manager := snapshots.NewManager(store, opts, target, nil, log.NewNopLogger())
+	manager.RegisterExtensions(extension)
+
+	expectItems := [][]byte{
+		{1, 2, 3},
+		{4, 5, 6},
+		{7, 8, 9},
+	}
+
+	chunks := snapshotItems(expectItems)
+	chunks[0] = append(chunks[0], snapshotExtensionItems(expectItems)[0]...)
+
+	// // Starting a restore works
+	err = manager.Restore(types.Snapshot{
+		Height:   3,
+		Format:   types.CurrentFormat,
+		Hash:     []byte{1, 2, 3},
+		Chunks:   1,
+		Metadata: types.Metadata{ChunkHashes: checksums(chunks)},
+	})
+
+	require.NoError(t, err)
+
+	// Feeding the chunks should work
+	for i, chunk := range chunks {
+		done, err := manager.RestoreChunk(chunk)
+		require.NoError(t, err)
+		if i == len(chunks)-1 {
+			assert.True(t, done)
+		} else {
+			assert.False(t, done)
+		}
+	}
+
+	assert.Equal(t, expectItems, extension.items)
+
+	// But if we clear out the target we should be able to start a new restore. This time we'll
+	// fail it with a checksum error. That error should stop the operation, so that we can do
+	// a prune operation right after.
+	target.items = nil
+	err = manager.Restore(types.Snapshot{
+		Height:   3,
+		Format:   types.CurrentFormat,
+		Hash:     []byte{1, 2, 3},
+		Chunks:   1,
+		Metadata: types.Metadata{ChunkHashes: checksums(chunks)},
+	})
+	require.NoError(t, err)
+}
