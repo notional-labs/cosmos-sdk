@@ -379,12 +379,6 @@ func (msg MsgTokenizeShares) Route() string { return RouterKey }
 // Type implements the sdk.Msg interface.
 func (msg MsgTokenizeShares) Type() string { return TypeMsgTokenizeShares }
 
-// GetSignBytes returns the message bytes to sign over.
-func (msg MsgTokenizeShares) GetSignBytes() []byte {
-	bz := ModuleCdc.MustMarshalJSON(&msg)
-	return sdk.MustSortJSON(bz)
-}
-
 func (msg MsgTokenizeShares) GetSigners() []sdk.AccAddress {
 	delegator, _ := sdk.AccAddressFromBech32(msg.DelegatorAddress)
 	return []sdk.AccAddress{delegator}
@@ -422,12 +416,6 @@ func (msg MsgRedeemTokensforShares) Route() string { return RouterKey }
 // Type implements the sdk.Msg interface.
 func (msg MsgRedeemTokensforShares) Type() string { return TypeMsgRedeemTokensforShares }
 
-// GetSignBytes returns the message bytes to sign over.
-func (msg MsgRedeemTokensforShares) GetSignBytes() []byte {
-	bz := ModuleCdc.MustMarshalJSON(&msg)
-	return sdk.MustSortJSON(bz)
-}
-
 func (msg MsgRedeemTokensforShares) GetSigners() []sdk.AccAddress {
 	delegator, _ := sdk.AccAddressFromBech32(msg.DelegatorAddress)
 	return []sdk.AccAddress{delegator}
@@ -458,12 +446,6 @@ func (msg MsgTransferTokenizeShareRecord) Route() string { return RouterKey }
 
 // Type implements the sdk.Msg interface.
 func (msg MsgTransferTokenizeShareRecord) Type() string { return TypeMsgTransferTokenizeShareRecord }
-
-// GetSignBytes returns the message bytes to sign over.
-func (msg MsgTransferTokenizeShareRecord) GetSignBytes() []byte {
-	bz := ModuleCdc.MustMarshalJSON(&msg)
-	return sdk.MustSortJSON(bz)
-}
 
 func (msg MsgTransferTokenizeShareRecord) GetSigners() []sdk.AccAddress {
 	sender, _ := sdk.AccAddressFromBech32(msg.Sender)
