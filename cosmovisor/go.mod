@@ -7,7 +7,7 @@ require (
 	github.com/hashicorp/go-getter v1.6.1
 	github.com/otiai10/copy v1.7.0
 	github.com/rs/zerolog v1.26.1
-	github.com/spf13/cobra v1.4.0
+	github.com/spf13/cobra v1.5.0
 	github.com/stretchr/testify v1.7.1
 	github.com/tendermint/tendermint v0.35.6
 )
