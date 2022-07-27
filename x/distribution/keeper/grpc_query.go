@@ -10,8 +10,8 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/types/query"
+	sdkstaking "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/cosmos/cosmos-sdk/x/distribution/types"
-	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
 var _ types.QueryServer = Keeper{}
@@ -178,7 +178,7 @@ func (k Keeper) DelegationTotalRewards(c context.Context, req *types.QueryDelega
 
 	k.stakingKeeper.IterateDelegations(
 		ctx, delAdr,
-		func(_ int64, del stakingtypes.DelegationI) (stop bool) {
+		func(_ int64, del sdkstaking.DelegationI) (stop bool) {
 			valAddr := del.GetValidatorAddr()
 			val := k.stakingKeeper.Validator(ctx, valAddr)
 			endingPeriod := k.IncrementValidatorPeriod(ctx, val)
@@ -212,7 +212,7 @@ func (k Keeper) DelegatorValidators(c context.Context, req *types.QueryDelegator
 
 	k.stakingKeeper.IterateDelegations(
 		ctx, delAdr,
-		func(_ int64, del stakingtypes.DelegationI) (stop bool) {
+		func(_ int64, del sdkstaking.DelegationI) (stop bool) {
 			validators = append(validators, del.GetValidatorAddr().String())
 			return false
 		},
@@ -247,4 +247,49 @@ func (k Keeper) CommunityPool(c context.Context, req *types.QueryCommunityPoolRe
 	pool := k.GetFeePoolCommunityCoins(ctx)
 
 	return &types.QueryCommunityPoolResponse{Pool: pool}, nil
+}
+
+// TokenizeShareRecordReward returns estimated amount of reward from tokenize share record ownership
+func (k Keeper) TokenizeShareRecordReward(c context.Context, req *types.QueryTokenizeShareRecordRewardRequest) (*types.QueryTokenizeShareRecordRewardResponse, error) {
+	ctx := sdk.UnwrapSDKContext(c)
+
+	totalRewards := sdk.DecCoins{}
+	rewards := []types.TokenizeShareRecordReward{}
+
+	ownerAddr, err := sdk.AccAddressFromBech32(req.OwnerAddress)
+	if err != nil {
+		return nil, err
+	}
+	records := k.stakingKeeper.GetTokenizeShareRecordsByOwner(ctx, ownerAddr)
+	for _, record := range records {
+		valAddr, err := sdk.ValAddressFromBech32(record.Validator)
+		if err != nil {
+			return nil, err
+		}
+
+		val := k.stakingKeeper.Validator(ctx, valAddr)
+		if val == nil {
+			continue
+		}
+
+		del := k.stakingKeeper.Delegation(ctx, record.GetModuleAddress(), valAddr)
+		if del == nil {
+			continue
+		}
+
+		// withdraw rewards
+		endingPeriod := k.IncrementValidatorPeriod(ctx, val)
+		recordReward := k.CalculateDelegationRewards(ctx, val, del, endingPeriod)
+
+		rewards = append(rewards, types.TokenizeShareRecordReward{
+			RecordId: record.Id,
+			Reward:   recordReward,
+		})
+		totalRewards = totalRewards.Add(recordReward...)
+	}
+
+	return &types.QueryTokenizeShareRecordRewardResponse{
+		Rewards: rewards,
+		Total:   totalRewards,
+	}, nil
 }

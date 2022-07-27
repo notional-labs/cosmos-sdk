@@ -9,6 +9,7 @@ import (
 
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkstaking "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	"github.com/cosmos/cosmos-sdk/x/staking/types"
 )
@@ -53,9 +54,9 @@ func InitGenesis(
 		}
 
 		switch validator.GetStatus() {
-		case types.Bonded:
+		case sdkstaking.Bonded:
 			bondedTokens = bondedTokens.Add(validator.GetTokens())
-		case types.Unbonding, types.Unbonded:
+		case sdkstaking.Unbonding, sdkstaking.Unbonded:
 			notBondedTokens = notBondedTokens.Add(validator.GetTokens())
 		default:
 			panic("invalid validator status")
@@ -150,6 +151,13 @@ func InitGenesis(
 		}
 	}
 
+	keeper.SetLastTokenizeShareRecordId(ctx, data.LastTokenizeShareRecordId)
+	for _, tokenizeShareRecord := range data.TokenizeShareRecords {
+		if err := keeper.AddTokenizeShareRecord(ctx, tokenizeShareRecord); err != nil {
+			panic(err)
+		}
+	}
+
 	return res
 }
 
@@ -178,21 +186,28 @@ func ExportGenesis(ctx sdk.Context, keeper keeper.Keeper) *types.GenesisState {
 		return false
 	})
 
+	var tokenizeShareRecords []types.TokenizeShareRecord
+	for _, tokenizeShareRecord := range keeper.GetAllTokenizeShareRecords(ctx) {
+		tokenizeShareRecords = append(tokenizeShareRecords, tokenizeShareRecord)
+	}
+
 	return &types.GenesisState{
-		Params:               keeper.GetParams(ctx),
-		LastTotalPower:       keeper.GetLastTotalPower(ctx),
-		LastValidatorPowers:  lastValidatorPowers,
-		Validators:           keeper.GetAllValidators(ctx),
-		Delegations:          keeper.GetAllDelegations(ctx),
-		UnbondingDelegations: unbondingDelegations,
-		Redelegations:        redelegations,
-		Exported:             true,
+		Params:                    keeper.GetParams(ctx),
+		LastTotalPower:            keeper.GetLastTotalPower(ctx),
+		LastValidatorPowers:       lastValidatorPowers,
+		Validators:                keeper.GetAllValidators(ctx),
+		Delegations:               keeper.GetAllDelegations(ctx),
+		UnbondingDelegations:      unbondingDelegations,
+		Redelegations:             redelegations,
+		Exported:                  true,
+		TokenizeShareRecords:      tokenizeShareRecords,
+		LastTokenizeShareRecordId: keeper.GetLastTokenizeShareRecordId(ctx),
 	}
 }
 
 // WriteValidators returns a slice of bonded genesis validators.
 func WriteValidators(ctx sdk.Context, keeper keeper.Keeper) (vals []tmtypes.GenesisValidator, err error) {
-	keeper.IterateLastValidators(ctx, func(_ int64, validator types.ValidatorI) (stop bool) {
+	keeper.IterateLastValidators(ctx, func(_ int64, validator sdkstaking.ValidatorI) (stop bool) {
 		pk, err := validator.ConsPubKey()
 		if err != nil {
 			return true

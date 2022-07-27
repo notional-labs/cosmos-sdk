@@ -262,6 +262,83 @@ func (m *MsgWithdrawValidatorCommissionResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_MsgWithdrawValidatorCommissionResponse proto.InternalMessageInfo
 
+type MsgWithdrawTokenizeShareRecordReward struct {
+	OwnerAddress string `protobuf:"bytes,1,opt,name=owner_address,json=ownerAddress,proto3" json:"owner_address,omitempty" yaml:"owner_address"`
+}
+
+func (m *MsgWithdrawTokenizeShareRecordReward) Reset()         { *m = MsgWithdrawTokenizeShareRecordReward{} }
+func (m *MsgWithdrawTokenizeShareRecordReward) String() string { return proto.CompactTextString(m) }
+func (*MsgWithdrawTokenizeShareRecordReward) ProtoMessage()    {}
+func (*MsgWithdrawTokenizeShareRecordReward) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ed4f433d965e58ca, []int{6}
+}
+func (m *MsgWithdrawTokenizeShareRecordReward) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MsgWithdrawTokenizeShareRecordReward) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MsgWithdrawTokenizeShareRecordReward.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MsgWithdrawTokenizeShareRecordReward) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgWithdrawTokenizeShareRecordReward.Merge(m, src)
+}
+func (m *MsgWithdrawTokenizeShareRecordReward) XXX_Size() int {
+	return m.Size()
+}
+func (m *MsgWithdrawTokenizeShareRecordReward) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgWithdrawTokenizeShareRecordReward.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MsgWithdrawTokenizeShareRecordReward proto.InternalMessageInfo
+
+type MsgWithdrawTokenizeShareRecordRewardResponse struct {
+}
+
+func (m *MsgWithdrawTokenizeShareRecordRewardResponse) Reset() {
+	*m = MsgWithdrawTokenizeShareRecordRewardResponse{}
+}
+func (m *MsgWithdrawTokenizeShareRecordRewardResponse) String() string {
+	return proto.CompactTextString(m)
+}
+func (*MsgWithdrawTokenizeShareRecordRewardResponse) ProtoMessage() {}
+func (*MsgWithdrawTokenizeShareRecordRewardResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ed4f433d965e58ca, []int{7}
+}
+func (m *MsgWithdrawTokenizeShareRecordRewardResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MsgWithdrawTokenizeShareRecordRewardResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MsgWithdrawTokenizeShareRecordRewardResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MsgWithdrawTokenizeShareRecordRewardResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgWithdrawTokenizeShareRecordRewardResponse.Merge(m, src)
+}
+func (m *MsgWithdrawTokenizeShareRecordRewardResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *MsgWithdrawTokenizeShareRecordRewardResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgWithdrawTokenizeShareRecordRewardResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MsgWithdrawTokenizeShareRecordRewardResponse proto.InternalMessageInfo
+
 // MsgFundCommunityPool allows an account to directly
 // fund the community pool.
 type MsgFundCommunityPool struct {
@@ -273,7 +350,7 @@ func (m *MsgFundCommunityPool) Reset()         { *m = MsgFundCommunityPool{} }
 func (m *MsgFundCommunityPool) String() string { return proto.CompactTextString(m) }
 func (*MsgFundCommunityPool) ProtoMessage()    {}
 func (*MsgFundCommunityPool) Descriptor() ([]byte, []int) {
-	return fileDescriptor_ed4f433d965e58ca, []int{6}
+	return fileDescriptor_ed4f433d965e58ca, []int{8}
 }
 func (m *MsgFundCommunityPool) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -310,7 +387,7 @@ func (m *MsgFundCommunityPoolResponse) Reset()         { *m = MsgFundCommunityPo
 func (m *MsgFundCommunityPoolResponse) String() string { return proto.CompactTextString(m) }
 func (*MsgFundCommunityPoolResponse) ProtoMessage()    {}
 func (*MsgFundCommunityPoolResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_ed4f433d965e58ca, []int{7}
+	return fileDescriptor_ed4f433d965e58ca, []int{9}
 }
 func (m *MsgFundCommunityPoolResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -346,6 +423,8 @@ func init() {
 	proto.RegisterType((*MsgWithdrawDelegatorRewardResponse)(nil), "cosmos.distribution.v1beta1.MsgWithdrawDelegatorRewardResponse")
 	proto.RegisterType((*MsgWithdrawValidatorCommission)(nil), "cosmos.distribution.v1beta1.MsgWithdrawValidatorCommission")
 	proto.RegisterType((*MsgWithdrawValidatorCommissionResponse)(nil), "cosmos.distribution.v1beta1.MsgWithdrawValidatorCommissionResponse")
+	proto.RegisterType((*MsgWithdrawTokenizeShareRecordReward)(nil), "cosmos.distribution.v1beta1.MsgWithdrawTokenizeShareRecordReward")
+	proto.RegisterType((*MsgWithdrawTokenizeShareRecordRewardResponse)(nil), "cosmos.distribution.v1beta1.MsgWithdrawTokenizeShareRecordRewardResponse")
 	proto.RegisterType((*MsgFundCommunityPool)(nil), "cosmos.distribution.v1beta1.MsgFundCommunityPool")
 	proto.RegisterType((*MsgFundCommunityPoolResponse)(nil), "cosmos.distribution.v1beta1.MsgFundCommunityPoolResponse")
 }
@@ -355,42 +434,47 @@ func init() {
 }
 
 var fileDescriptor_ed4f433d965e58ca = []byte{
-	// 558 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x95, 0x3f, 0x6f, 0xd3, 0x40,
-	0x18, 0xc6, 0x7d, 0x2d, 0xaa, 0xe8, 0x31, 0x90, 0x58, 0x45, 0x0d, 0x4e, 0x38, 0x57, 0x56, 0x85,
-	0xb2, 0x60, 0x93, 0x30, 0x20, 0xc2, 0x80, 0x48, 0x50, 0xa5, 0x0e, 0x11, 0xc8, 0x48, 0x20, 0xb1,
-	0x20, 0x3b, 0x77, 0x72, 0x4f, 0xc4, 0xbe, 0xc8, 0x77, 0x6e, 0x9a, 0x11, 0x89, 0x81, 0x11, 0x89,
-	0x0f, 0x40, 0x25, 0x16, 0xc4, 0xcc, 0xc8, 0x07, 0xc8, 0xd8, 0x91, 0x29, 0xa0, 0x64, 0x61, 0xee,
-	0x27, 0x40, 0xf1, 0x3f, 0x92, 0xda, 0x49, 0x29, 0xe9, 0x94, 0xe8, 0xbd, 0xe7, 0xf9, 0xf9, 0x79,
-	0x95, 0xe7, 0x62, 0xb8, 0xdb, 0x61, 0xdc, 0x65, 0xdc, 0xc0, 0x94, 0x0b, 0x9f, 0xda, 0x81, 0xa0,
-	0xcc, 0x33, 0x0e, 0x6b, 0x36, 0x11, 0x56, 0xcd, 0x10, 0x47, 0x7a, 0xcf, 0x67, 0x82, 0xc9, 0xe5,
-	0x48, 0xa5, 0xcf, 0xaa, 0xf4, 0x58, 0xa5, 0x6c, 0x39, 0xcc, 0x61, 0xa1, 0xce, 0x98, 0x7e, 0x8b,
-	0x2c, 0x0a, 0x8a, 0xc1, 0xb6, 0xc5, 0x49, 0x0a, 0xec, 0x30, 0xea, 0x45, 0xe7, 0xda, 0x37, 0x00,
-	0x6f, 0xb4, 0xb9, 0xf3, 0x9c, 0x88, 0x97, 0x54, 0x1c, 0x60, 0xdf, 0xea, 0x3f, 0xc6, 0xd8, 0x27,
-	0x9c, 0xcb, 0xfb, 0xb0, 0x88, 0x49, 0x97, 0x38, 0x96, 0x60, 0xfe, 0x6b, 0x2b, 0x1a, 0x96, 0xc0,
-	0x0e, 0xa8, 0x6e, 0x36, 0x2b, 0xa7, 0x23, 0xb5, 0x34, 0xb0, 0xdc, 0x6e, 0x43, 0xcb, 0x48, 0x34,
-	0xb3, 0x90, 0xce, 0x12, 0xd4, 0x1e, 0x2c, 0xf4, 0x63, 0x7a, 0x4a, 0x5a, 0x0b, 0x49, 0xe5, 0xd3,
-	0x91, 0xba, 0x1d, 0x91, 0xce, 0x2a, 0x34, 0xf3, 0x7a, 0x7f, 0x3e, 0x52, 0xe3, 0xea, 0xfb, 0x63,
-	0x55, 0xfa, 0x7d, 0xac, 0x4a, 0x9a, 0x0a, 0x6f, 0xe5, 0xa6, 0x36, 0x09, 0xef, 0x31, 0x8f, 0x13,
-	0xed, 0x3b, 0x80, 0x4a, 0x9b, 0x3b, 0xc9, 0xf1, 0x93, 0x24, 0x92, 0x49, 0xfa, 0x96, 0x8f, 0x2f,
-	0x73, 0xb9, 0x7d, 0x58, 0x3c, 0xb4, 0xba, 0x14, 0xcf, 0xa1, 0xd6, 0xce, 0xa2, 0x32, 0x12, 0xcd,
-	0x2c, 0xa4, 0xb3, 0xec, 0x7e, 0xbb, 0x50, 0x5b, 0x9c, 0x3e, 0x5d, 0x32, 0x80, 0x68, 0x46, 0xf5,
-	0x22, 0xc1, 0xb5, 0x98, 0xeb, 0x52, 0xce, 0x29, 0xf3, 0xf2, 0xc3, 0x81, 0x15, 0xc3, 0x55, 0xe1,
-	0xed, 0xe5, 0x8f, 0x4d, 0x03, 0x7e, 0x06, 0x70, 0xab, 0xcd, 0x9d, 0xbd, 0xc0, 0xc3, 0xd3, 0xd3,
-	0xc0, 0xa3, 0x62, 0xf0, 0x8c, 0xb1, 0xae, 0xdc, 0x81, 0x1b, 0x96, 0xcb, 0x02, 0x4f, 0x94, 0xc0,
-	0xce, 0x7a, 0xf5, 0x5a, 0xfd, 0xa6, 0x1e, 0x57, 0x7b, 0xda, 0xd3, 0xa4, 0xd2, 0x7a, 0x8b, 0x51,
-	0xaf, 0x79, 0x77, 0x38, 0x52, 0xa5, 0xaf, 0x3f, 0xd5, 0xaa, 0x43, 0xc5, 0x41, 0x60, 0xeb, 0x1d,
-	0xe6, 0x1a, 0x71, 0xa9, 0xa3, 0x8f, 0x3b, 0x1c, 0xbf, 0x31, 0xc4, 0xa0, 0x47, 0x78, 0x68, 0xe0,
-	0x66, 0x8c, 0x96, 0x2b, 0x70, 0x13, 0x93, 0x1e, 0xe3, 0x54, 0x30, 0x3f, 0xfa, 0x45, 0xcc, 0xbf,
-	0x83, 0x99, 0x7d, 0x10, 0xac, 0xe4, 0x85, 0x4c, 0xb6, 0xa8, 0x0f, 0xaf, 0xc0, 0xf5, 0x36, 0x77,
-	0xe4, 0x77, 0x00, 0xca, 0x39, 0x17, 0xa5, 0xae, 0x2f, 0xb9, 0x96, 0x7a, 0x6e, 0x4d, 0x95, 0xc6,
-	0xc5, 0x3d, 0x49, 0x1c, 0xf9, 0x23, 0x80, 0xdb, 0x8b, 0x7a, 0x7d, 0xff, 0x3c, 0xee, 0x02, 0xa3,
-	0xf2, 0xe8, 0x3f, 0x8d, 0x69, 0xaa, 0x4f, 0x00, 0x96, 0x97, 0x35, 0xf1, 0xe1, 0xbf, 0x3e, 0x20,
-	0xc7, 0xac, 0xb4, 0x56, 0x30, 0xa7, 0x09, 0xdf, 0x02, 0x58, 0xcc, 0x36, 0xb1, 0x76, 0x1e, 0x3a,
-	0x63, 0x51, 0x1e, 0x5c, 0xd8, 0x92, 0x64, 0x68, 0x3e, 0xfd, 0x32, 0x46, 0x60, 0x38, 0x46, 0xe0,
-	0x64, 0x8c, 0xc0, 0xaf, 0x31, 0x02, 0x1f, 0x26, 0x48, 0x3a, 0x99, 0x20, 0xe9, 0xc7, 0x04, 0x49,
-	0xaf, 0x6a, 0x4b, 0x2b, 0x7e, 0x34, 0xff, 0x76, 0x08, 0x1b, 0x6f, 0x6f, 0x84, 0x7f, 0xe3, 0xf7,
-	0xfe, 0x04, 0x00, 0x00, 0xff, 0xff, 0xd2, 0x18, 0x71, 0xb0, 0x41, 0x06, 0x00, 0x00,
+	// 631 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x95, 0xbf, 0x6f, 0xd3, 0x40,
+	0x1c, 0xc5, 0x7d, 0xad, 0xa8, 0xe8, 0x01, 0xa2, 0xb5, 0x8a, 0x1a, 0x9c, 0x60, 0x17, 0x2b, 0x42,
+	0x19, 0xc0, 0x26, 0x61, 0x40, 0x04, 0x21, 0xd4, 0x04, 0x55, 0xca, 0x10, 0x81, 0x5c, 0x04, 0x12,
+	0x0b, 0x72, 0xe2, 0x93, 0x73, 0x6a, 0xec, 0x8b, 0x7c, 0xe7, 0xa6, 0x61, 0x43, 0x62, 0x60, 0x44,
+	0xe2, 0x0f, 0xa0, 0x12, 0x0b, 0x62, 0x43, 0x62, 0xe4, 0x0f, 0xe8, 0xd8, 0x91, 0x29, 0xa0, 0x64,
+	0x61, 0xce, 0xcc, 0x80, 0xe2, 0x5f, 0x24, 0xb1, 0xf3, 0xa3, 0x84, 0x29, 0xc9, 0xdd, 0x7b, 0xef,
+	0xfb, 0xf9, 0x2a, 0x79, 0x31, 0xcc, 0xd6, 0x09, 0xb5, 0x08, 0x55, 0x0d, 0x4c, 0x99, 0x83, 0x6b,
+	0x2e, 0xc3, 0xc4, 0x56, 0x0f, 0xf3, 0x35, 0xc4, 0xf4, 0xbc, 0xca, 0x8e, 0x94, 0x96, 0x43, 0x18,
+	0xe1, 0xd3, 0xbe, 0x4a, 0x19, 0x55, 0x29, 0x81, 0x4a, 0xd8, 0x32, 0x89, 0x49, 0x3c, 0x9d, 0x3a,
+	0x7c, 0xe7, 0x5b, 0x04, 0x31, 0x08, 0xae, 0xe9, 0x14, 0x45, 0x81, 0x75, 0x82, 0x6d, 0xff, 0x5e,
+	0xfe, 0x0a, 0xe0, 0x95, 0x2a, 0x35, 0xf7, 0x11, 0x7b, 0x8e, 0x59, 0xc3, 0x70, 0xf4, 0xf6, 0xae,
+	0x61, 0x38, 0x88, 0x52, 0xbe, 0x02, 0x37, 0x0d, 0xd4, 0x44, 0xa6, 0xce, 0x88, 0xf3, 0x52, 0xf7,
+	0x0f, 0x53, 0x60, 0x07, 0xe4, 0xd6, 0x4b, 0x99, 0x41, 0x57, 0x4a, 0x75, 0x74, 0xab, 0x59, 0x94,
+	0x63, 0x12, 0x59, 0xdb, 0x88, 0xce, 0xc2, 0xa8, 0x3d, 0xb8, 0xd1, 0x0e, 0xd2, 0xa3, 0xa4, 0x15,
+	0x2f, 0x29, 0x3d, 0xe8, 0x4a, 0xdb, 0x7e, 0xd2, 0xa4, 0x42, 0xd6, 0x2e, 0xb7, 0xc7, 0x91, 0x8a,
+	0xe7, 0xdf, 0x1e, 0x4b, 0xdc, 0xaf, 0x63, 0x89, 0x93, 0x25, 0x78, 0x2d, 0x91, 0x5a, 0x43, 0xb4,
+	0x45, 0x6c, 0x8a, 0xe4, 0x6f, 0x00, 0x0a, 0x55, 0x6a, 0x86, 0xd7, 0x8f, 0x42, 0x24, 0x0d, 0xb5,
+	0x75, 0xc7, 0xf8, 0x9f, 0xcb, 0x55, 0xe0, 0xe6, 0xa1, 0xde, 0xc4, 0xc6, 0x58, 0xd4, 0xca, 0x64,
+	0x54, 0x4c, 0x22, 0x6b, 0x1b, 0xd1, 0x59, 0x7c, 0xbf, 0x2c, 0x94, 0xa7, 0xd3, 0x47, 0x4b, 0xba,
+	0x50, 0x1c, 0x51, 0x3d, 0x0b, 0xe3, 0xca, 0xc4, 0xb2, 0x30, 0xa5, 0x98, 0xd8, 0xc9, 0x70, 0x60,
+	0x49, 0xb8, 0x1c, 0xbc, 0x31, 0x7b, 0x6c, 0x04, 0x48, 0x60, 0x76, 0x44, 0xf9, 0x94, 0x1c, 0x20,
+	0x1b, 0xbf, 0x42, 0xfb, 0x0d, 0xdd, 0x41, 0x1a, 0xaa, 0x93, 0xe1, 0x2a, 0xde, 0xd7, 0xf1, 0x00,
+	0x5e, 0x22, 0x6d, 0x1b, 0x4d, 0x22, 0xa6, 0x06, 0x5d, 0x69, 0xcb, 0x47, 0x1c, 0xbb, 0x96, 0xb5,
+	0x8b, 0xde, 0xe7, 0x38, 0x9a, 0x02, 0x6f, 0x2e, 0x32, 0x30, 0x02, 0xfc, 0x08, 0xe0, 0x56, 0x95,
+	0x9a, 0x7b, 0xae, 0x6d, 0x0c, 0xf1, 0x5d, 0x1b, 0xb3, 0xce, 0x13, 0x42, 0x9a, 0x7c, 0x1d, 0xae,
+	0xe9, 0x16, 0x71, 0x6d, 0x96, 0x02, 0x3b, 0xab, 0xb9, 0x0b, 0x85, 0xab, 0x4a, 0xd0, 0xbd, 0x61,
+	0x91, 0xc2, 0xce, 0x29, 0x65, 0x82, 0xed, 0xd2, 0xed, 0x93, 0xae, 0xc4, 0x7d, 0xfe, 0x21, 0xe5,
+	0x4c, 0xcc, 0x1a, 0x6e, 0x4d, 0xa9, 0x13, 0x4b, 0x0d, 0x5a, 0xe7, 0xbf, 0xdc, 0xa2, 0xc6, 0x81,
+	0xca, 0x3a, 0x2d, 0x44, 0x3d, 0x03, 0xd5, 0x82, 0x68, 0x3e, 0x03, 0xd7, 0x0d, 0xd4, 0x22, 0x14,
+	0x33, 0xe2, 0xf8, 0x3f, 0x19, 0xed, 0xef, 0xc1, 0xc8, 0x56, 0x22, 0xcc, 0x24, 0x41, 0x86, 0x5b,
+	0x14, 0x7e, 0x9f, 0x83, 0xab, 0x55, 0x6a, 0xf2, 0x6f, 0x00, 0xe4, 0x13, 0x9a, 0x5c, 0x50, 0x66,
+	0xfc, 0x6f, 0x28, 0x89, 0x3d, 0x12, 0x8a, 0x67, 0xf7, 0x84, 0x38, 0xfc, 0x7b, 0x00, 0xb7, 0xa7,
+	0x15, 0xef, 0xee, 0xbc, 0xdc, 0x29, 0x46, 0xe1, 0xe1, 0x3f, 0x1a, 0x23, 0xaa, 0x0f, 0x00, 0xa6,
+	0x67, 0x55, 0xe5, 0xfe, 0xa2, 0x03, 0x12, 0xcc, 0x42, 0x79, 0x09, 0x73, 0x44, 0xf8, 0x05, 0xc0,
+	0xeb, 0xf3, 0xbb, 0xb2, 0xbb, 0xe8, 0xa8, 0xa9, 0x11, 0x42, 0x65, 0xe9, 0x88, 0x88, 0xf9, 0x35,
+	0x80, 0x9b, 0xf1, 0xf6, 0xe4, 0xe7, 0x0d, 0x88, 0x59, 0x84, 0x7b, 0x67, 0xb6, 0x84, 0x0c, 0xa5,
+	0xc7, 0x9f, 0x7a, 0x22, 0x38, 0xe9, 0x89, 0xe0, 0xb4, 0x27, 0x82, 0x9f, 0x3d, 0x11, 0xbc, 0xeb,
+	0x8b, 0xdc, 0x69, 0x5f, 0xe4, 0xbe, 0xf7, 0x45, 0xee, 0x45, 0x7e, 0x66, 0x2d, 0x8f, 0xc6, 0x1f,
+	0xb9, 0x5e, 0x4b, 0x6b, 0x6b, 0xde, 0xb3, 0xf1, 0xce, 0x9f, 0x00, 0x00, 0x00, 0xff, 0xff, 0x63,
+	0xc3, 0x4d, 0x52, 0x96, 0x07, 0x00, 0x00,
 }
 
 func (this *MsgSetWithdrawAddressResponse) Equal(that interface{}) bool {
@@ -456,6 +540,27 @@ func (this *MsgWithdrawValidatorCommissionResponse) Equal(that interface{}) bool
 	}
 	return true
 }
+func (this *MsgWithdrawTokenizeShareRecordRewardResponse) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	that1, ok := that.(*MsgWithdrawTokenizeShareRecordRewardResponse)
+	if !ok {
+		that2, ok := that.(MsgWithdrawTokenizeShareRecordRewardResponse)
+		if ok {
+			that1 = &that2
+		} else {
+			return false
+		}
+	}
+	if that1 == nil {
+		return this == nil
+	} else if this == nil {
+		return false
+	}
+	return true
+}
 func (this *MsgFundCommunityPoolResponse) Equal(that interface{}) bool {
 	if that == nil {
 		return this == nil
@@ -499,6 +604,9 @@ type MsgClient interface {
 	// WithdrawValidatorCommission defines a method to withdraw the
 	// full commission to the validator address.
 	WithdrawValidatorCommission(ctx context.Context, in *MsgWithdrawValidatorCommission, opts ...grpc.CallOption) (*MsgWithdrawValidatorCommissionResponse, error)
+	// WithdrawTokenizeShareRecordReward defines a method to withdraw reward for
+	// owning TokenizeShareRecord
+	WithdrawTokenizeShareRecordReward(ctx context.Context, in *MsgWithdrawTokenizeShareRecordReward, opts ...grpc.CallOption) (*MsgWithdrawTokenizeShareRecordRewardResponse, error)
 	// FundCommunityPool defines a method to allow an account to directly
 	// fund the community pool.
 	FundCommunityPool(ctx context.Context, in *MsgFundCommunityPool, opts ...grpc.CallOption) (*MsgFundCommunityPoolResponse, error)
@@ -539,6 +647,15 @@ func (c *msgClient) WithdrawValidatorCommission(ctx context.Context, in *MsgWith
 	return out, nil
 }
 
+func (c *msgClient) WithdrawTokenizeShareRecordReward(ctx context.Context, in *MsgWithdrawTokenizeShareRecordReward, opts ...grpc.CallOption) (*MsgWithdrawTokenizeShareRecordRewardResponse, error) {
+	out := new(MsgWithdrawTokenizeShareRecordRewardResponse)
+	err := c.cc.Invoke(ctx, "/cosmos.distribution.v1beta1.Msg/WithdrawTokenizeShareRecordReward", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *msgClient) FundCommunityPool(ctx context.Context, in *MsgFundCommunityPool, opts ...grpc.CallOption) (*MsgFundCommunityPoolResponse, error) {
 	out := new(MsgFundCommunityPoolResponse)
 	err := c.cc.Invoke(ctx, "/cosmos.distribution.v1beta1.Msg/FundCommunityPool", in, out, opts...)
@@ -559,6 +676,9 @@ type MsgServer interface {
 	// WithdrawValidatorCommission defines a method to withdraw the
 	// full commission to the validator address.
 	WithdrawValidatorCommission(context.Context, *MsgWithdrawValidatorCommission) (*MsgWithdrawValidatorCommissionResponse, error)
+	// WithdrawTokenizeShareRecordReward defines a method to withdraw reward for
+	// owning TokenizeShareRecord
+	WithdrawTokenizeShareRecordReward(context.Context, *MsgWithdrawTokenizeShareRecordReward) (*MsgWithdrawTokenizeShareRecordRewardResponse, error)
 	// FundCommunityPool defines a method to allow an account to directly
 	// fund the community pool.
 	FundCommunityPool(context.Context, *MsgFundCommunityPool) (*MsgFundCommunityPoolResponse, error)
@@ -576,6 +696,9 @@ func (*UnimplementedMsgServer) WithdrawDelegatorReward(ctx context.Context, req 
 }
 func (*UnimplementedMsgServer) WithdrawValidatorCommission(ctx context.Context, req *MsgWithdrawValidatorCommission) (*MsgWithdrawValidatorCommissionResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method WithdrawValidatorCommission not implemented")
+}
+func (*UnimplementedMsgServer) WithdrawTokenizeShareRecordReward(ctx context.Context, req *MsgWithdrawTokenizeShareRecordReward) (*MsgWithdrawTokenizeShareRecordRewardResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method WithdrawTokenizeShareRecordReward not implemented")
 }
 func (*UnimplementedMsgServer) FundCommunityPool(ctx context.Context, req *MsgFundCommunityPool) (*MsgFundCommunityPoolResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method FundCommunityPool not implemented")
@@ -639,6 +762,24 @@ func _Msg_WithdrawValidatorCommission_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Msg_WithdrawTokenizeShareRecordReward_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgWithdrawTokenizeShareRecordReward)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MsgServer).WithdrawTokenizeShareRecordReward(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/cosmos.distribution.v1beta1.Msg/WithdrawTokenizeShareRecordReward",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MsgServer).WithdrawTokenizeShareRecordReward(ctx, req.(*MsgWithdrawTokenizeShareRecordReward))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Msg_FundCommunityPool_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(MsgFundCommunityPool)
 	if err := dec(in); err != nil {
@@ -672,6 +813,10 @@ var _Msg_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "WithdrawValidatorCommission",
 			Handler:    _Msg_WithdrawValidatorCommission_Handler,
+		},
+		{
+			MethodName: "WithdrawTokenizeShareRecordReward",
+			Handler:    _Msg_WithdrawTokenizeShareRecordReward_Handler,
 		},
 		{
 			MethodName: "FundCommunityPool",
@@ -855,6 +1000,59 @@ func (m *MsgWithdrawValidatorCommissionResponse) MarshalToSizedBuffer(dAtA []byt
 	return len(dAtA) - i, nil
 }
 
+func (m *MsgWithdrawTokenizeShareRecordReward) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgWithdrawTokenizeShareRecordReward) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgWithdrawTokenizeShareRecordReward) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.OwnerAddress) > 0 {
+		i -= len(m.OwnerAddress)
+		copy(dAtA[i:], m.OwnerAddress)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.OwnerAddress)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *MsgWithdrawTokenizeShareRecordRewardResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgWithdrawTokenizeShareRecordRewardResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgWithdrawTokenizeShareRecordRewardResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	return len(dAtA) - i, nil
+}
+
 func (m *MsgFundCommunityPool) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -999,6 +1197,28 @@ func (m *MsgWithdrawValidatorCommission) Size() (n int) {
 }
 
 func (m *MsgWithdrawValidatorCommissionResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	return n
+}
+
+func (m *MsgWithdrawTokenizeShareRecordReward) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.OwnerAddress)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	return n
+}
+
+func (m *MsgWithdrawTokenizeShareRecordRewardResponse) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -1478,6 +1698,138 @@ func (m *MsgWithdrawValidatorCommissionResponse) Unmarshal(dAtA []byte) error {
 		}
 		if fieldNum <= 0 {
 			return fmt.Errorf("proto: MsgWithdrawValidatorCommissionResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTx(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthTx
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *MsgWithdrawTokenizeShareRecordReward) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTx
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MsgWithdrawTokenizeShareRecordReward: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MsgWithdrawTokenizeShareRecordReward: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field OwnerAddress", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.OwnerAddress = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTx(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthTx
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *MsgWithdrawTokenizeShareRecordRewardResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTx
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MsgWithdrawTokenizeShareRecordRewardResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MsgWithdrawTokenizeShareRecordRewardResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		default:

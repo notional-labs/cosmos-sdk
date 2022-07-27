@@ -242,6 +242,7 @@
     - [DelegatorStartingInfo](#cosmos.distribution.v1beta1.DelegatorStartingInfo)
     - [FeePool](#cosmos.distribution.v1beta1.FeePool)
     - [Params](#cosmos.distribution.v1beta1.Params)
+    - [TokenizeShareRecordReward](#cosmos.distribution.v1beta1.TokenizeShareRecordReward)
     - [ValidatorAccumulatedCommission](#cosmos.distribution.v1beta1.ValidatorAccumulatedCommission)
     - [ValidatorCurrentRewards](#cosmos.distribution.v1beta1.ValidatorCurrentRewards)
     - [ValidatorHistoricalRewards](#cosmos.distribution.v1beta1.ValidatorHistoricalRewards)
@@ -272,6 +273,8 @@
     - [QueryDelegatorWithdrawAddressResponse](#cosmos.distribution.v1beta1.QueryDelegatorWithdrawAddressResponse)
     - [QueryParamsRequest](#cosmos.distribution.v1beta1.QueryParamsRequest)
     - [QueryParamsResponse](#cosmos.distribution.v1beta1.QueryParamsResponse)
+    - [QueryTokenizeShareRecordRewardRequest](#cosmos.distribution.v1beta1.QueryTokenizeShareRecordRewardRequest)
+    - [QueryTokenizeShareRecordRewardResponse](#cosmos.distribution.v1beta1.QueryTokenizeShareRecordRewardResponse)
     - [QueryValidatorCommissionRequest](#cosmos.distribution.v1beta1.QueryValidatorCommissionRequest)
     - [QueryValidatorCommissionResponse](#cosmos.distribution.v1beta1.QueryValidatorCommissionResponse)
     - [QueryValidatorOutstandingRewardsRequest](#cosmos.distribution.v1beta1.QueryValidatorOutstandingRewardsRequest)
@@ -288,6 +291,8 @@
     - [MsgSetWithdrawAddressResponse](#cosmos.distribution.v1beta1.MsgSetWithdrawAddressResponse)
     - [MsgWithdrawDelegatorReward](#cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward)
     - [MsgWithdrawDelegatorRewardResponse](#cosmos.distribution.v1beta1.MsgWithdrawDelegatorRewardResponse)
+    - [MsgWithdrawTokenizeShareRecordReward](#cosmos.distribution.v1beta1.MsgWithdrawTokenizeShareRecordReward)
+    - [MsgWithdrawTokenizeShareRecordRewardResponse](#cosmos.distribution.v1beta1.MsgWithdrawTokenizeShareRecordRewardResponse)
     - [MsgWithdrawValidatorCommission](#cosmos.distribution.v1beta1.MsgWithdrawValidatorCommission)
     - [MsgWithdrawValidatorCommissionResponse](#cosmos.distribution.v1beta1.MsgWithdrawValidatorCommissionResponse)
   
@@ -468,6 +473,7 @@
     - [RedelegationEntry](#cosmos.staking.v1beta1.RedelegationEntry)
     - [RedelegationEntryResponse](#cosmos.staking.v1beta1.RedelegationEntryResponse)
     - [RedelegationResponse](#cosmos.staking.v1beta1.RedelegationResponse)
+    - [TokenizeShareRecord](#cosmos.staking.v1beta1.TokenizeShareRecord)
     - [UnbondingDelegation](#cosmos.staking.v1beta1.UnbondingDelegation)
     - [UnbondingDelegationEntry](#cosmos.staking.v1beta1.UnbondingDelegationEntry)
     - [ValAddresses](#cosmos.staking.v1beta1.ValAddresses)
@@ -520,6 +526,12 @@
     - [MsgDelegateResponse](#cosmos.staking.v1beta1.MsgDelegateResponse)
     - [MsgEditValidator](#cosmos.staking.v1beta1.MsgEditValidator)
     - [MsgEditValidatorResponse](#cosmos.staking.v1beta1.MsgEditValidatorResponse)
+    - [MsgRedeemTokensforShares](#cosmos.staking.v1beta1.MsgRedeemTokensforShares)
+    - [MsgRedeemTokensforSharesResponse](#cosmos.staking.v1beta1.MsgRedeemTokensforSharesResponse)
+    - [MsgTokenizeShares](#cosmos.staking.v1beta1.MsgTokenizeShares)
+    - [MsgTokenizeSharesResponse](#cosmos.staking.v1beta1.MsgTokenizeSharesResponse)
+    - [MsgTransferTokenizeShareRecord](#cosmos.staking.v1beta1.MsgTransferTokenizeShareRecord)
+    - [MsgTransferTokenizeShareRecordResponse](#cosmos.staking.v1beta1.MsgTransferTokenizeShareRecordResponse)
     - [MsgUndelegate](#cosmos.staking.v1beta1.MsgUndelegate)
     - [MsgUndelegateResponse](#cosmos.staking.v1beta1.MsgUndelegateResponse)
   
@@ -3753,6 +3765,22 @@ Params defines the set of params for the distribution module.
 
 
 
+<a name="cosmos.distribution.v1beta1.TokenizeShareRecordReward"></a>
+
+### TokenizeShareRecordReward
+TokenizeShareRecordReward represents the properties of tokenize share
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| `recordId` | [uint64](#uint64) |  |  |
+| `reward` | [cosmos.base.v1beta1.DecCoin](#cosmos.base.v1beta1.DecCoin) | repeated |  |
+
+
+
+
+
+
 <a name="cosmos.distribution.v1beta1.ValidatorAccumulatedCommission"></a>
 
 ### ValidatorAccumulatedCommission
@@ -4222,6 +4250,37 @@ QueryParamsResponse is the response type for the Query/Params RPC method.
 
 
 
+<a name="cosmos.distribution.v1beta1.QueryTokenizeShareRecordRewardRequest"></a>
+
+### QueryTokenizeShareRecordRewardRequest
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| `owner_address` | [string](#string) |  |  |
+
+
+
+
+
+
+<a name="cosmos.distribution.v1beta1.QueryTokenizeShareRecordRewardResponse"></a>
+
+### QueryTokenizeShareRecordRewardResponse
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| `rewards` | [TokenizeShareRecordReward](#cosmos.distribution.v1beta1.TokenizeShareRecordReward) | repeated | rewards defines all the rewards accrued by a delegator. |
+| `total` | [cosmos.base.v1beta1.DecCoin](#cosmos.base.v1beta1.DecCoin) | repeated | total defines the sum of all the rewards. |
+
+
+
+
+
+
 <a name="cosmos.distribution.v1beta1.QueryValidatorCommissionRequest"></a>
 
 ### QueryValidatorCommissionRequest
@@ -4344,6 +4403,7 @@ Query defines the gRPC querier service for distribution module.
 | `DelegatorValidators` | [QueryDelegatorValidatorsRequest](#cosmos.distribution.v1beta1.QueryDelegatorValidatorsRequest) | [QueryDelegatorValidatorsResponse](#cosmos.distribution.v1beta1.QueryDelegatorValidatorsResponse) | DelegatorValidators queries the validators of a delegator. | GET|/cosmos/distribution/v1beta1/delegators/{delegator_address}/validators|
 | `DelegatorWithdrawAddress` | [QueryDelegatorWithdrawAddressRequest](#cosmos.distribution.v1beta1.QueryDelegatorWithdrawAddressRequest) | [QueryDelegatorWithdrawAddressResponse](#cosmos.distribution.v1beta1.QueryDelegatorWithdrawAddressResponse) | DelegatorWithdrawAddress queries withdraw address of a delegator. | GET|/cosmos/distribution/v1beta1/delegators/{delegator_address}/withdraw_address|
 | `CommunityPool` | [QueryCommunityPoolRequest](#cosmos.distribution.v1beta1.QueryCommunityPoolRequest) | [QueryCommunityPoolResponse](#cosmos.distribution.v1beta1.QueryCommunityPoolResponse) | CommunityPool queries the community pool coins. | GET|/cosmos/distribution/v1beta1/community_pool|
+| `TokenizeShareRecordReward` | [QueryTokenizeShareRecordRewardRequest](#cosmos.distribution.v1beta1.QueryTokenizeShareRecordRewardRequest) | [QueryTokenizeShareRecordRewardResponse](#cosmos.distribution.v1beta1.QueryTokenizeShareRecordRewardResponse) | TokenizeShareRecordReward queries the tokenize share record rewards | GET|/cosmos/distribution/v1beta1/{owner_address}/tokenize_share_record_rewards|
 
  <!-- end services -->
 
@@ -4437,6 +4497,31 @@ MsgWithdrawDelegatorRewardResponse defines the Msg/WithdrawDelegatorReward respo
 
 
 
+<a name="cosmos.distribution.v1beta1.MsgWithdrawTokenizeShareRecordReward"></a>
+
+### MsgWithdrawTokenizeShareRecordReward
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| `owner_address` | [string](#string) |  |  |
+
+
+
+
+
+
+<a name="cosmos.distribution.v1beta1.MsgWithdrawTokenizeShareRecordRewardResponse"></a>
+
+### MsgWithdrawTokenizeShareRecordRewardResponse
+
+
+
+
+
+
+
 <a name="cosmos.distribution.v1beta1.MsgWithdrawValidatorCommission"></a>
 
 ### MsgWithdrawValidatorCommission
@@ -4479,6 +4564,7 @@ Msg defines the distribution Msg service.
 | `SetWithdrawAddress` | [MsgSetWithdrawAddress](#cosmos.distribution.v1beta1.MsgSetWithdrawAddress) | [MsgSetWithdrawAddressResponse](#cosmos.distribution.v1beta1.MsgSetWithdrawAddressResponse) | SetWithdrawAddress defines a method to change the withdraw address for a delegator (or validator self-delegation). | |
 | `WithdrawDelegatorReward` | [MsgWithdrawDelegatorReward](#cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward) | [MsgWithdrawDelegatorRewardResponse](#cosmos.distribution.v1beta1.MsgWithdrawDelegatorRewardResponse) | WithdrawDelegatorReward defines a method to withdraw rewards of delegator from a single validator. | |
 | `WithdrawValidatorCommission` | [MsgWithdrawValidatorCommission](#cosmos.distribution.v1beta1.MsgWithdrawValidatorCommission) | [MsgWithdrawValidatorCommissionResponse](#cosmos.distribution.v1beta1.MsgWithdrawValidatorCommissionResponse) | WithdrawValidatorCommission defines a method to withdraw the full commission to the validator address. | |
+| `WithdrawTokenizeShareRecordReward` | [MsgWithdrawTokenizeShareRecordReward](#cosmos.distribution.v1beta1.MsgWithdrawTokenizeShareRecordReward) | [MsgWithdrawTokenizeShareRecordRewardResponse](#cosmos.distribution.v1beta1.MsgWithdrawTokenizeShareRecordRewardResponse) | WithdrawTokenizeShareRecordReward defines a method to withdraw reward for owning TokenizeShareRecord | |
 | `FundCommunityPool` | [MsgFundCommunityPool](#cosmos.distribution.v1beta1.MsgFundCommunityPool) | [MsgFundCommunityPoolResponse](#cosmos.distribution.v1beta1.MsgFundCommunityPoolResponse) | FundCommunityPool defines a method to allow an account to directly fund the community pool. | |
 
  <!-- end services -->
@@ -6348,8 +6434,6 @@ Msg defines the slashing Msg service.
 ### StakeAuthorization
 StakeAuthorization defines authorization for delegate/undelegate/redelegate.
 
-Since: cosmos-sdk 0.43
-
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
@@ -6384,8 +6468,6 @@ Validators defines list of validator addresses.
 
 ### AuthorizationType
 AuthorizationType defines the type of staking module authorization type
-
-Since: cosmos-sdk 0.43
 
 | Name | Number | Description |
 | ---- | ------ | ----------- |
@@ -6697,6 +6779,25 @@ responses.
 
 
 
+<a name="cosmos.staking.v1beta1.TokenizeShareRecord"></a>
+
+### TokenizeShareRecord
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| `id` | [uint64](#uint64) |  |  |
+| `owner` | [string](#string) |  |  |
+| `share_token_denom` | [string](#string) |  |  |
+| `module_account` | [string](#string) |  | module account take the role of delegator |
+| `validator` | [string](#string) |  | validator delegated to for tokenize share record creation |
+
+
+
+
+
+
 <a name="cosmos.staking.v1beta1.UnbondingDelegation"></a>
 
 ### UnbondingDelegation
@@ -6828,6 +6929,8 @@ GenesisState defines the staking module's genesis state.
 | `unbonding_delegations` | [UnbondingDelegation](#cosmos.staking.v1beta1.UnbondingDelegation) | repeated | unbonding_delegations defines the unbonding delegations active at genesis. |
 | `redelegations` | [Redelegation](#cosmos.staking.v1beta1.Redelegation) | repeated | redelegations defines the redelegations active at genesis. |
 | `exported` | [bool](#bool) |  |  |
+| `tokenize_share_records` | [TokenizeShareRecord](#cosmos.staking.v1beta1.TokenizeShareRecord) | repeated | store tokenize share records to provide reward to record owners |
+| `last_tokenize_share_record_id` | [uint64](#uint64) |  | last tokenize share record id, used for next share record id calculation |
 
 
 
@@ -7473,6 +7576,97 @@ MsgEditValidatorResponse defines the Msg/EditValidator response type.
 
 
 
+<a name="cosmos.staking.v1beta1.MsgRedeemTokensforShares"></a>
+
+### MsgRedeemTokensforShares
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| `delegator_address` | [string](#string) |  |  |
+| `amount` | [cosmos.base.v1beta1.Coin](#cosmos.base.v1beta1.Coin) |  |  |
+
+
+
+
+
+
+<a name="cosmos.staking.v1beta1.MsgRedeemTokensforSharesResponse"></a>
+
+### MsgRedeemTokensforSharesResponse
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| `amount` | [cosmos.base.v1beta1.Coin](#cosmos.base.v1beta1.Coin) |  |  |
+
+
+
+
+
+
+<a name="cosmos.staking.v1beta1.MsgTokenizeShares"></a>
+
+### MsgTokenizeShares
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| `delegator_address` | [string](#string) |  |  |
+| `validator_address` | [string](#string) |  |  |
+| `amount` | [cosmos.base.v1beta1.Coin](#cosmos.base.v1beta1.Coin) |  |  |
+| `tokenized_share_owner` | [string](#string) |  |  |
+
+
+
+
+
+
+<a name="cosmos.staking.v1beta1.MsgTokenizeSharesResponse"></a>
+
+### MsgTokenizeSharesResponse
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| `amount` | [cosmos.base.v1beta1.Coin](#cosmos.base.v1beta1.Coin) |  |  |
+
+
+
+
+
+
+<a name="cosmos.staking.v1beta1.MsgTransferTokenizeShareRecord"></a>
+
+### MsgTransferTokenizeShareRecord
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| `tokenize_share_record_id` | [uint64](#uint64) |  |  |
+| `sender` | [string](#string) |  |  |
+| `new_owner` | [string](#string) |  |  |
+
+
+
+
+
+
+<a name="cosmos.staking.v1beta1.MsgTransferTokenizeShareRecordResponse"></a>
+
+### MsgTransferTokenizeShareRecordResponse
+
+
+
+
+
+
+
 <a name="cosmos.staking.v1beta1.MsgUndelegate"></a>
 
 ### MsgUndelegate
@@ -7524,6 +7718,9 @@ Msg defines the staking Msg service.
 | `Delegate` | [MsgDelegate](#cosmos.staking.v1beta1.MsgDelegate) | [MsgDelegateResponse](#cosmos.staking.v1beta1.MsgDelegateResponse) | Delegate defines a method for performing a delegation of coins from a delegator to a validator. | |
 | `BeginRedelegate` | [MsgBeginRedelegate](#cosmos.staking.v1beta1.MsgBeginRedelegate) | [MsgBeginRedelegateResponse](#cosmos.staking.v1beta1.MsgBeginRedelegateResponse) | BeginRedelegate defines a method for performing a redelegation of coins from a delegator and source validator to a destination validator. | |
 | `Undelegate` | [MsgUndelegate](#cosmos.staking.v1beta1.MsgUndelegate) | [MsgUndelegateResponse](#cosmos.staking.v1beta1.MsgUndelegateResponse) | Undelegate defines a method for performing an undelegation from a delegate and a validator. | |
+| `TokenizeShares` | [MsgTokenizeShares](#cosmos.staking.v1beta1.MsgTokenizeShares) | [MsgTokenizeSharesResponse](#cosmos.staking.v1beta1.MsgTokenizeSharesResponse) | TokenizeShares defines a method for tokenizing shares from a validator. | |
+| `RedeemTokens` | [MsgRedeemTokensforShares](#cosmos.staking.v1beta1.MsgRedeemTokensforShares) | [MsgRedeemTokensforSharesResponse](#cosmos.staking.v1beta1.MsgRedeemTokensforSharesResponse) | RedeemTokens defines a method for redeeming tokens from a validator for shares. | |
+| `TransferTokenizeShareRecord` | [MsgTransferTokenizeShareRecord](#cosmos.staking.v1beta1.MsgTransferTokenizeShareRecord) | [MsgTransferTokenizeShareRecordResponse](#cosmos.staking.v1beta1.MsgTransferTokenizeShareRecordResponse) | TransferTokenizeShareRecord defines a method to transfer ownership of TokenizeShareRecord | |
 
  <!-- end services -->
 
