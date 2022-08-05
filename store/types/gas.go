@@ -130,7 +130,7 @@ type infiniteGasMeter struct {
 	consumed Gas
 }
 
-// NewInfiniteGasMeter returns a new gas meter without a limit.
+// NewInfiniteGasMeter returns a reference to a new infiniteGasMeter.
 func NewInfiniteGasMeter() GasMeter {
 	return &infiniteGasMeter{
 		consumed: 0,
