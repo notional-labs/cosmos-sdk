@@ -83,7 +83,6 @@ func (s *IntegrationTestSuite) TestModuleVersionsCLI() {
 
 	for _, tc := range testCases {
 		s.Run(fmt.Sprintf("Case %s", tc.msg), func() {
-
 			expect := mv
 			if tc.expPass {
 				if tc.single {
