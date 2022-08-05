@@ -20,7 +20,9 @@ var _ gov.Content = &SoftwareUpgradeProposal{}
 
 func init() {
 	gov.RegisterProposalType(ProposalTypeSoftwareUpgrade)
+	gov.RegisterProposalTypeCodec(&SoftwareUpgradeProposal{}, "cosmos-sdk/SoftwareUpgradeProposal")
 	gov.RegisterProposalType(ProposalTypeCancelSoftwareUpgrade)
+	gov.RegisterProposalTypeCodec(&CancelSoftwareUpgradeProposal{}, "cosmos-sdk/CancelSoftwareUpgradeProposal")
 }
 
 func (sup *SoftwareUpgradeProposal) GetTitle() string       { return sup.Title }
