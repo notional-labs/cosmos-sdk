@@ -16,6 +16,7 @@ func TestParams_ValidateBasic(t *testing.T) {
 		CommunityTax        sdk.Dec
 		BaseProposerReward  sdk.Dec
 		BonusProposerReward sdk.Dec
+		SecretFoundationTax sdk.Dec
 		WithdrawAddrEnabled bool
 	}
 	tests := []struct {
@@ -23,11 +24,12 @@ func TestParams_ValidateBasic(t *testing.T) {
 		fields  fields
 		wantErr bool
 	}{
-		{"success", fields{toDec("0.1"), toDec("0.5"), toDec("0.4"), false}, false},
-		{"negative community tax", fields{toDec("-0.1"), toDec("0.5"), toDec("0.4"), false}, true},
-		{"negative base proposer reward", fields{toDec("0.1"), toDec("-0.5"), toDec("0.4"), false}, true},
-		{"negative bonus proposer reward", fields{toDec("0.1"), toDec("0.5"), toDec("-0.4"), false}, true},
-		{"total sum greater than 1", fields{toDec("0.2"), toDec("0.5"), toDec("0.4"), false}, true},
+		{"success", fields{toDec("0.1"), toDec("0.5"), toDec("0.4"), toDec("0.1"), false}, false},
+		{"negative community tax", fields{toDec("-0.1"), toDec("0.5"), toDec("0.4"), toDec("0.1"), false}, true},
+		{"negative base proposer reward", fields{toDec("0.1"), toDec("-0.5"), toDec("0.4"), toDec("0.1"), false}, true},
+		{"negative bonus proposer reward", fields{toDec("0.1"), toDec("0.5"), toDec("-0.4"), toDec("0.1"), false}, true},
+		{"negative secret foundationtax", fields{toDec("0.1"), toDec("0.5"), toDec("-0.4"), toDec("-0.1"), false}, true},
+		{"total sum greater than 1", fields{toDec("0.2"), toDec("0.5"), toDec("0.4"), toDec("0.1"), false}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -35,6 +37,7 @@ func TestParams_ValidateBasic(t *testing.T) {
 				CommunityTax:        tt.fields.CommunityTax,
 				BaseProposerReward:  tt.fields.BaseProposerReward,
 				BonusProposerReward: tt.fields.BonusProposerReward,
+				SecretFoundationTax: tt.fields.SecretFoundationTax,
 				WithdrawAddrEnabled: tt.fields.WithdrawAddrEnabled,
 			}
 			if err := p.ValidateBasic(); (err != nil) != tt.wantErr {
