@@ -46,18 +46,19 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	// create a proposal with deposit
 	_, err = MsgSubmitLegacyProposal(val.ClientCtx, val.Address.String(),
 		"Text Proposal 1", "Where is the title!?", v1beta1.ProposalTypeText,
-		fmt.Sprintf("--%s=%s", cli.FlagDeposit, sdk.NewCoin(s.cfg.BondDenom, v1.DefaultMinDepositTokens).String()))
+		fmt.Sprintf("--%s=%s", cli.FlagDeposit, sdk.NewCoin(s.cfg.BondDenom, v1.DefaultMinDepositTokens).String()),
+		fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""))
 	s.Require().NoError(err)
 	_, err = s.network.WaitForHeight(1)
 	s.Require().NoError(err)
 
 	// vote for proposal
-	_, err = MsgVote(val.ClientCtx, val.Address.String(), "1", "yes")
+	_, err = MsgVote(val.ClientCtx, val.Address.String(), "1", "yes", fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""))
 	s.Require().NoError(err)
 
 	// create a proposal without deposit
 	_, err = MsgSubmitLegacyProposal(val.ClientCtx, val.Address.String(),
-		"Text Proposal 2", "Where is the title!?", v1beta1.ProposalTypeText)
+		"Text Proposal 2", "Where is the title!?", v1beta1.ProposalTypeText, fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""))
 	s.Require().NoError(err)
 	_, err = s.network.WaitForHeight(1)
 	s.Require().NoError(err)
@@ -65,13 +66,13 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	// create a proposal3 with deposit
 	_, err = MsgSubmitLegacyProposal(val.ClientCtx, val.Address.String(),
 		"Text Proposal 3", "Where is the title!?", v1beta1.ProposalTypeText,
-		fmt.Sprintf("--%s=%s", cli.FlagDeposit, sdk.NewCoin(s.cfg.BondDenom, v1.DefaultMinDepositTokens).String()))
+		fmt.Sprintf("--%s=%s", cli.FlagDeposit, sdk.NewCoin(s.cfg.BondDenom, v1.DefaultMinDepositTokens).String()), fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""))
 	s.Require().NoError(err)
 	_, err = s.network.WaitForHeight(1)
 	s.Require().NoError(err)
 
 	// vote for proposal3 as val
-	_, err = MsgVote(val.ClientCtx, val.Address.String(), "3", "yes=0.6,no=0.3,abstain=0.05,no_with_veto=0.05")
+	_, err = MsgVote(val.ClientCtx, val.Address.String(), "3", "yes=0.6,no=0.3,abstain=0.05,no_with_veto=0.05", fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""))
 	s.Require().NoError(err)
 }
 
@@ -137,6 +138,7 @@ func (s *IntegrationTestSuite) TestNewCmdSubmitProposal() {
 				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
 				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(10))).String()),
+				fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
 			},
 			false, 0, &sdk.TxResponse{},
 		},
@@ -215,6 +217,7 @@ func (s *IntegrationTestSuite) TestNewCmdSubmitLegacyProposal() {
 				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
 				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(10))).String()),
+				fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
 			},
 			false, 0, &sdk.TxResponse{},
 		},
@@ -229,6 +232,7 @@ func (s *IntegrationTestSuite) TestNewCmdSubmitLegacyProposal() {
 				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
 				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(10))).String()),
+				fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
 			},
 			false, 0, &sdk.TxResponse{},
 		},
@@ -294,6 +298,7 @@ func (s *IntegrationTestSuite) TestNewCmdDeposit() {
 				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
 				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(10))).String()),
+				fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
 			},
 			false, 2,
 		},
@@ -306,6 +311,7 @@ func (s *IntegrationTestSuite) TestNewCmdDeposit() {
 				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
 				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(10))).String()),
+				fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
 			},
 			false, 0,
 		},
@@ -356,6 +362,7 @@ func (s *IntegrationTestSuite) TestNewCmdVote() {
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
 				fmt.Sprintf("--metadata=%s", "AQ=="),
 				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(10))).String()),
+				fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
 			},
 			false, 2,
 		},
@@ -368,6 +375,7 @@ func (s *IntegrationTestSuite) TestNewCmdVote() {
 				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
 				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(10))).String()),
+				fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
 			},
 			false, 0,
 		},
@@ -381,6 +389,7 @@ func (s *IntegrationTestSuite) TestNewCmdVote() {
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
 				fmt.Sprintf("--metadata=%s", "AQ=="),
 				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(10))).String()),
+				fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
 			},
 			false, 0,
 		},
@@ -429,6 +438,7 @@ func (s *IntegrationTestSuite) TestNewCmdWeightedVote() {
 				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
 				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(10))).String()),
+				fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
 			},
 			false, 2,
 		},
@@ -441,6 +451,7 @@ func (s *IntegrationTestSuite) TestNewCmdWeightedVote() {
 				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
 				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(10))).String()),
+				fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
 			},
 			false, 0,
 		},
@@ -454,6 +465,7 @@ func (s *IntegrationTestSuite) TestNewCmdWeightedVote() {
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
 				fmt.Sprintf("--metadata=%s", "AQ=="),
 				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(10))).String()),
+				fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
 			},
 			false, 0,
 		},
@@ -478,6 +490,7 @@ func (s *IntegrationTestSuite) TestNewCmdWeightedVote() {
 				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
 				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(10))).String()),
+				fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
 			},
 			false, 0,
 		},
