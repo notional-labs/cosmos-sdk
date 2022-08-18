@@ -39,7 +39,7 @@ func (s *IntegrationTestSuite) TestQueryBalanceGRPC() {
 				Owner   string
 			}{
 				ClassID: ExpNFT.ClassId,
-				Owner:   val.Address.String(),
+				Owner:   s.owner.String(),
 			},
 			expectErr:   false,
 			expectValue: 0,
@@ -51,7 +51,7 @@ func (s *IntegrationTestSuite) TestQueryBalanceGRPC() {
 				Owner   string
 			}{
 				ClassID: ExpNFT.ClassId,
-				Owner:   s.owner.String(),
+				Owner:   val.Address.String(),
 			},
 			expectErr:   false,
 			expectValue: 1,
@@ -146,7 +146,7 @@ func (s *IntegrationTestSuite) TestQueryOwnerGRPC() {
 				ID:      ExpNFT.Id,
 			},
 			expectErr:    false,
-			expectResult: s.owner.String(),
+			expectResult: val.Address.String(),
 		},
 	}
 	ownerURL := val.APIAddress + "/cosmos/nft/v1beta1/owner/%s/%s"
