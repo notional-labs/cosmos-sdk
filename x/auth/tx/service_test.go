@@ -551,6 +551,7 @@ func (s *IntegrationTestSuite) TestSimMultiSigTx() {
 		sdk.NewCoins(coins),
 		fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
 		fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastSync),
+		fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
 		fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(10))).String()),
 		fmt.Sprintf("--gas=%d", flags.DefaultGasLimit),
 	)
@@ -570,6 +571,7 @@ func (s *IntegrationTestSuite) TestSimMultiSigTx() {
 		fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
 		fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastSync),
 		fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(10))).String()),
+		fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
 		fmt.Sprintf("--%s=true", flags.FlagGenerateOnly),
 		fmt.Sprintf("--%s=foobar", flags.FlagNote),
 	)
