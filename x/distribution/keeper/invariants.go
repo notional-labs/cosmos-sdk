@@ -81,10 +81,10 @@ func CanWithdrawInvariant(k Keeper) sdk.Invariant {
 		})
 
 		var (
-		  broken bool
-		  remaining sdk.DecCoins
-		 )
-		
+			broken    bool
+			remaining sdk.DecCoins
+		)
+
 		wg := new(sync.WaitGroup)
 		for _, val := range valList {
 			wg.Add(1)
