@@ -219,7 +219,7 @@ func (rs *Store) loadVersion(ver int64, upgrades *types.StoreUpgrades) error {
 	}
 
 	// load each Store (note this doesn't panic on unmounted keys now)
-	var newStores = make(map[types.StoreKey]types.CommitKVStore)
+	newStores := make(map[types.StoreKey]types.CommitKVStore)
 
 	storesKeys := make([]types.StoreKey, 0, len(rs.storesParams))
 
@@ -406,7 +406,6 @@ func (rs *Store) Commit() types.CommitID {
 		// This case means that no commit has been made in the store, we
 		// start from initialVersion.
 		version = rs.initialVersion
-
 	} else {
 		// This case can means two things:
 		// - either there was already a previous commit in the store, in which
@@ -840,7 +839,7 @@ loop:
 			}
 
 		case *snapshottypes.SnapshotItem_AppVersion:
-			err := rs.SetAppVersion(uint64(item.AppVersion.Version))
+			err := rs.SetAppVersion(item.AppVersion.Version)
 			if err != nil {
 				return snapshottypes.SnapshotItem{}, sdkerrors.Wrap(err, "IAVL node import failed - error saving app version from received snapshot")
 			}
@@ -963,7 +962,7 @@ func (rs *Store) commitStores(version int64, storeMap map[types.StoreKey]types.C
 	}
 }
 
-func (rs *Store) updateLatestCommitInfo(newCommitInfo *types.CommitInfo, version int64) {
+func (rs *Store) updateLatestCommitInfo(newCommitInfo *types.CommitInfo, version int64) { //nolint:unparam
 	rs.mx.Lock()
 	defer rs.mx.Unlock()
 	rs.lastCommitInfo = newCommitInfo
