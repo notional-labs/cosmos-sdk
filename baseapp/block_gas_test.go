@@ -129,8 +129,6 @@ func TestBaseApp_BlockGas(t *testing.T) {
 				// capped by gasLimit
 				expGasConsumed = txtypes.MaxGasWanted
 			}
-			println("Check gas: ", expGasConsumed)
-			println("Check compare: ", ctx.BlockGasMeter().GasConsumed())
 			require.Equal(t, expGasConsumed, ctx.BlockGasMeter().GasConsumed())
 			// tx fee is always deducted
 			require.Equal(t, int64(0), app.BankKeeper.GetBalance(ctx, addr1, feeCoin.Denom).Amount.Int64())
