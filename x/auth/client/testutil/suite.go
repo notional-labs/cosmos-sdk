@@ -90,8 +90,12 @@ func (s *IntegrationTestSuite) TestCLIValidateSignatures() {
 		sdk.NewCoin(fmt.Sprintf("%stoken", val.Moniker), sdk.NewInt(10)),
 		sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(10)))
 
+	var extraFlags = []string{
+		fmt.Sprintf("--%s=true", flags.FlagGenerateOnly),
+		fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
+	}
 	res, err := s.createBankMsg(val, val.Address, sendTokens,
-		fmt.Sprintf("--%s=true", flags.FlagGenerateOnly))
+		extraFlags...)
 	s.Require().NoError(err)
 
 	// write  unsigned tx to file
@@ -237,8 +241,12 @@ func (s *IntegrationTestSuite) TestCLISignBatch() {
 		sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(10)),
 	)
 
+	var extraFlags = []string{
+		fmt.Sprintf("--%s=true", flags.FlagGenerateOnly),
+		fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
+	}
 	generatedStd, err := s.createBankMsg(val, val.Address,
-		sendTokens, fmt.Sprintf("--%s=true", flags.FlagGenerateOnly))
+		sendTokens, extraFlags...)
 	s.Require().NoError(err)
 
 	outputFile := testutil.WriteToNewTempFile(s.T(), strings.Repeat(generatedStd.String(), 3))
@@ -333,8 +341,13 @@ func (s *IntegrationTestSuite) TestCLISignAminoJSON() {
 		sdk.NewCoin(fmt.Sprintf("%stoken", val1.Moniker), sdk.NewInt(10)),
 		sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(10)),
 	)
+
+	var extraFlags = []string{
+		fmt.Sprintf("--%s=true", flags.FlagGenerateOnly),
+		fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
+	}
 	txBz, err := s.createBankMsg(val1, val1.Address,
-		sendTokens, fmt.Sprintf("--%s=true", flags.FlagGenerateOnly))
+		sendTokens, extraFlags...)
 	require.NoError(err)
 	fileUnsigned := testutil.WriteToNewTempFile(s.T(), txBz.String())
 	chainFlag := fmt.Sprintf("--%s=%s", flags.FlagChainID, val1.ClientCtx.ChainID)
@@ -438,9 +451,13 @@ func (s *IntegrationTestSuite) TestCLIQueryTxCmdByHash() {
 	s.Require().NoError(err)
 
 	// Send coins.
+	var extraFlags = []string{
+		fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
+	}
 	out, err := s.createBankMsg(
 		val, addr,
 		sdk.NewCoins(sendTokens),
+		extraFlags...,
 	)
 	s.Require().NoError(err)
 	var txRes sdk.TxResponse
@@ -509,9 +526,13 @@ func (s *IntegrationTestSuite) TestCLIQueryTxCmdByEvents() {
 	s.Require().NoError(err)
 
 	// Send coins.
+	var extraFlags = []string{
+		fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
+	}
 	out, err := s.createBankMsg(
 		val, addr2,
 		sdk.NewCoins(sendTokens),
+		extraFlags...,
 	)
 	s.Require().NoError(err)
 	var txRes sdk.TxResponse
@@ -625,10 +646,14 @@ func (s *IntegrationTestSuite) TestCLIQueryTxsCmdByEvents() {
 	addr2, err := account2.GetAddress()
 	s.Require().NoError(err)
 	// Send coins.
+	var extraFlags = []string{
+		fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
+	}
 	out, err := s.createBankMsg(
 		val,
 		addr2,
 		sdk.NewCoins(sendTokens),
+		extraFlags...,
 	)
 	s.Require().NoError(err)
 	var txRes sdk.TxResponse
@@ -697,8 +722,13 @@ func (s *IntegrationTestSuite) TestCLISendGenerateSignAndBroadcast() {
 
 	addr, err := account.GetAddress()
 	s.Require().NoError(err)
+
+	var extraFlags = []string{
+		fmt.Sprintf("--%s=true", flags.FlagGenerateOnly),
+		fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
+	}
 	normalGeneratedTx, err := s.createBankMsg(val1, addr,
-		sdk.NewCoins(sendTokens), fmt.Sprintf("--%s=true", flags.FlagGenerateOnly))
+		sdk.NewCoins(sendTokens), extraFlags...)
 	s.Require().NoError(err)
 
 	txCfg := val1.ClientCtx.TxConfig
@@ -714,9 +744,13 @@ func (s *IntegrationTestSuite) TestCLISendGenerateSignAndBroadcast() {
 	s.Require().Equal(0, len(sigs))
 
 	// Test generate sendTx with --gas=$amount
-	limitedGasGeneratedTx, err := s.createBankMsg(val1, addr,
-		sdk.NewCoins(sendTokens), fmt.Sprintf("--gas=%d", 100),
+	extraFlags = []string{
+		fmt.Sprintf("--gas=%d", 100),
 		fmt.Sprintf("--%s=true", flags.FlagGenerateOnly),
+		fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
+	}
+	limitedGasGeneratedTx, err := s.createBankMsg(val1, addr,
+		sdk.NewCoins(sendTokens), extraFlags...,
 	)
 	s.Require().NoError(err)
 
@@ -739,9 +773,13 @@ func (s *IntegrationTestSuite) TestCLISendGenerateSignAndBroadcast() {
 	startTokens := balRes.Balances.AmountOf(s.cfg.BondDenom)
 
 	// Test generate sendTx, estimate gas
+	extraFlags = []string{
+		fmt.Sprintf("--gas=%d", flags.DefaultGasLimit),
+		fmt.Sprintf("--%s=true", flags.FlagGenerateOnly),
+		fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
+	}
 	finalGeneratedTx, err := s.createBankMsg(val1, addr,
-		sdk.NewCoins(sendTokens), fmt.Sprintf("--gas=%d", flags.DefaultGasLimit),
-		fmt.Sprintf("--%s=true", flags.FlagGenerateOnly))
+		sdk.NewCoins(sendTokens), extraFlags...)
 	s.Require().NoError(err)
 
 	finalStdTx, err := txCfg.TxJSONDecoder()(finalGeneratedTx.Bytes())
@@ -843,18 +881,29 @@ func (s *IntegrationTestSuite) TestCLIMultisignInsufficientCosigners() {
 	addr, err := multisigRecord.GetAddress()
 	s.Require().NoError(err)
 	// Send coins from validator to multisig.
+	var extraFlags = []string{
+		fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
+	}
 	_, err = s.createBankMsg(
 		val1,
 		addr,
 		sdk.NewCoins(
 			sdk.NewInt64Coin(s.cfg.BondDenom, 10),
 		),
+		extraFlags...,
 	)
 	s.Require().NoError(err)
 
 	s.Require().NoError(s.network.WaitForNextBlock())
 
 	// Generate multisig transaction.
+	extraFlags = []string{
+		fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
+		fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastSync),
+		fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(10))).String()),
+		fmt.Sprintf("--%s=true", flags.FlagGenerateOnly),
+		fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
+	}
 	multiGeneratedTx, err := bankcli.MsgSendExec(
 		val1.ClientCtx,
 		addr,
@@ -862,10 +911,7 @@ func (s *IntegrationTestSuite) TestCLIMultisignInsufficientCosigners() {
 		sdk.NewCoins(
 			sdk.NewInt64Coin(s.cfg.BondDenom, 5),
 		),
-		fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
-		fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastSync),
-		fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(10))).String()),
-		fmt.Sprintf("--%s=true", flags.FlagGenerateOnly),
+		extraFlags...,
 	)
 	s.Require().NoError(err)
 
@@ -895,12 +941,15 @@ func (s *IntegrationTestSuite) TestCLIEncode() {
 	val1 := s.network.Validators[0]
 
 	sendTokens := sdk.NewCoin(s.cfg.BondDenom, sdk.TokensFromConsensusPower(10, sdk.DefaultPowerReduction))
-
+	var extraFlags = []string{
+		fmt.Sprintf("--%s=true", flags.FlagGenerateOnly),
+		fmt.Sprintf("--%s=deadbeef", flags.FlagNote),
+		fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
+	}
 	normalGeneratedTx, err := s.createBankMsg(
 		val1, val1.Address,
 		sdk.NewCoins(sendTokens),
-		fmt.Sprintf("--%s=true", flags.FlagGenerateOnly),
-		fmt.Sprintf("--%s=deadbeef", flags.FlagNote),
+		extraFlags...,
 	)
 	s.Require().NoError(err)
 	savedTxFile := testutil.WriteToNewTempFile(s.T(), normalGeneratedTx.String())
@@ -947,11 +996,15 @@ func (s *IntegrationTestSuite) TestCLIMultisignSortSignatures() {
 
 	s.Require().NoError(s.network.WaitForNextBlock())
 	// Send coins from validator to multisig.
+	var extraFlags = []string{
+		fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
+	}
 	sendTokens := sdk.NewInt64Coin(s.cfg.BondDenom, 10)
 	_, err = s.createBankMsg(
 		val1,
 		addr,
 		sdk.NewCoins(sendTokens),
+		extraFlags...,
 	)
 	s.Require().NoError(err)
 
@@ -966,6 +1019,13 @@ func (s *IntegrationTestSuite) TestCLIMultisignSortSignatures() {
 	s.Require().Equal(sendTokens.Amount, diff.AmountOf(s.cfg.BondDenom))
 
 	// Generate multisig transaction.
+	extraFlags = []string{
+		fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
+		fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastSync),
+		fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(10))).String()),
+		fmt.Sprintf("--%s=true", flags.FlagGenerateOnly),
+		fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
+	}
 	multiGeneratedTx, err := bankcli.MsgSendExec(
 		val1.ClientCtx,
 		addr,
@@ -973,10 +1033,7 @@ func (s *IntegrationTestSuite) TestCLIMultisignSortSignatures() {
 		sdk.NewCoins(
 			sdk.NewInt64Coin(s.cfg.BondDenom, 5),
 		),
-		fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
-		fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastSync),
-		fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(10))).String()),
-		fmt.Sprintf("--%s=true", flags.FlagGenerateOnly),
+		extraFlags...,
 	)
 	s.Require().NoError(err)
 
@@ -1043,6 +1100,7 @@ func (s *IntegrationTestSuite) TestSignWithMultisig() {
 		fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastSync),
 		fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(10))).String()),
 		fmt.Sprintf("--%s=true", flags.FlagGenerateOnly),
+		fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
 	)
 	s.Require().NoError(err)
 
@@ -1074,11 +1132,15 @@ func (s *IntegrationTestSuite) TestCLIMultisign() {
 	s.Require().NoError(err)
 
 	// Send coins from validator to multisig.
+	var extraFlags = []string{
+		fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
+	}
 	sendTokens := sdk.NewInt64Coin(s.cfg.BondDenom, 10)
 	s.Require().NoError(s.network.WaitForNextBlock())
 	_, err = s.createBankMsg(
 		val1, addr,
 		sdk.NewCoins(sendTokens),
+		extraFlags...,
 	)
 	s.Require().NoError(s.network.WaitForNextBlock())
 	s.Require().NoError(err)
@@ -1093,6 +1155,13 @@ func (s *IntegrationTestSuite) TestCLIMultisign() {
 	s.Require().True(sendTokens.Amount.Equal(balRes.Balances.AmountOf(s.cfg.BondDenom)))
 
 	// Generate multisig transaction.
+	extraFlags = []string{
+		fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
+		fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastSync),
+		fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(10))).String()),
+		fmt.Sprintf("--%s=true", flags.FlagGenerateOnly),
+		fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
+	}
 	multiGeneratedTx, err := bankcli.MsgSendExec(
 		val1.ClientCtx,
 		addr,
@@ -1100,10 +1169,7 @@ func (s *IntegrationTestSuite) TestCLIMultisign() {
 		sdk.NewCoins(
 			sdk.NewInt64Coin(s.cfg.BondDenom, 5),
 		),
-		fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
-		fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastSync),
-		fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(10))).String()),
-		fmt.Sprintf("--%s=true", flags.FlagGenerateOnly),
+		extraFlags...,
 	)
 	s.Require().NoError(err)
 
@@ -1167,6 +1233,7 @@ func (s *IntegrationTestSuite) TestSignBatchMultisig() {
 		val,
 		addr,
 		sdk.NewCoins(sendTokens),
+		fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
 	)
 	s.Require().NoError(err)
 	s.Require().NoError(s.network.WaitForNextBlock())
@@ -1182,6 +1249,7 @@ func (s *IntegrationTestSuite) TestSignBatchMultisig() {
 		fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastSync),
 		fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(10))).String()),
 		fmt.Sprintf("--%s=true", flags.FlagGenerateOnly),
+		fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
 	)
 	s.Require().NoError(err)
 
@@ -1229,6 +1297,7 @@ func (s *IntegrationTestSuite) TestMultisignBatch() {
 		val,
 		addr,
 		sdk.NewCoins(sendTokens),
+		fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
 	)
 	s.Require().NoError(err)
 	s.Require().NoError(s.network.WaitForNextBlock())
@@ -1244,6 +1313,7 @@ func (s *IntegrationTestSuite) TestMultisignBatch() {
 		fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastSync),
 		fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(10))).String()),
 		fmt.Sprintf("--%s=true", flags.FlagGenerateOnly),
+		fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
 	)
 	s.Require().NoError(err)
 
@@ -1572,6 +1642,7 @@ func (s *IntegrationTestSuite) TestAuxSigner() {
 			[]string{
 				fmt.Sprintf("--%s=%s", flags.FlagSignMode, flags.SignModeDirectAux),
 				fmt.Sprintf("--%s=true", flags.FlagGenerateOnly),
+				fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
 			},
 			false,
 		},
@@ -1581,6 +1652,7 @@ func (s *IntegrationTestSuite) TestAuxSigner() {
 				fmt.Sprintf("--%s=%s", flags.FlagSignMode, flags.SignModeDirectAux),
 				fmt.Sprintf("--%s=true", flags.FlagGenerateOnly),
 				fmt.Sprintf("--%s=%s", flags.FlagTip, val0Coin.String()),
+				fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
 			},
 			false,
 		},
