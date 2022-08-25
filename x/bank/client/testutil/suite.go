@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	tmcli "github.com/tendermint/tendermint/libs/cli"
 
+	"cosmossdk.io/math"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	clitestutil "github.com/cosmos/cosmos-sdk/testutil/cli"
 	"github.com/cosmos/cosmos-sdk/testutil/network"
@@ -660,7 +661,7 @@ func (s *IntegrationTestSuite) TestNewMultiSendTxCmd() {
 	}
 }
 
-func NewCoin(denom string, amount sdk.Int) *sdk.Coin {
+func NewCoin(denom string, amount math.Int) *sdk.Coin {
 	coin := sdk.NewCoin(denom, amount)
 	return &coin
 }
