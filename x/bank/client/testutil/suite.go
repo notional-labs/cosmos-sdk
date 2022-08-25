@@ -380,6 +380,7 @@ func (s *IntegrationTestSuite) TestNewSendTxCmdGenOnly() {
 		fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastSync),
 		fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(10))).String()),
 		fmt.Sprintf("--%s=true", flags.FlagGenerateOnly),
+		fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
 	}
 
 	bz, err := MsgSendExec(clientCtx, from, to, amount, args...)
@@ -405,6 +406,7 @@ func (s *IntegrationTestSuite) TestNewSendTxCmdDryRun() {
 		fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastSync),
 		fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(10))).String()),
 		fmt.Sprintf("--%s=true", flags.FlagDryRun),
+		fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
 	}
 
 	oldSterr := os.Stderr
