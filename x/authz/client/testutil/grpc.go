@@ -117,6 +117,7 @@ func (s *IntegrationTestSuite) TestQueryGrantsGRPC() {
 					fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
 					fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(10))).String()),
 					fmt.Sprintf("--%s=%d", cli.FlagExpiration, time.Now().Add(time.Minute*time.Duration(120)).Unix()),
+					fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
 				})
 				s.Require().NoError(err)
 			},
