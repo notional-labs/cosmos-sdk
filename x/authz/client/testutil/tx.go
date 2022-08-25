@@ -57,7 +57,8 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	// create a proposal with deposit
 	_, err = govtestutil.MsgSubmitLegacyProposal(val.ClientCtx, val.Address.String(),
 		"Text Proposal 1", "Where is the title!?", govv1beta1.ProposalTypeText,
-		fmt.Sprintf("--%s=%s", govcli.FlagDeposit, sdk.NewCoin(s.cfg.BondDenom, govv1.DefaultMinDepositTokens).String()))
+		fmt.Sprintf("--%s=%s", govcli.FlagDeposit, sdk.NewCoin(s.cfg.BondDenom, govv1.DefaultMinDepositTokens).String()),
+		fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""))
 	s.Require().NoError(err)
 
 	// Create new account in the keyring.
@@ -75,6 +76,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 		fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
 		fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(10))).String()),
 		fmt.Sprintf("--%s=%d", cli.FlagExpiration, time.Now().Add(time.Minute*time.Duration(120)).Unix()),
+		fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
 	})
 	s.Require().NoError(err)
 	s.Require().Contains(out.String(), `"code":0`)
@@ -95,6 +97,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 		fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
 		fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(10))).String()),
 		fmt.Sprintf("--%s=%d", cli.FlagExpiration, time.Now().Add(time.Minute*time.Duration(120)).Unix()),
+		fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
 	})
 	s.Require().NoError(err)
 
@@ -129,6 +132,7 @@ func (s *IntegrationTestSuite) msgSendExec(grantee sdk.AccAddress) {
 		sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(200))), fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
 		fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
 		fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(10))).String()),
+		fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
 	)
 	s.Require().NoError(err)
 	s.Require().Contains(out.String(), `"code":0`)
