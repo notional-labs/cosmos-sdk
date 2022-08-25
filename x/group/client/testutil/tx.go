@@ -80,6 +80,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 		sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(2000))), fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
 		fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
 		fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(10))).String()),
+		fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
 	)
 	s.Require().NoError(err)
 
@@ -102,6 +103,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 				val.Address.String(),
 				validMetadata,
 				validMembersFile.Name(),
+				fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
 			},
 			s.commonFlags...,
 		),
@@ -212,7 +214,6 @@ func (s *IntegrationTestSuite) TearDownSuite() {
 func (s *IntegrationTestSuite) TestTxCreateGroup() {
 	val := s.network.Validators[0]
 	clientCtx := val.ClientCtx
-
 
 	validMembers := fmt.Sprintf(`{"members": [{
 	  "address": "%s",
@@ -366,7 +367,6 @@ func (s *IntegrationTestSuite) TestTxUpdateGroupAdmin() {
 	clientCtx := val.ClientCtx
 	require := s.Require()
 
-
 	groupIDs := make([]string, 2)
 	for i := 0; i < 2; i++ {
 		validMembers := fmt.Sprintf(`{"members": [{
@@ -487,7 +487,6 @@ func (s *IntegrationTestSuite) TestTxUpdateGroupMetadata() {
 	val := s.network.Validators[0]
 	clientCtx := val.ClientCtx
 
-
 	testCases := []struct {
 		name         string
 		args         []string
@@ -567,7 +566,6 @@ func (s *IntegrationTestSuite) TestTxUpdateGroupMetadata() {
 func (s *IntegrationTestSuite) TestTxUpdateGroupMembers() {
 	val := s.network.Validators[0]
 	clientCtx := val.ClientCtx
-
 
 	weights := []string{"1", "1", "1"}
 	accounts := s.createAccounts(3)
@@ -690,9 +688,6 @@ func (s *IntegrationTestSuite) TestTxUpdateGroupMembers() {
 func (s *IntegrationTestSuite) TestTxCreateGroupWithPolicy() {
 	val := s.network.Validators[0]
 	clientCtx := val.ClientCtx
-
-
-
 
 	validMembers := fmt.Sprintf(`{"members": [{
 		"address": "%s",
@@ -901,7 +896,6 @@ func (s *IntegrationTestSuite) TestTxCreateGroupPolicy() {
 	wrongAdmin := s.network.Validators[1].Address
 	clientCtx := val.ClientCtx
 
-
 	groupID := s.group.Id
 
 	thresholdDecisionPolicyFile := testutil.WriteToNewTempFile(s.T(), `{"@type": "/cosmos.group.v1.ThresholdDecisionPolicy","threshold": "1","windows": {"voting_period":"1s"}}`)
@@ -1071,7 +1065,6 @@ func (s *IntegrationTestSuite) TestTxUpdateGroupPolicyAdmin() {
 	clientCtx := val.ClientCtx
 	groupPolicy := s.groupPolicies[3]
 
-
 	commonFlags := s.commonFlags
 	commonFlags = append(commonFlags, fmt.Sprintf("--%s=%d", flags.FlagGas, 300000))
 
@@ -1171,7 +1164,6 @@ func (s *IntegrationTestSuite) TestTxUpdateGroupPolicyDecisionPolicy() {
 	newAdmin := s.network.Validators[1].Address
 	clientCtx := val.ClientCtx
 	groupPolicy := s.groupPolicies[2]
-
 
 	commonFlags := s.commonFlags
 	commonFlags = append(commonFlags, fmt.Sprintf("--%s=%d", flags.FlagGas, 300000))
@@ -1318,7 +1310,6 @@ func (s *IntegrationTestSuite) TestTxUpdateGroupPolicyMetadata() {
 	clientCtx := val.ClientCtx
 	groupPolicy := s.groupPolicies[2]
 
-
 	commonFlags := s.commonFlags
 	commonFlags = append(commonFlags, fmt.Sprintf("--%s=%d", flags.FlagGas, 300000))
 
@@ -1431,7 +1422,6 @@ func (s *IntegrationTestSuite) TestTxUpdateGroupPolicyMetadata() {
 func (s *IntegrationTestSuite) TestTxSubmitProposal() {
 	val := s.network.Validators[0]
 	clientCtx := val.ClientCtx
-
 
 	testCases := []struct {
 		name         string
@@ -1620,7 +1610,6 @@ func (s *IntegrationTestSuite) TestTxSubmitProposal() {
 func (s *IntegrationTestSuite) TestTxVote() {
 	val := s.network.Validators[0]
 	clientCtx := val.ClientCtx
-
 
 	ids := make([]string, 4)
 	weights := []string{"1", "1", "1"}
@@ -1815,7 +1804,6 @@ func (s *IntegrationTestSuite) TestTxWithdrawProposal() {
 	val := s.network.Validators[0]
 	clientCtx := val.ClientCtx
 
-
 	ids := make([]string, 2)
 
 	for i := 0; i < 2; i++ {
@@ -1957,7 +1945,6 @@ func (s *IntegrationTestSuite) TestTxExec() {
 	val := s.network.Validators[0]
 	clientCtx := val.ClientCtx
 	require := s.Require()
-
 
 	var proposalIDs []string
 	// create proposals and vote
@@ -2505,6 +2492,7 @@ func (s *IntegrationTestSuite) createAccounts(quantity int) []string {
 			sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(2000))), fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
 			fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
 			fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(10))).String()),
+			fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""),
 		)
 		s.Require().NoError(err)
 		s.Require().NoError(err)
@@ -2543,7 +2531,7 @@ func (s *IntegrationTestSuite) createGroupWithMembers(membersWeight, membersAddr
 func (s *IntegrationTestSuite) createGroupThresholdPolicyWithBalance(adminAddress, groupID string, threshold int, tokens int64) string {
 	val := s.network.Validators[0]
 	clientCtx := val.ClientCtx
-
+	s.commonFlags = append(s.commonFlags, fmt.Sprintf("--%s=%s", flags.FlagGasPrices, ""))
 	out, err := cli.ExecTestCLICmd(clientCtx, client.MsgCreateGroupPolicyCmd(),
 		append(
 			[]string{
