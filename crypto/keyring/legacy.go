@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
+	dbm "github.com/cosmos/cosmos-db"
 	"github.com/pkg/errors"
 	tmos "github.com/tendermint/tendermint/libs/os"
-	dbm "github.com/tendermint/tm-db"
 
 	"github.com/cosmos/cosmos-sdk/crypto"
 	"github.com/cosmos/cosmos-sdk/crypto/types"
