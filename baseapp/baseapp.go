@@ -29,9 +29,7 @@ const (
 	runTxModeDeliver                   // Deliver a transaction
 )
 
-var (
-	_ abci.Application = (*BaseApp)(nil)
-)
+var _ abci.Application = (*BaseApp)(nil)
 
 type (
 	// Enum mode for app.runTx
@@ -45,7 +43,7 @@ type (
 )
 
 // BaseApp reflects the ABCI application implementation.
-type BaseApp struct { // nolint: maligned
+type BaseApp struct { //nolint: maligned
 	// initialized on creation
 	logger            log.Logger
 	name              string               // application name from abci.Info
@@ -275,11 +273,8 @@ func DefaultStoreLoader(ms sdk.CommitMultiStore) error {
 
 // CommitMultiStore returns the root multi-store.
 // App constructor can use this to access the `cms`.
-// UNSAFE: only safe to use during app initialization.
+// UNSAFE: must not be used during the abci life cycle.
 func (app *BaseApp) CommitMultiStore() sdk.CommitMultiStore {
-	if app.sealed {
-		panic("cannot call CommitMultiStore() after baseapp is sealed")
-	}
 	return app.cms
 }
 

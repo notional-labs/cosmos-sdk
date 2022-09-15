@@ -14,6 +14,7 @@ import (
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/pkg/errors"
 	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/libs/log"
 	dbm "github.com/tendermint/tm-db"
 
 	snapshottypes "github.com/cosmos/cosmos-sdk/snapshots/types"
@@ -39,6 +40,7 @@ const (
 // the CommitMultiStore interface.
 type Store struct {
 	db             dbm.DB
+	logger         log.Logger
 	lastCommitInfo *types.CommitInfo
 	pruningOpts    types.PruningOptions
 	iavlCacheSize  int
@@ -67,9 +69,10 @@ var (
 // store will be created with a PruneNothing pruning strategy by default. After
 // a store is created, KVStores must be mounted and finally LoadLatestVersion or
 // LoadVersion must be called.
-func NewStore(db dbm.DB) *Store {
+func NewStore(db dbm.DB, logger log.Logger) *Store {
 	return &Store{
 		db:            db,
+		logger:        logger,
 		pruningOpts:   types.PruneNothing,
 		iavlCacheSize: iavl.DefaultIAVLCacheSize,
 		storesParams:  make(map[types.StoreKey]storeParams),
@@ -153,7 +156,7 @@ func (rs *Store) GetStores() map[types.StoreKey]types.CommitKVStore {
 
 // LoadLatestVersionAndUpgrade implements CommitMultiStore
 func (rs *Store) LoadLatestVersionAndUpgrade(upgrades *types.StoreUpgrades) error {
-	ver := getLatestVersion(rs.db)
+	ver := GetLatestVersion(rs.db)
 	return rs.loadVersion(ver, upgrades)
 }
 
@@ -164,7 +167,7 @@ func (rs *Store) LoadVersionAndUpgrade(ver int64, upgrades *types.StoreUpgrades)
 
 // LoadLatestVersion implements CommitMultiStore.
 func (rs *Store) LoadLatestVersion() error {
-	ver := getLatestVersion(rs.db)
+	ver := GetLatestVersion(rs.db)
 	return rs.loadVersion(ver, nil)
 }
 
@@ -193,7 +196,7 @@ func (rs *Store) loadVersion(ver int64, upgrades *types.StoreUpgrades) error {
 	}
 
 	// load each Store (note this doesn't panic on unmounted keys now)
-	var newStores = make(map[types.StoreKey]types.CommitKVStore)
+	newStores := make(map[types.StoreKey]types.CommitKVStore)
 
 	storesKeys := make([]types.StoreKey, 0, len(rs.storesParams))
 
@@ -375,7 +378,7 @@ func (rs *Store) ListeningEnabled(key types.StoreKey) bool {
 func (rs *Store) LastCommitID() types.CommitID {
 	if rs.lastCommitInfo == nil {
 		return types.CommitID{
-			Version: getLatestVersion(rs.db),
+			Version: GetLatestVersion(rs.db),
 		}
 	}
 
@@ -389,7 +392,6 @@ func (rs *Store) Commit() types.CommitID {
 		// This case means that no commit has been made in the store, we
 		// start from initialVersion.
 		version = rs.initialVersion
-
 	} else {
 		// This case can means two things:
 		// - either there was already a previous commit in the store, in which
@@ -418,7 +420,7 @@ func (rs *Store) Commit() types.CommitID {
 
 	// batch prune if the current height is a pruning interval height
 	if rs.pruningOpts.Interval > 0 && version%int64(rs.pruningOpts.Interval) == 0 {
-		rs.pruneStores()
+		rs.PruneStores(true, nil)
 	}
 
 	flushMetadata(rs.db, version, rs.lastCommitInfo, rs.pruneHeights)
@@ -429,9 +431,14 @@ func (rs *Store) Commit() types.CommitID {
 	}
 }
 
-// pruneStores will batch delete a list of heights from each mounted sub-store.
-// Afterwards, pruneHeights is reset.
-func (rs *Store) pruneStores() {
+// PruneStores will batch delete a list of heights from each mounted sub-store.
+// If clearStorePruningHeihgts is true, store's pruneHeights is appended to the
+// pruningHeights and reset after finishing pruning.
+func (rs *Store) PruneStores(clearStorePruningHeihgts bool, pruningHeights []int64) {
+	if clearStorePruningHeihgts {
+		pruningHeights = append(pruningHeights, rs.pruneHeights...)
+	}
+
 	if len(rs.pruneHeights) == 0 {
 		return
 	}
@@ -442,7 +449,7 @@ func (rs *Store) pruneStores() {
 			// it to get the underlying IAVL store.
 			store = rs.GetCommitKVStore(key)
 
-			if err := store.(*iavl.Store).DeleteVersions(rs.pruneHeights...); err != nil {
+			if err := store.(*iavl.Store).DeleteVersions(pruningHeights...); err != nil {
 				if errCause := errors.Cause(err); errCause != nil && errCause != iavltree.ErrVersionDoesNotExist {
 					panic(err)
 				}
@@ -450,7 +457,9 @@ func (rs *Store) pruneStores() {
 		}
 	}
 
-	rs.pruneHeights = make([]int64, 0)
+	if clearStorePruningHeihgts {
+		rs.pruneHeights = make([]int64, 0)
+	}
 }
 
 // CacheWrap implements CacheWrapper/Store/CommitStore.
@@ -835,9 +844,9 @@ func (rs *Store) loadCommitStoreFromParams(key types.StoreKey, id types.CommitID
 		var err error
 
 		if params.initialVersion == 0 {
-			store, err = iavl.LoadStore(db, id, rs.lazyLoading, rs.iavlCacheSize)
+			store, err = iavl.LoadStore(db, rs.logger, key, id, rs.lazyLoading, rs.iavlCacheSize)
 		} else {
-			store, err = iavl.LoadStoreWithInitialVersion(db, id, rs.lazyLoading, params.initialVersion, rs.iavlCacheSize)
+			store, err = iavl.LoadStoreWithInitialVersion(db, rs.logger, key, id, rs.lazyLoading, params.initialVersion, rs.iavlCacheSize)
 		}
 
 		if err != nil {
@@ -894,27 +903,26 @@ func (rs *Store) buildCommitInfo(version int64) *types.CommitInfo {
 }
 
 // RollbackToVersion delete the versions after `target` and update the latest version.
-func (rs *Store) RollbackToVersion(target int64) int64 {
-	if target < 0 {
-		panic("Negative rollback target")
-	}
-	current := getLatestVersion(rs.db)
-	if target >= current {
-		return current
-	}
-	for ; current > target; current-- {
-		rs.pruneHeights = append(rs.pruneHeights, current)
-	}
-	rs.pruneStores()
-
-	// update latest height
-	bz, err := gogotypes.StdInt64Marshal(current)
-	if err != nil {
-		panic(err)
+func (rs *Store) RollbackToVersion(target int64) error {
+	if target <= 0 {
+		return fmt.Errorf("invalid rollback height target: %d", target)
 	}
 
-	rs.db.Set([]byte(latestVersionKey), bz)
-	return current
+	for key, store := range rs.stores {
+		if store.GetStoreType() == types.StoreTypeIAVL {
+			// If the store is wrapped with an inter-block cache, we must first unwrap
+			// it to get the underlying IAVL store.
+			store = rs.GetCommitKVStore(key)
+			_, err := store.(*iavl.Store).LoadVersionForOverwriting(target)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	flushMetadata(rs.db, target, rs.buildCommitInfo(target), []int64{})
+
+	return rs.LoadLatestVersion()
 }
 
 type storeParams struct {
@@ -924,7 +932,7 @@ type storeParams struct {
 	initialVersion uint64
 }
 
-func getLatestVersion(db dbm.DB) int64 {
+func GetLatestVersion(db dbm.DB) int64 {
 	bz, err := db.Get([]byte(latestVersionKey))
 	if err != nil {
 		panic(err)

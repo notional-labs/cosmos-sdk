@@ -98,7 +98,6 @@ func (s *StoreUpgrades) RenamedFrom(key string) string {
 		}
 	}
 	return ""
-
 }
 
 type MultiStore interface {
@@ -191,6 +190,9 @@ type CommitMultiStore interface {
 
 	// SetIAVLCacheSize sets the cache size of the IAVL tree.
 	SetIAVLCacheSize(size int)
+
+	// RollbackToVersion rollback the db to specific version(height).
+	RollbackToVersion(version int64) error
 }
 
 //---------subsp-------------------------------
