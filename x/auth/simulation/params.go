@@ -15,6 +15,7 @@ const (
 	keyMaxMemoCharacters = "MaxMemoCharacters"
 	keyTxSigLimit        = "TxSigLimit"
 	keyTxSizeCostPerByte = "TxSizeCostPerByte"
+	keyTxFeeBurnPercent  = "TxFeeBurnPercent"
 )
 
 // ParamChanges defines the parameters that can be modified by param change proposals
@@ -34,6 +35,11 @@ func ParamChanges(r *rand.Rand) []simtypes.ParamChange {
 		simulation.NewSimParamChange(types.ModuleName, keyTxSizeCostPerByte,
 			func(r *rand.Rand) string {
 				return fmt.Sprintf("\"%d\"", GenTxSizeCostPerByte(r))
+			},
+		),
+		simulation.NewSimParamChange(types.ModuleName, keyTxFeeBurnPercent,
+			func(r *rand.Rand) string {
+				return fmt.Sprintf("\"%d\"", GenTxFeeBurnPercent(r))
 			},
 		),
 	}

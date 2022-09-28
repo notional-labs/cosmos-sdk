@@ -13,3 +13,4 @@ The auth module contains the following parameters:
 | TxSizeCostPerByte      |      uint64     | 10      |
 | SigVerifyCostED25519   |      uint64     | 590     |
 | SigVerifyCostSecp256k1 |      uint64     | 1000    |
+| TxFeeBurnPercent       |      uint64     | 50      |
