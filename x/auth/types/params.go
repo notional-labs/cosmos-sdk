@@ -15,6 +15,7 @@ const (
 	DefaultTxSizeCostPerByte      uint64 = 10
 	DefaultSigVerifyCostED25519   uint64 = 590
 	DefaultSigVerifyCostSecp256k1 uint64 = 1000
+	DefaultTxFeeBurnPercent       uint64 = 50
 )
 
 // Parameter keys
@@ -24,13 +25,14 @@ var (
 	KeyTxSizeCostPerByte      = []byte("TxSizeCostPerByte")
 	KeySigVerifyCostED25519   = []byte("SigVerifyCostED25519")
 	KeySigVerifyCostSecp256k1 = []byte("SigVerifyCostSecp256k1")
+	KeyTxFeeBurnPercent       = []byte("TxFeeBurnPercent")
 )
 
 var _ paramtypes.ParamSet = &Params{}
 
 // NewParams creates a new Params object
 func NewParams(
-	maxMemoCharacters, txSigLimit, txSizeCostPerByte, sigVerifyCostED25519, sigVerifyCostSecp256k1 uint64,
+	maxMemoCharacters, txSigLimit, txSizeCostPerByte, sigVerifyCostED25519, sigVerifyCostSecp256k1, txFeeBurnPercent uint64,
 ) Params {
 	return Params{
 		MaxMemoCharacters:      maxMemoCharacters,
@@ -38,6 +40,7 @@ func NewParams(
 		TxSizeCostPerByte:      txSizeCostPerByte,
 		SigVerifyCostED25519:   sigVerifyCostED25519,
 		SigVerifyCostSecp256k1: sigVerifyCostSecp256k1,
+		TxFeeBurnPercent:       txFeeBurnPercent,
 	}
 }
 
@@ -55,6 +58,7 @@ func (p *Params) ParamSetPairs() paramtypes.ParamSetPairs {
 		paramtypes.NewParamSetPair(KeyTxSizeCostPerByte, &p.TxSizeCostPerByte, validateTxSizeCostPerByte),
 		paramtypes.NewParamSetPair(KeySigVerifyCostED25519, &p.SigVerifyCostED25519, validateSigVerifyCostED25519),
 		paramtypes.NewParamSetPair(KeySigVerifyCostSecp256k1, &p.SigVerifyCostSecp256k1, validateSigVerifyCostSecp256k1),
+		paramtypes.NewParamSetPair(KeyTxFeeBurnPercent, &p.TxFeeBurnPercent, validateTxFeeBurnPercent),
 	}
 }
 
@@ -66,6 +70,7 @@ func DefaultParams() Params {
 		TxSizeCostPerByte:      DefaultTxSizeCostPerByte,
 		SigVerifyCostED25519:   DefaultSigVerifyCostED25519,
 		SigVerifyCostSecp256k1: DefaultSigVerifyCostSecp256k1,
+		TxFeeBurnPercent:       DefaultTxFeeBurnPercent,
 	}
 }
 
@@ -152,6 +157,19 @@ func validateTxSizeCostPerByte(i interface{}) error {
 	return nil
 }
 
+func validateTxFeeBurnPercent(i interface{}) error {
+	v, ok := i.(uint64)
+	if !ok {
+		return fmt.Errorf("invalid parameter type: %T", i)
+	}
+
+	if v == 0 {
+		return fmt.Errorf("invalid tx fee burn percent: %d", v)
+	}
+
+	return nil
+}
+
 // Validate checks that the parameters have valid values.
 func (p Params) Validate() error {
 	if err := validateTxSigLimit(p.TxSigLimit); err != nil {
@@ -167,6 +185,9 @@ func (p Params) Validate() error {
 		return err
 	}
 	if err := validateTxSizeCostPerByte(p.TxSizeCostPerByte); err != nil {
+		return err
+	}
+	if err := validateTxFeeBurnPercent(p.TxFeeBurnPercent); err != nil {
 		return err
 	}
 

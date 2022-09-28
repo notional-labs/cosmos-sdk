@@ -345,7 +345,8 @@ Example Output:
     "txSigLimit": "7",
     "txSizeCostPerByte": "10",
     "sigVerifyCostEd25519": "590",
-    "sigVerifyCostSecp256k1": "1000"
+    "sigVerifyCostSecp256k1": "1000",
+    "txFeeBurnPercent": "50"
   }
 }
 ```
