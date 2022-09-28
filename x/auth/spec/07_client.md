@@ -165,6 +165,7 @@ sig_verify_cost_ed25519: "590"
 sig_verify_cost_secp256k1: "1000"
 tx_sig_limit: "7"
 tx_size_cost_per_byte: "10"
+tx_fee_burn_percent: "50"
 ```
 
 ## gRPC

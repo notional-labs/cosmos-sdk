@@ -152,6 +152,7 @@ type Params struct {
   TxSizeCostPerByte      uint64 `json:"tx_size_cost_per_byte" yaml:"tx_size_cost_per_byte"`
   SigVerifyCostED25519   uint64 `json:"sig_verify_cost_ed25519" yaml:"sig_verify_cost_ed25519"`
   SigVerifyCostSecp256k1 uint64 `json:"sig_verify_cost_secp256k1" yaml:"sig_verify_cost_secp256k1"`
+  TxFeeBurnPercent       uint64 `json:"tx_fee_burn_percent" yaml:"tx_fee_burn_percent"`
 }
 ```
 
