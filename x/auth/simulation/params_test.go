@@ -22,6 +22,7 @@ func TestParamChanges(t *testing.T) {
 		{"auth/MaxMemoCharacters", "MaxMemoCharacters", "\"181\"", "auth"},
 		{"auth/TxSigLimit", "TxSigLimit", "\"7\"", "auth"},
 		{"auth/TxSizeCostPerByte", "TxSizeCostPerByte", "\"12\"", "auth"},
+		{"auth/TxFeeBurnPercent", "TxFeeBurnPercent", "\"60\"", "auth"},
 	}
 
 	paramChanges := simulation.ParamChanges(r)
