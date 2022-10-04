@@ -2,23 +2,31 @@ package v045
 
 import (
 	"github.com/cosmos/cosmos-sdk/codec"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
+	"github.com/cosmos/cosmos-sdk/x/auth/exported"
 	"github.com/cosmos/cosmos-sdk/x/auth/types"
 )
 
-// MigrateStore performs in-place store migrations from v0.43/v0.44 to v0.45.
-// The migration includes:
-//
-// - Setting the TxFeeBurnPercent param in the paramstore
-func MigrateStore(ctx sdk.Context, storeKey storetypes.StoreKey, cdc codec.BinaryCodec, paramstore paramtypes.Subspace) error {
-	migrateParamsStore(ctx, paramstore)
+const (
+	ModuleName = "auth"
+)
+
+var ParamsKey = []byte{0x01}
+
+// Migrate migrates the x/auth module state from the consensus version 2 to
+// version 3. Specifically, it takes the parameters that are currently stored
+// and managed by the x/params modules and stores them directly into the x/auth
+// module state.
+func Migrate(ctx sdk.Context, store sdk.KVStore, legacySubspace exported.Subspace, cdc codec.BinaryCodec) error {
+	var currParams types.Params
+	legacySubspace.GetParamSet(ctx, &currParams)
+
+	if err := currParams.Validate(); err != nil {
+		return err
+	}
+
+	bz := cdc.MustMarshal(&currParams)
+	store.Set(ParamsKey, bz)
 
 	return nil
-}
-
-func migrateParamsStore(ctx sdk.Context, paramstore paramtypes.Subspace) {
-	paramstore.WithKeyTable(types.ParamKeyTable())
-	paramstore.Set(ctx, types.KeyTxFeeBurnPercent, types.DefaultTxFeeBurnPercent)
 }

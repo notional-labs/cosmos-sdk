@@ -9,8 +9,13 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
 	"github.com/cosmos/cosmos-sdk/simapp"
+	"github.com/cosmos/cosmos-sdk/testutil"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
+	"github.com/cosmos/cosmos-sdk/x/auth"
+	authexported "github.com/cosmos/cosmos-sdk/x/auth/exported"
 	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
+	v045 "github.com/cosmos/cosmos-sdk/x/auth/migrations/v045"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/vesting/exported"
 	"github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
@@ -19,7 +24,30 @@ import (
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
+type mockSubspace struct {
+	ps authtypes.Params
+}
+
+func newMockSubspace(ps authtypes.Params) mockSubspace {
+	return mockSubspace{ps: ps}
+}
+
+func (ms mockSubspace) GetParamSet(ctx sdk.Context, ps authexported.ParamSet) {
+	*ps.(*authtypes.Params) = ms.ps
+}
+
 func TestMigrateVestingAccounts(t *testing.T) {
+	encCfg := moduletestutil.MakeTestEncodingConfig(auth.AppModuleBasic{})
+	cdc := encCfg.Codec
+
+	storeKey := sdk.NewKVStoreKey(v045.ModuleName)
+	tKey := sdk.NewTransientStoreKey("transient_test")
+	ctx := testutil.DefaultContext(storeKey, tKey)
+	store := ctx.KVStore(storeKey)
+
+	legacySubspace := newMockSubspace(authtypes.DefaultParams())
+	require.NoError(t, v045.Migrate(ctx, store, legacySubspace, cdc))
+
 	testCases := []struct {
 		name        string
 		prepareFunc func(app *simapp.SimApp, ctx sdk.Context, validator stakingtypes.Validator, delegatorAddr sdk.AccAddress)
@@ -563,7 +591,7 @@ func TestMigrateVestingAccounts(t *testing.T) {
 			require.True(t, ok)
 			require.NoError(t, tc.garbageFunc(ctx, vestingAccount, app))
 
-			m := authkeeper.NewMigrator(app.AccountKeeper, app.GRPCQueryRouter())
+			m := authkeeper.NewMigrator(app.AccountKeeper, app.GRPCQueryRouter(), legacySubspace)
 			require.NoError(t, m.Migrate1to2(ctx))
 
 			var expVested sdk.Coins

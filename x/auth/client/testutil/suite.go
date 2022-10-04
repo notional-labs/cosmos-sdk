@@ -1207,6 +1207,7 @@ func (s *IntegrationTestSuite) TestQueryParamsCmd() {
 				var authParams authtypes.Params
 				s.Require().NoError(val.ClientCtx.Codec.UnmarshalJSON(out.Bytes(), &authParams))
 				s.Require().NotNil(authParams.MaxMemoCharacters)
+				s.Require().NotNil(authParams.TxFeeBurnPercent)
 			}
 		})
 	}

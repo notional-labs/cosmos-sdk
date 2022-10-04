@@ -8,6 +8,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
+	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -50,7 +51,7 @@ type AccountKeeperI interface {
 // AccountKeeper encodes/decodes accounts using the go-amino (binary)
 // encoding/decoding library.
 type AccountKeeper struct {
-	key           sdk.StoreKey
+	storeKey      storetypes.StoreKey
 	cdc           codec.BinaryCodec
 	paramSubspace paramtypes.Subspace
 	permAddrs     map[string]types.PermissionsForAddress
@@ -68,7 +69,7 @@ var _ AccountKeeperI = &AccountKeeper{}
 // and don't have to fit into any predefined structure. This auth module does not use account permissions internally, though other modules
 // may use auth.Keeper to access the accounts permissions map.
 func NewAccountKeeper(
-	cdc codec.BinaryCodec, key sdk.StoreKey, paramstore paramtypes.Subspace, proto func() types.AccountI,
+	cdc codec.BinaryCodec, storeKey storetypes.StoreKey, paramstore paramtypes.Subspace, proto func() types.AccountI,
 	maccPerms map[string][]string,
 ) AccountKeeper {
 	// set KeyTable if it has not already been set
@@ -82,7 +83,7 @@ func NewAccountKeeper(
 	}
 
 	return AccountKeeper{
-		key:           key,
+		storeKey:      storeKey,
 		proto:         proto,
 		cdc:           cdc,
 		paramSubspace: paramstore,
@@ -119,7 +120,7 @@ func (ak AccountKeeper) GetSequence(ctx sdk.Context, addr sdk.AccAddress) (uint6
 // If the global account number is not set, it initializes it with value 0.
 func (ak AccountKeeper) GetNextAccountNumber(ctx sdk.Context) uint64 {
 	var accNumber uint64
-	store := ctx.KVStore(ak.key)
+	store := ctx.KVStore(ak.storeKey)
 
 	bz := store.Get(types.GlobalAccountNumberKey)
 	if bz == nil {
