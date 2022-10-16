@@ -1,13 +1,20 @@
-# Cosmos SDK v0.45.3 Release Notes
+# Cosmos SDK v0.45.9 Release Notes
 
-This release introduces a Tendermint dependency update to v0.34.19 which
-itself includes two bug fixes related to consensus. See the full changelog from
-v0.34.17-v0.34.19 [here](https://github.com/tendermint/tendermint/blob/v0.34.19/CHANGELOG.md#v0.34.19).
+This is a security release for the 
+[Dragonberry security advisory](https://forum.cosmos.network/t/ibc-security-advisory-dragonberry/7702). 
+Please upgrade ASAP.
 
-In addition, it includes a change to `ScheduleUpgrade` to allow upgrades without
-requiring a governance proposal process.
+Next to this, we have also included a few minor bugfixes.
 
-See the [Cosmos SDK v0.45.3 Changelog](https://github.com/cosmos/cosmos-sdk/blob/v0.45.3/CHANGELOG.md)
-for the exhaustive list of all changes.
+Chains must add the following to their go.mod for the application:
 
-**Full Commit History**: https://github.com/cosmos/cosmos-sdk/compare/v0.45.2...v0.45.3
+```go
+replace github.com/confio/ics23/go => github.com/cosmos/cosmos-sdk/ics23
+```
+
+Bumping the SDK version should be smooth, however, feel free to tag core devs to review your upgrading PR:
+
+- **CET**: @tac0turtle, @okwme, @AdityaSripal, @colin-axner, @julienrbrt
+- **EST**: @ebuchman, @alexanderbez, @aaronc
+- **PST**: @jtremback, @nicolaslara, @czarcas7ic, @p0mvn
+- **CDT**: @ValarDragon, @zmanian
