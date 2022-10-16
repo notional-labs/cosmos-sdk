@@ -45,6 +45,7 @@ func (h *MockGovHooksReceiver) AfterProposalFailedMinDeposit(ctx sdk.Context, pr
 func (h *MockGovHooksReceiver) AfterProposalVotingPeriodEnded(ctx sdk.Context, proposalID uint64) {
 	h.AfterProposalVotingPeriodEndedValid = true
 }
+
 func (h *MockGovHooksReceiver) SetAdditionalVotingPowers(ctx sdk.Context, votes types.Votes, votingPowers *types.AdditionalVotingPowers) {
 	h.SetAdditionalVotingPowersValid = true
 }
