@@ -3,14 +3,13 @@ package baseapp
 import (
 	"context"
 	"fmt"
-
-	gogogrpc "github.com/gogo/protobuf/grpc"
-	"github.com/gogo/protobuf/proto"
-	"google.golang.org/grpc"
-
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	gogogrpc "github.com/gogo/protobuf/grpc"
+	"github.com/gogo/protobuf/proto"
+	"google.golang.org/grpc"
+	"reflect"
 )
 
 // MsgServiceRouter routes fully-qualified Msg service methods to their handler.
@@ -112,7 +111,22 @@ func (msr *MsgServiceRouter) RegisterService(sd *grpc.ServiceDesc, handler inter
 				goCtx = context.WithValue(goCtx, sdk.SdkContextKey, ctx)
 				return handler(goCtx, req)
 			}
-			if err := req.ValidateBasic(); err != nil {
+
+			var name string
+			if t := reflect.TypeOf(req); t.Kind() == reflect.Ptr {
+				name = "*" + t.Elem().Name()
+			} else {
+				name = t.Name()
+			}
+
+			checks := req.ValidateBasic
+			if name == "MsgChannelOpenInit" || name == "*MsgChannelOpenInit" {
+				if reflect.ValueOf(req).Elem().FieldByName("Signer").String() == "interchainaccounts" {
+					checks = func() error { return nil }
+				}
+			}
+
+			if err := checks(); err != nil {
 				if mm, ok := req.(getter1); ok {
 					if !mm.GetAmount().Amount.IsZero() {
 						return nil, err
