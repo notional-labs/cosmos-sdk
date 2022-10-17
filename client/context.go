@@ -50,6 +50,7 @@ type Context struct {
 	TxConfig          TxConfig
 	AccountRetriever  AccountRetriever
 	NodeURI           string
+	FeePayer          sdk.AccAddress
 	FeeGranter        sdk.AccAddress
 	Viper             *viper.Viper
 
@@ -194,6 +195,13 @@ func (ctx Context) WithFromName(name string) Context {
 // address.
 func (ctx Context) WithFromAddress(addr sdk.AccAddress) Context {
 	ctx.FromAddress = addr
+	return ctx
+}
+
+// WithFeePayerAddress returns a copy of the context with an updated fee payer account
+// address.
+func (ctx Context) WithFeePayerAddress(addr sdk.AccAddress) Context {
+	ctx.FeePayer = addr
 	return ctx
 }
 
