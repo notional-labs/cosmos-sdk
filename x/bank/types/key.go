@@ -61,6 +61,12 @@ func CreateAccountBalancesPrefix(addr []byte) []byte {
 	return append(BalancesPrefix, address.MustLengthPrefix(addr)...)
 }
 
+// CreatePrefixedAccountStoreKey returns the key for the given account and denomination.
+// This method can be used when performing an ABCI query for the balance of an account.
+func CreatePrefixedAccountStoreKey(addr []byte, denom []byte) []byte {
+	return append(CreateAccountBalancesPrefix(addr), denom...)
+}
+
 // BlockedAddrKey the key for an account's blocking flag.
 func BlockedAddrKey(addr []byte) []byte {
 	return append(BlockedAddrsPrefix, address.MustLengthPrefix(addr)...)
