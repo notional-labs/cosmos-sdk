@@ -163,8 +163,8 @@ func validateTxFeeBurnPercent(i interface{}) error {
 		return fmt.Errorf("invalid parameter type: %T", i)
 	}
 
-	if v == 0 {
-		return fmt.Errorf("invalid tx fee burn percent: %d", v)
+	if v > 99 {
+		return fmt.Errorf("tx fee burn percent cannot be greater than 100%%: %d", v)
 	}
 
 	return nil
