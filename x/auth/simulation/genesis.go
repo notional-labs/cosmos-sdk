@@ -14,12 +14,12 @@ import (
 
 // Simulation parameter constants
 const (
-	MaxMemoChars           = "max_memo_characters"
-	TxSigLimit             = "tx_sig_limit"
-	TxSizeCostPerByte      = "tx_size_cost_per_byte"
-	SigVerifyCostED25519   = "sig_verify_cost_ed25519"
-	SigVerifyCostSECP256K1 = "sig_verify_cost_secp256k1"
-	TxFeeBurnPercent	   = "tx_fee_burn_percent"
+	MaxMemoChars			= "max_memo_characters"
+	TxSigLimit				= "tx_sig_limit"
+	TxSizeCostPerByte		= "tx_size_cost_per_byte"
+	SigVerifyCostED25519	= "sig_verify_cost_ed25519"
+	SigVerifyCostSECP256K1	= "sig_verify_cost_secp256k1"
+	TxFeeBurnPercent		= "tx_fee_burn_percent"
 )
 
 // RandomGenesisAccounts defines the default RandomGenesisAccountsFn used on the SDK.
