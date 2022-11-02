@@ -36,7 +36,8 @@ func TestParams_Validate(t *testing.T) {
 		{"invalid tx size cost per byte", types.NewParams(types.DefaultMaxMemoCharacters, types.DefaultTxSigLimit, 0,
 			types.DefaultSigVerifyCostED25519, types.DefaultSigVerifyCostSecp256k1, types.DefaultTxFeeBurnPercent), fmt.Errorf("invalid tx size cost per byte: 0")},
 		{"invalid tx fee burn percent", types.NewParams(types.DefaultMaxMemoCharacters, types.DefaultTxSigLimit, types.DefaultTxSizeCostPerByte,
-			types.DefaultSigVerifyCostED25519, types.DefaultSigVerifyCostSecp256k1, 101), fmt.Errorf("tx fee burn percent cannot be greater than 100%%: 101")}}
+			types.DefaultSigVerifyCostED25519, types.DefaultSigVerifyCostSecp256k1, 101), fmt.Errorf("tx fee burn percent cannot be greater than 100%%: 101")},
+	}
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
