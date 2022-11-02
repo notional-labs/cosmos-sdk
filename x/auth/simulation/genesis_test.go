@@ -45,6 +45,7 @@ func TestRandomizedGenState(t *testing.T) {
 	require.Equal(t, uint64(0x1ff), authGenesis.Params.GetSigVerifyCostSecp256k1())
 	require.Equal(t, uint64(9), authGenesis.Params.GetTxSigLimit())
 	require.Equal(t, uint64(5), authGenesis.Params.GetTxSizeCostPerByte())
+	require.Equal(t, uint64(33), authGenesis.Params.GetTxFeeBurnPercent())
 	
 
 	genAccounts, err := types.UnpackAccounts(authGenesis.Accounts)
