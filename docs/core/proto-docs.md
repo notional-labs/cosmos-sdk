@@ -664,7 +664,7 @@ Params defines the parameters for the auth module.
 | `tx_size_cost_per_byte` | [uint64](#uint64) |  |  |
 | `sig_verify_cost_ed25519` | [uint64](#uint64) |  |  |
 | `sig_verify_cost_secp256k1` | [uint64](#uint64) |  |  |
-| `tx_fee_burn_percent` | [uint64](#uint64) |  |  |
+| `tx_fee_burn_percent` | [string](#string) |  |  |
 
 
 

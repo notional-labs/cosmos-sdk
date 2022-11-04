@@ -61,7 +61,7 @@ func (ak AccountKeeper) SigVerifyCostSecp256k1(ctx sdk.Context) (res uint64) {
 
 // TxFeeBurnPercent - Transaction fee burn percentage
 // The percentage of each transaction fee that gets burned
-func (ak AccountKeeper) TxFeeBurnPercent(ctx sdk.Context) (res uint64) {
+func (ak AccountKeeper) TxFeeBurnPercent(ctx sdk.Context) (res sdk.Int) {
 	ak.paramSubspace.Get(ctx, types.KeyTxFeeBurnPercent, &res)
 	return
 }

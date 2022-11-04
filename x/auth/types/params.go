@@ -3,6 +3,7 @@ package types
 import (
 	"fmt"
 
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	yaml "gopkg.in/yaml.v2"
 
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
@@ -15,8 +16,10 @@ const (
 	DefaultTxSizeCostPerByte      uint64 = 10
 	DefaultSigVerifyCostED25519   uint64 = 590
 	DefaultSigVerifyCostSecp256k1 uint64 = 1000
-	DefaultTxFeeBurnPercent       uint64 = 50
 )
+
+// DefaultTxFeeBurnPercent is set to 0
+var DefaultTxFeeBurnPercent = sdk.ZeroInt()
 
 // Parameter keys
 var (
@@ -32,7 +35,7 @@ var _ paramtypes.ParamSet = &Params{}
 
 // NewParams creates a new Params object
 func NewParams(
-	maxMemoCharacters, txSigLimit, txSizeCostPerByte, sigVerifyCostED25519, sigVerifyCostSecp256k1, txFeeBurnPercent uint64,
+	maxMemoCharacters, txSigLimit, txSizeCostPerByte, sigVerifyCostED25519, sigVerifyCostSecp256k1 uint64, txFeeBurnPercent sdk.Int,
 ) Params {
 	return Params{
 		MaxMemoCharacters:      maxMemoCharacters,
@@ -158,13 +161,16 @@ func validateTxSizeCostPerByte(i interface{}) error {
 }
 
 func validateTxFeeBurnPercent(i interface{}) error {
-	v, ok := i.(uint64)
+	v, ok := i.(sdk.Int)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", i)
 	}
 
-	if v > 99 {
-		return fmt.Errorf("tx fee burn percent cannot be greater than 100%%: %d", v)
+	if v.IsNegative() {
+		return fmt.Errorf("transaction fee burn percentage cannot be negative: %s", v)
+	}
+	if v.GT(sdk.NewInt(100)) {
+		return fmt.Errorf("transaction fee burn percentage cannot be greater than 100%%: %s", v)
 	}
 
 	return nil
