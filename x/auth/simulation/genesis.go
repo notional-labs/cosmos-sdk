@@ -89,8 +89,8 @@ func GenSigVerifyCostSECP256K1(r *rand.Rand) uint64 {
 }
 
 // GenTxFeeBurnPercent randomized TxFeeBurnPercent
-func GenTxFeeBurnPercent(r *rand.Rand) sdk.Int {
-	return sdk.NewInt(int64(simulation.RandIntBetween(r, 1, 99)))
+func GenTxFeeBurnPercent(r *rand.Rand) uint64 {
+	return uint64(simulation.RandIntBetween(r, 1, 99))
 }
 
 // RandomizedGenState generates a random GenesisState for auth
@@ -128,7 +128,7 @@ func RandomizedGenState(simState *module.SimulationState, randGenAccountsFn type
 	var txFeeBurnPercent sdk.Int
 	simState.AppParams.GetOrGenerate(
 		simState.Cdc, TxFeeBurnPercent, &txFeeBurnPercent, simState.Rand,
-		func(r *rand.Rand) { txFeeBurnPercent = GenTxFeeBurnPercent(r) },
+		func(r *rand.Rand) { txFeeBurnPercent = sdk.NewInt(int64(GenTxFeeBurnPercent(r))) },
 	)
 
 	params := types.NewParams(maxMemoChars, txSigLimit, txSizeCostPerByte,
