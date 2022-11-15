@@ -7,12 +7,14 @@ require (
 	github.com/armon/go-metrics v0.3.10
 	github.com/bgentry/speakeasy v0.1.0
 	github.com/btcsuite/btcd v0.22.1
+	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce
 	github.com/coinbase/rosetta-sdk-go v0.7.0
 	github.com/confio/ics23/go v0.7.0
 	github.com/cosmos/btcutil v1.0.4
 	github.com/cosmos/go-bip39 v1.0.0
 	github.com/cosmos/iavl v0.19.4
 	github.com/cosmos/ledger-cosmos-go v0.11.1
+	github.com/ethereum/go-ethereum v1.9.25
 	github.com/gogo/gateway v1.1.0
 	github.com/gogo/protobuf v1.3.3
 	github.com/golang/mock v1.6.0
@@ -58,6 +60,7 @@ require (
 	github.com/DataDog/zstd v1.4.5 // indirect
 	github.com/Workiva/go-datastructures v1.0.53 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/btcsuite/btcd/chaincfg/chainhash v1.0.1 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/cosmos/ledger-go v0.9.2 // indirect
