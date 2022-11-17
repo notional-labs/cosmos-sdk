@@ -63,15 +63,6 @@ func StdSignBytes(chainID string, accnum, sequence, timeout uint64, fee StdFee, 
 		msgsBytes = append(msgsBytes, json.RawMessage(legacyMsg.GetSignBytes()))
 	}
 
-	var stdTip *StdTip
-	if tip != nil {
-		if tip.Tipper == "" {
-			panic(fmt.Errorf("tipper cannot be empty"))
-		}
-
-		stdTip = &StdTip{Amount: tip.Amount, Tipper: tip.Tipper}
-	}
-
 	bz, err := legacy.Cdc.MarshalJSON(StdSignDoc{
 		AccountNumber: accnum,
 		ChainID:       chainID,
@@ -80,7 +71,6 @@ func StdSignBytes(chainID string, accnum, sequence, timeout uint64, fee StdFee, 
 		Msgs:          msgsBytes,
 		Sequence:      sequence,
 		TimeoutHeight: timeout,
-		Tip:           stdTip,
 	})
 	if err != nil {
 		panic(err)
