@@ -45,7 +45,7 @@ func (s msgServer) CreateVestingAccount(goCtx context.Context, msg *types.MsgCre
 		return nil, err
 	}
 
-	if bk.BlockedAddr(ctx, to) {
+	if bk.BlockedAddr(to) {
 		return nil, sdkerrors.Wrapf(sdkerrors.ErrUnauthorized, "%s is not allowed to receive funds", msg.ToAddress)
 	}
 

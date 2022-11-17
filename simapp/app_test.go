@@ -39,28 +39,14 @@ func TestSimAppExportAndBlockedAddrs(t *testing.T) {
 	encCfg := MakeTestEncodingConfig()
 	db := dbm.NewMemDB()
 	app := NewSimApp(log.NewTMLogger(log.NewSyncWriter(os.Stdout)), db, nil, true, map[int64]bool{}, DefaultNodeHome, 0, encCfg, EmptyAppOptions{})
-	ctx := app.NewContext(true, tmproto.Header{Height: app.LastBlockHeight()})
+
 	for acc := range maccPerms {
 		require.True(
 			t,
-			app.BankKeeper.BlockedAddr(ctx, app.AccountKeeper.GetModuleAddress(acc)),
+			app.BankKeeper.BlockedAddr(app.AccountKeeper.GetModuleAddress(acc)),
 			"ensure that blocked addresses are properly set in bank keeper",
 		)
 	}
-
-	sampleAddr := "cosmos1qf3v4kns89qg42xwqhek5cmjw9fsr0ssy7z0jwcjy2dgz6pvjnyq0xf9dk"
-	dynamicBlockedAddr, err := sdk.AccAddressFromBech32(sampleAddr)
-	require.NoError(t, err)
-	res := app.BankKeeper.BlockedAddr(ctx, dynamicBlockedAddr)
-	require.False(t, res)
-	app.BankKeeper.AddBlockedAddr(ctx, dynamicBlockedAddr)
-	res = app.BankKeeper.BlockedAddr(ctx, dynamicBlockedAddr)
-	require.True(t, res)
-	blockedAddrs := app.BankKeeper.GetAllBlockedAddrs(ctx)
-	require.Equal(t, blockedAddrs, []string{sampleAddr})
-	app.BankKeeper.RemoveBlockedAddr(ctx, dynamicBlockedAddr)
-	res = app.BankKeeper.BlockedAddr(ctx, dynamicBlockedAddr)
-	require.False(t, res)
 
 	genesisState := NewDefaultGenesisState(encCfg.Marshaler)
 	stateBytes, err := json.MarshalIndent(genesisState, "", "  ")
