@@ -313,7 +313,7 @@ func (k BaseKeeper) SendCoinsFromModuleToAccount(
 		panic(sdkerrors.Wrapf(sdkerrors.ErrUnknownAddress, "module account %s does not exist", senderModule))
 	}
 
-	if k.BlockedAddr(ctx, recipientAddr) {
+	if k.BlockedAddr(recipientAddr) {
 		return sdkerrors.Wrapf(sdkerrors.ErrUnauthorized, "%s is not allowed to receive funds", recipientAddr)
 	}
 

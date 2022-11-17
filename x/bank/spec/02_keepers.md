@@ -22,7 +22,7 @@ Typically, these addresses are module accounts. If these addresses receive funds
 outside the expected rules of the state machine, invariants are likely to be
 broken and could result in a halted network.
 
-By providing the `x/bank` module with a blocklisted set of addresses or calling `AddBlockedAddr`, `RemoveBlockedAddr` to update blocked addresses, an error occurs for the operation if a user or client attempts to directly or indirectly send funds to a blocklisted account, for example, by using [IBC](http://docs.cosmos.network/master/ibc/).
+By providing the `x/bank` module with a blocklisted set of addresses, an error occurs for the operation if a user or client attempts to directly or indirectly send funds to a blocklisted account, for example, by using [IBC](http://docs.cosmos.network/master/ibc/).
 
 ## Common Types
 
@@ -107,10 +107,7 @@ type SendKeeper interface {
     IsSendEnabledCoin(ctx sdk.Context, coin sdk.Coin) bool
     IsSendEnabledCoins(ctx sdk.Context, coins ...sdk.Coin) error
 
-    BlockedAddr(ctx sdk.Context, addr sdk.AccAddress) bool
-    GetAllBlockedAddrs(ctx sdk.Context) (blockedAddrs []string)
-    AddBlockedAddr(ctx sdk.Context, addr sdk.AccAddress)
-    RemoveBlockedAddr(ctx sdk.Context, addr sdk.AccAddress)
+    BlockedAddr(addr sdk.AccAddress) bool
 }
 ```
 

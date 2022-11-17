@@ -54,7 +54,6 @@ This forked Cosmos SDK has the following changes and it contains state breaking 
 - [`x/staking`](https://github.com/cosmosquad-labs/cosmos-sdk/pull/10) fix: allow delegate only spendable coins
 - [`x/gov`](https://github.com/cosmosquad-labs/cosmos-sdk/pull/8) feat: add additional voting powers hook on tally
 - [`x/vesting`](https://github.com/cosmosquad-labs/cosmos-sdk/pull/11) feat: periodic vesting msg
-- [`x/bank`](https://github.com/cosmosquad-labs/cosmos-sdk/pull/7) feat: Add dynamic blockedAddrs
 
 ## Quick Start
 
