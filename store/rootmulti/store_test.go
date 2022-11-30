@@ -182,6 +182,28 @@ func TestMultistoreLoadWithUpgrade(t *testing.T) {
 	err := store.LoadLatestVersion()
 	require.Nil(t, err)
 
+	// "store1"
+	// "store2" "store3"
+
+	// do one commit
+	commitID := store.Commit()
+	fmt.Println(commitID.Version)
+
+	// now, let's load with upgrades...
+	upgrades := &types.StoreUpgrades{
+		Added:   []string{"store1"},
+		Deleted: []string{"store3"},
+	}
+	store.LoadLatestVersionAndUpgrade(upgrades)
+	require.Nil(t, err)
+}
+
+func TestMultistoreLoadWithUpgrade2(t *testing.T) {
+	var db dbm.DB = dbm.NewMemDB()
+	store := newMultiStoreWithMounts(db, types.PruneNothing)
+	err := store.LoadLatestVersion()
+	require.Nil(t, err)
+
 	// write some data in all stores
 	k1, v1 := []byte("first"), []byte("store")
 	s1, _ := store.GetStoreByName("store1").(types.KVStore)

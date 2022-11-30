@@ -130,6 +130,7 @@ replace (
 
 	// vendor ics23
 	github.com/confio/ics23/go => ./ics23/go
+	github.com/cosmos/iavl => ./iavl
 
 	// Fix upstream GHSA-h395-qcrw-5vmq vulnerability.
 	// TODO Remove it: https://github.com/cosmos/cosmos-sdk/issues/10409
