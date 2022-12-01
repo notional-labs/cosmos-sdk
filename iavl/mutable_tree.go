@@ -550,6 +550,7 @@ func (tree *MutableTree) LoadVersion(targetVersion int64) (int64, error) {
 				_, err := tree.enableFastStorageAndCommitIfNotEnabled()
 				return 0, err
 			}
+			fmt.Println("targetVersion", targetVersion)
 			return 0, nil
 		}
 		return 0, fmt.Errorf("no versions found while trying to load %v", targetVersion)
@@ -572,6 +573,7 @@ func (tree *MutableTree) LoadVersion(targetVersion int64) (int64, error) {
 			firstVersion = version
 		}
 	}
+	fmt.Println(firstVersion, latestVersion, tree.ndb.opts.InitialVersion)
 
 	if !(targetVersion == 0 || latestVersion == targetVersion) {
 		return latestVersion, fmt.Errorf("wanted to load target %v but only found up to %v",

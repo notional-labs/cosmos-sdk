@@ -187,14 +187,38 @@ func TestMultistoreLoadWithUpgrade(t *testing.T) {
 
 	// do one commit
 	commitID := store.Commit()
-	fmt.Println(commitID.Version)
+	fmt.Println("commit version ", commitID.Version)
+
+	commitID = store.Commit()
+	fmt.Println("commit version ", commitID.Version)
+
+	store.MountStoreWithDB(types.NewKVStoreKey("store4"), types.StoreTypeIAVL, nil)
 
 	// now, let's load with upgrades...
 	upgrades := &types.StoreUpgrades{
-		Added:   []string{"store1"},
+		Added:   []string{"store4"},
 		Deleted: []string{"store3"},
 	}
-	store.LoadLatestVersionAndUpgrade(upgrades)
+	fmt.Println("upgrade")
+	err = store.LoadLatestVersionAndUpgrade(upgrades)
+	require.Nil(t, err)
+
+	// store.stores
+	// store.keysByName
+	// store.storesParams
+
+	commitID = store.Commit()
+	fmt.Println("commit", commitID)
+
+	commitID = store.Commit()
+	fmt.Println("commit", commitID)
+
+	upgrades = &types.StoreUpgrades{
+		Added: []string{"store3"},
+	}
+
+	err = store.LoadLatestVersionAndUpgrade(upgrades)
+
 	require.Nil(t, err)
 }
 

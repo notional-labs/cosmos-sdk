@@ -232,6 +232,7 @@ func (rs *Store) loadVersion(ver int64, upgrades *types.StoreUpgrades) error {
 			storeParams.initialVersion = uint64(ver) + 1
 		}
 
+		fmt.Println("load store", key.Name())
 		store, err := rs.loadCommitStoreFromParams(key, commitID, storeParams)
 		if err != nil {
 			return errors.Wrap(err, "failed to load store")
@@ -855,7 +856,7 @@ func (rs *Store) loadCommitStoreFromParams(key types.StoreKey, id types.CommitID
 	case types.StoreTypeIAVL:
 		var store types.CommitKVStore
 		var err error
-
+		fmt.Println("initial version:", params.initialVersion)
 		if params.initialVersion == 0 {
 			store, err = iavl.LoadStore(db, rs.logger, key, id, rs.lazyLoading, rs.iavlCacheSize, rs.iavlDisableFastNode)
 		} else {
