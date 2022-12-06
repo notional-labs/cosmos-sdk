@@ -182,6 +182,11 @@ func TestMultistoreLoadWithUpgrade(t *testing.T) {
 	err := store.LoadLatestVersion()
 	require.Nil(t, err)
 
+	k3, v3 := []byte("third"), []byte("dropped")
+	s3, _ := store.GetStoreByName("store3").(types.KVStore)
+	require.NotNil(t, s3)
+	s3.Set(k3, v3)
+
 	// "store1"
 	// "store2" "store3"
 
@@ -191,6 +196,10 @@ func TestMultistoreLoadWithUpgrade(t *testing.T) {
 
 	commitID = store.Commit()
 	fmt.Println("commit version ", commitID.Version)
+
+	// storeTest := s3.(*iavl.Store)
+	// err = storeTest.DeleteVersions([]int64{1}...)
+	// require.Nil(t, err)
 
 	store.MountStoreWithDB(types.NewKVStoreKey("store4"), types.StoreTypeIAVL, nil)
 
@@ -204,14 +213,22 @@ func TestMultistoreLoadWithUpgrade(t *testing.T) {
 	require.Nil(t, err)
 
 	// store.stores
-	// store.keysByName
-	// store.storesParams
+	delete(store.storesParams, store.keysByName["store3"])
+
+	delete(store.stores, store.keysByName["store3"])
+
+	delete(store.keysByName, "store3")
 
 	commitID = store.Commit()
-	fmt.Println("commit", commitID)
+	fmt.Println("commit", commitID.Version)
 
 	commitID = store.Commit()
-	fmt.Println("commit", commitID)
+	fmt.Println("commit", commitID.Version)
+
+	// ci, _ := getCommitInfo(db, 4)
+	// fmt.Println(ci.StoreInfos)
+
+	store.MountStoreWithDB(types.NewKVStoreKey("store3"), types.StoreTypeIAVL, nil)
 
 	upgrades = &types.StoreUpgrades{
 		Added: []string{"store3"},

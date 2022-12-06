@@ -293,6 +293,7 @@ func deleteKVStore(kv types.KVStore) {
 	itr.Close()
 
 	for _, k := range keys {
+		fmt.Println("delete: ", string(k))
 		kv.Delete(k)
 	}
 }
