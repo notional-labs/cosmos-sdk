@@ -87,6 +87,11 @@ func New(clientCtx client.Context, logger log.Logger) *Server {
 // non-blocking, so an external signal handler must be used.
 func (s *Server) Start(cfg config.Config) error {
 	s.mtx.Lock()
+
+	fmt.Println(
+		fmt.Sprintf(
+			"\n\n********************* cfg.Telemetry.Enabled = %t *************************\n\n", cfg.Telemetry.Enabled))
+
 	if cfg.Telemetry.Enabled {
 		m, err := telemetry.New(cfg.Telemetry)
 		if err != nil {
