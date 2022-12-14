@@ -369,6 +369,10 @@ func startInProcess(ctx *Context, clientCtx client.Context, appCreator types.App
 	// 	return err
 	// }
 
+	ctx.Logger.Error(fmt.Sprintf("\n\n****** config.API.Enable = %t ******\n\n", config.API.Enable))
+	ctx.Logger.Error(fmt.Sprintf("\n\n****** config.GRPC.Enable = %t ******\n\n", config.GRPC.Enable))
+	ctx.Logger.Error(fmt.Sprintf("\n\n****** config.Telemetry.Enable = %t ******\n\n", config.Telemetry.Enabled))
+
 	var apiSrv *api.Server
 	if config.API.Enable {
 		genDoc, err := genDocProvider()
