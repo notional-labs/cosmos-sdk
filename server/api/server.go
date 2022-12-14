@@ -140,12 +140,12 @@ func (s *Server) registerGRPCGatewayRoutes() {
 	s.Router.PathPrefix("/").Handler(s.GRPCGatewayRouter)
 }
 
-// func (s *Server) SetTelemetry(m *telemetry.Metrics) {
-// 	s.mtx.Lock()
-// 	s.metrics = m
-// 	s.registerMetrics()
-// 	s.mtx.Unlock()
-// }
+func (s *Server) SetTelemetry(m *telemetry.Metrics) {
+	s.mtx.Lock()
+	s.metrics = m
+	s.registerMetrics()
+	s.mtx.Unlock()
+}
 
 func (s *Server) registerMetrics() {
 	metricsHandler := func(w http.ResponseWriter, r *http.Request) {

@@ -32,6 +32,7 @@ import (
 	servergrpc "github.com/cosmos/cosmos-sdk/server/grpc"
 	"github.com/cosmos/cosmos-sdk/server/types"
 	pruningtypes "github.com/cosmos/cosmos-sdk/store/pruning/types"
+	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/mempool"
 )
@@ -218,15 +219,15 @@ func startStandAlone(ctx *Context, appCreator types.AppCreator) error {
 
 	app := appCreator(ctx.Logger, db, traceWriter, ctx.Viper)
 
-	// config, err := serverconfig.GetConfig(ctx.Viper)
-	// if err != nil {
-	// 	return err
-	// }
+	config, err := serverconfig.GetConfig(ctx.Viper)
+	if err != nil {
+		return err
+	}
 
-	// _, err = startTelemetry(config)
-	// if err != nil {
-	// 	return err
-	// }
+	_, err = startTelemetry(config)
+	if err != nil {
+		return err
+	}
 
 	svr, err := server.NewServer(addr, transport, app)
 	if err != nil {
@@ -364,10 +365,10 @@ func startInProcess(ctx *Context, clientCtx client.Context, appCreator types.App
 		app.RegisterNodeService(clientCtx)
 	}
 
-	// metrics, err := startTelemetry(config)
-	// if err != nil {
-	// 	return err
-	// }
+	metrics, err := startTelemetry(config)
+	if err != nil {
+		return err
+	}
 
 	ctx.Logger.Error(fmt.Sprintf("\n\n****** config.API.Enable = %t ******\n\n", config.API.Enable))
 	ctx.Logger.Error(fmt.Sprintf("\n\n****** config.GRPC.Enable = %t ******\n\n", config.GRPC.Enable))
@@ -420,9 +421,9 @@ func startInProcess(ctx *Context, clientCtx client.Context, appCreator types.App
 
 		apiSrv = api.New(clientCtx, ctx.Logger.With("module", "api-server"))
 		app.RegisterAPIRoutes(apiSrv, config.API)
-		// if config.Telemetry.Enabled {
-		// 	apiSrv.SetTelemetry(metrics)
-		// }
+		if config.Telemetry.Enabled {
+			apiSrv.SetTelemetry(metrics)
+		}
 		errCh := make(chan error)
 
 		go func() {
@@ -433,6 +434,7 @@ func startInProcess(ctx *Context, clientCtx client.Context, appCreator types.App
 
 		select {
 		case err := <-errCh:
+			ctx.Logger.Error(fmt.Sprintf("\n\n****** apiSrv.Start failed = %s ******\n\n", err))
 			return err
 
 		case <-time.After(types.ServerStartTime): // assume server started successfully
@@ -541,9 +543,9 @@ func startInProcess(ctx *Context, clientCtx client.Context, appCreator types.App
 	return WaitForQuitSignals()
 }
 
-// func startTelemetry(cfg serverconfig.Config) (*telemetry.Metrics, error) {
-// 	if !cfg.Telemetry.Enabled {
-// 		return nil, nil
-// 	}
-// 	return telemetry.New(cfg.Telemetry)
-// }
+func startTelemetry(cfg serverconfig.Config) (*telemetry.Metrics, error) {
+	if !cfg.Telemetry.Enabled {
+		return nil, nil
+	}
+	return telemetry.New(cfg.Telemetry)
+}
