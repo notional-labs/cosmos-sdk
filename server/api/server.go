@@ -88,9 +88,8 @@ func New(clientCtx client.Context, logger log.Logger) *Server {
 func (s *Server) Start(cfg config.Config) error {
 	s.mtx.Lock()
 
-	fmt.Println(
-		fmt.Sprintf(
-			"\n\n********************* cfg.Telemetry.Enabled = %t *************************\n\n", cfg.Telemetry.Enabled))
+	s.logger.Error(
+		fmt.Sprintf("\n\n********************* cfg.Telemetry.Enabled = %t *************************\n\n", cfg.Telemetry.Enabled))
 
 	if cfg.Telemetry.Enabled {
 		m, err := telemetry.New(cfg.Telemetry)
