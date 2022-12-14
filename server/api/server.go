@@ -91,16 +91,16 @@ func (s *Server) Start(cfg config.Config) error {
 	s.logger.Error(
 		fmt.Sprintf("\n\n********************* cfg.Telemetry.Enabled = %t *************************\n\n", cfg.Telemetry.Enabled))
 
-	if cfg.Telemetry.Enabled {
-		m, err := telemetry.New(cfg.Telemetry)
-		if err != nil {
-			s.mtx.Unlock()
-			return err
-		}
+	// if cfg.Telemetry.Enabled {
+	// 	m, err := telemetry.New(cfg.Telemetry)
+	// 	if err != nil {
+	// 		s.mtx.Unlock()
+	// 		return err
+	// 	}
 
-		s.metrics = m
-		s.registerMetrics()
-	}
+	// 	s.metrics = m
+	// 	s.registerMetrics()
+	// }
 
 	tmCfg := tmrpcserver.DefaultConfig()
 	tmCfg.MaxOpenConnections = int(cfg.API.MaxOpenConnections)
