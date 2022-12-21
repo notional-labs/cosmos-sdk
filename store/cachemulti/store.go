@@ -8,8 +8,13 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/store/cachekv"
 	"github.com/cosmos/cosmos-sdk/store/dbadapter"
+	"github.com/cosmos/cosmos-sdk/store/tracekv"
 	"github.com/cosmos/cosmos-sdk/store/types"
 )
+
+// storeNameCtxKey is the TraceContext metadata key that identifies
+// the store which emitted a given trace.
+const storeNameCtxKey = "store_name"
 
 //----------------------------------------
 // Store
@@ -25,8 +30,6 @@ type Store struct {
 
 	traceWriter  io.Writer
 	traceContext types.TraceContext
-
-	listeners map[types.StoreKey][]types.WriteListener
 }
 
 var _ types.CacheMultiStore = Store{}
@@ -37,7 +40,6 @@ var _ types.CacheMultiStore = Store{}
 func NewFromKVStore(
 	store types.KVStore, stores map[types.StoreKey]types.CacheWrapper,
 	keys map[string]types.StoreKey, traceWriter io.Writer, traceContext types.TraceContext,
-	listeners map[types.StoreKey][]types.WriteListener,
 ) Store {
 	cms := Store{
 		db:           cachekv.NewStore(store),
@@ -45,21 +47,17 @@ func NewFromKVStore(
 		keys:         keys,
 		traceWriter:  traceWriter,
 		traceContext: traceContext,
-		listeners:    listeners,
 	}
 
 	for key, store := range stores {
-		var cacheWrapped types.CacheWrap
 		if cms.TracingEnabled() {
-			cacheWrapped = store.CacheWrapWithTrace(cms.traceWriter, cms.traceContext)
-		} else {
-			cacheWrapped = store.CacheWrap()
+			tctx := cms.traceContext.Clone().Merge(types.TraceContext{
+				storeNameCtxKey: key.Name(),
+			})
+
+			store = tracekv.NewStore(store.(types.KVStore), cms.traceWriter, tctx)
 		}
-		if cms.ListeningEnabled(key) {
-			cms.stores[key] = cacheWrapped.CacheWrapWithListeners(key, cms.listeners[key])
-		} else {
-			cms.stores[key] = cacheWrapped
-		}
+		cms.stores[key] = cachekv.NewStore(store.(types.KVStore))
 	}
 
 	return cms
@@ -69,10 +67,9 @@ func NewFromKVStore(
 // CacheWrapper objects. Each CacheWrapper store is a branched store.
 func NewStore(
 	db dbm.DB, stores map[types.StoreKey]types.CacheWrapper, keys map[string]types.StoreKey,
-	traceWriter io.Writer, traceContext types.TraceContext, listeners map[types.StoreKey][]types.WriteListener,
+	traceWriter io.Writer, traceContext types.TraceContext,
 ) Store {
-
-	return NewFromKVStore(dbadapter.Store{DB: db}, stores, keys, traceWriter, traceContext, listeners)
+	return NewFromKVStore(dbadapter.Store{DB: db}, stores, keys, traceWriter, traceContext)
 }
 
 func newCacheMultiStoreFromCMS(cms Store) Store {
@@ -81,7 +78,7 @@ func newCacheMultiStoreFromCMS(cms Store) Store {
 		stores[k] = v
 	}
 
-	return NewFromKVStore(cms.db, stores, nil, cms.traceWriter, cms.traceContext, cms.listeners)
+	return NewFromKVStore(cms.db, stores, nil, cms.traceWriter, cms.traceContext)
 }
 
 // SetTracer sets the tracer for the MultiStore that the underlying
@@ -112,23 +109,6 @@ func (cms Store) TracingEnabled() bool {
 	return cms.traceWriter != nil
 }
 
-// AddListeners adds listeners for a specific KVStore
-func (cms Store) AddListeners(key types.StoreKey, listeners []types.WriteListener) {
-	if ls, ok := cms.listeners[key]; ok {
-		cms.listeners[key] = append(ls, listeners...)
-	} else {
-		cms.listeners[key] = listeners
-	}
-}
-
-// ListeningEnabled returns if listening is enabled for a specific KVStore
-func (cms Store) ListeningEnabled(key types.StoreKey) bool {
-	if ls, ok := cms.listeners[key]; ok {
-		return len(ls) != 0
-	}
-	return false
-}
-
 // GetStoreType returns the type of the store.
 func (cms Store) GetStoreType() types.StoreType {
 	return types.StoreTypeMulti
@@ -149,11 +129,6 @@ func (cms Store) CacheWrap() types.CacheWrap {
 
 // CacheWrapWithTrace implements the CacheWrapper interface.
 func (cms Store) CacheWrapWithTrace(_ io.Writer, _ types.TraceContext) types.CacheWrap {
-	return cms.CacheWrap()
-}
-
-// CacheWrapWithListeners implements the CacheWrapper interface.
-func (cms Store) CacheWrapWithListeners(_ types.StoreKey, _ []types.WriteListener) types.CacheWrap {
 	return cms.CacheWrap()
 }
 

@@ -111,7 +111,6 @@ func TestTraceKVStoreSet(t *testing.T) {
 	store := newEmptyTraceKVStore(&buf)
 	require.Panics(t, func() { store.Set([]byte(""), []byte("value")) }, "setting an empty key should panic")
 	require.Panics(t, func() { store.Set(nil, []byte("value")) }, "setting a nil key should panic")
-
 }
 
 func TestTraceKVStoreDelete(t *testing.T) {
@@ -290,9 +289,4 @@ func TestTraceKVStoreCacheWrap(t *testing.T) {
 func TestTraceKVStoreCacheWrapWithTrace(t *testing.T) {
 	store := newEmptyTraceKVStore(nil)
 	require.Panics(t, func() { store.CacheWrapWithTrace(nil, nil) })
-}
-
-func TestTraceKVStoreCacheWrapWithListeners(t *testing.T) {
-	store := newEmptyTraceKVStore(nil)
-	require.Panics(t, func() { store.CacheWrapWithListeners(nil, nil) })
 }

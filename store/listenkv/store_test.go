@@ -29,9 +29,11 @@ var kvPairs = []types.KVPair{
 	{Key: keyFmt(3), Value: valFmt(3)},
 }
 
-var testStoreKey = types.NewKVStoreKey("listen_test")
-var interfaceRegistry = codecTypes.NewInterfaceRegistry()
-var testMarshaller = codec.NewProtoCodec(interfaceRegistry)
+var (
+	testStoreKey      = types.NewKVStoreKey("listen_test")
+	interfaceRegistry = codecTypes.NewInterfaceRegistry()
+	testMarshaller    = codec.NewProtoCodec(interfaceRegistry)
+)
 
 func newListenKVStore(w io.Writer) *listenkv.Store {
 	store := newEmptyListenKVStore(w)
@@ -130,7 +132,6 @@ func TestListenKVStoreSet(t *testing.T) {
 	store := newEmptyListenKVStore(&buf)
 	require.Panics(t, func() { store.Set([]byte(""), []byte("value")) }, "setting an empty key should panic")
 	require.Panics(t, func() { store.Set(nil, []byte("value")) }, "setting a nil key should panic")
-
 }
 
 func TestListenKVStoreDelete(t *testing.T) {
@@ -290,9 +291,4 @@ func TestListenKVStoreCacheWrap(t *testing.T) {
 func TestListenKVStoreCacheWrapWithTrace(t *testing.T) {
 	store := newEmptyListenKVStore(nil)
 	require.Panics(t, func() { store.CacheWrapWithTrace(nil, nil) })
-}
-
-func TestListenKVStoreCacheWrapWithListeners(t *testing.T) {
-	store := newEmptyListenKVStore(nil)
-	require.Panics(t, func() { store.CacheWrapWithListeners(nil, nil) })
 }
