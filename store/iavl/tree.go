@@ -3,6 +3,7 @@ package iavl
 import (
 	"fmt"
 
+	"github.com/cosmos/cosmos-sdk/store/types"
 	"github.com/cosmos/iavl"
 )
 
@@ -30,6 +31,7 @@ type (
 		GetVersioned(key []byte, version int64) ([]byte, error)
 		GetVersionedWithProof(key []byte, version int64) ([]byte, *iavl.RangeProof, error)
 		GetImmutable(version int64) (*iavl.ImmutableTree, error)
+		Iterator(start, end []byte, ascending bool) (types.Iterator, error)
 		SetInitialVersion(version uint64)
 	}
 
