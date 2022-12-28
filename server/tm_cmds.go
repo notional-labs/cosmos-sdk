@@ -4,10 +4,10 @@ package server
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
-	tcmd "github.com/tendermint/tendermint/cmd/tendermint/commands"
 	"github.com/tendermint/tendermint/libs/cli"
 	"github.com/tendermint/tendermint/p2p"
 	pvm "github.com/tendermint/tendermint/privval"
@@ -17,6 +17,9 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/tendermint/tendermint/libs/log"
+	tmos "github.com/tendermint/tendermint/libs/os"
+	"github.com/tendermint/tendermint/privval"
 )
 
 // ShowNodeIDCmd - ported from Tendermint, dump node ID to stdout
@@ -154,9 +157,55 @@ func UnsafeResetAllCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			serverCtx := GetServerContextFromCmd(cmd)
 			cfg := serverCtx.Config
+			dbDir := cfg.DBDir()
+			addrBookFile := cfg.P2P.AddrBookFile()
+			privValKeyFile := cfg.PrivValidatorKeyFile()
+			privValStateFile := cfg.PrivValidatorStateFile()
+			logger := serverCtx.Logger
 
-			tcmd.ResetAll(cfg.DBDir(), cfg.P2P.AddrBookFile(), cfg.PrivValidatorKeyFile(), cfg.PrivValidatorStateFile(), serverCtx.Logger)
+			removeAddrBook(addrBookFile, logger)
+
+			if err := os.RemoveAll(dbDir); err == nil {
+				logger.Info("Removed all blockchain history", "dir", dbDir)
+			} else {
+				logger.Error("Error removing all blockchain history", "dir", dbDir, "err", err)
+			}
+
+			if err := tmos.EnsureDir(dbDir, 0700); err != nil {
+				logger.Error("unable to recreate dbDir", "err", err)
+			}
+
+			// recreate the dbDir since the privVal state needs to live there
+			resetFilePV(privValKeyFile, privValStateFile, logger)
 			return nil
 		},
+	}
+}
+
+func resetFilePV(privValKeyFile, privValStateFile string, logger log.Logger) {
+	if _, err := os.Stat(privValKeyFile); err == nil {
+		pv := privval.LoadFilePVEmptyState(privValKeyFile, privValStateFile)
+		pv.Reset()
+		logger.Info(
+			"Reset private validator file to genesis state",
+			"keyFile", privValKeyFile,
+			"stateFile", privValStateFile,
+		)
+	} else {
+		pv := privval.GenFilePV(privValKeyFile, privValStateFile)
+		pv.Save()
+		logger.Info(
+			"Generated private validator file",
+			"keyFile", privValKeyFile,
+			"stateFile", privValStateFile,
+		)
+	}
+}
+
+func removeAddrBook(addrBookFile string, logger log.Logger) {
+	if err := os.Remove(addrBookFile); err == nil {
+		logger.Info("Removed existing address book", "file", addrBookFile)
+	} else if !os.IsNotExist(err) {
+		logger.Info("Error removing address book", "file", addrBookFile, "err", err)
 	}
 }
