@@ -11,7 +11,6 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	dbm "github.com/tendermint/tm-db"
 
-	"github.com/cosmos/cosmos-sdk/codec/types"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/snapshots"
 	"github.com/cosmos/cosmos-sdk/store"
@@ -46,15 +45,8 @@ type (
 type BaseApp struct { // nolint: maligned
 	// initialized on creation
 	logger            log.Logger
-	name              string               // application name from abci.Info
-	db                dbm.DB               // common DB backend
-	cms               sdk.CommitMultiStore // Main (uncached) state
-	storeLoader       StoreLoader          // function to handle store loading, may be overridden with SetStoreLoader()
-	router            sdk.Router           // handle any kind of legacy message
-	queryRouter       sdk.QueryRouter      // router for redirecting query calls
-	grpcQueryRouter   *GRPCQueryRouter     // router for redirecting gRPC query calls
-	msgServiceRouter  *MsgServiceRouter    // router for redirecting Msg service messages
-	interfaceRegistry types.InterfaceRegistry
+	name              string // application name from abci.Info
+	interfaceRegistry codectypes.InterfaceRegistry
 	txDecoder         sdk.TxDecoder // unmarshal []byte into sdk.Tx
 
 	anteHandler    sdk.AnteHandler  // ante handler for fee and auth
@@ -67,8 +59,12 @@ type BaseApp struct { // nolint: maligned
 	idPeerFilter   sdk.PeerFilter   // filter peers by node ID
 	fauxMerkleMode bool             // if true, IAVL MountStores uses MountStoresDB for simulation speed.
 
-	// manages snapshots, i.e. dumps of app state at certain intervals
-	snapshotManager *snapshots.Manager
+	appStore
+	baseappVersions
+	peerFilters
+	snapshotData
+	abciData
+	moduleRouter
 
 	// volatile states:
 	//
@@ -76,12 +72,6 @@ type BaseApp struct { // nolint: maligned
 	// deliverState is set on InitChain and BeginBlock and set to nil on Commit
 	checkState   *state // for CheckTx
 	deliverState *state // for DeliverTx
-
-	// an inter-block write-through cache provided to the context during deliverState
-	interBlockCache sdk.MultiStorePersistentCache
-
-	// absent validators from begin block
-	voteInfos []abci.VoteInfo
 
 	// paramStore is used to query for ABCI consensus parameters from an
 	// application parameter store.
@@ -115,13 +105,6 @@ type BaseApp struct { // nolint: maligned
 	// ResponseCommit.RetainHeight.
 	minRetainBlocks uint64
 
-	// application's version string
-	version string
-
-	// application's protocol version that increments on every upgrade
-	// if BaseApp is passed to the upgrade keeper's NewKeeper method.
-	appVersion uint64
-
 	// recovery handler for app.runTx method
 	runTxRecoveryMiddleware recoveryMiddleware
 
@@ -137,6 +120,50 @@ type BaseApp struct { // nolint: maligned
 	abciListeners []ABCIListener
 }
 
+type appStore struct {
+	db          dbm.DB               // common DB backend
+	cms         sdk.CommitMultiStore // Main (uncached) state
+	qms         sdk.MultiStore       // Optional alternative state provider for query service
+	storeLoader StoreLoader          // function to handle store loading, may be overridden with SetStoreLoader()
+
+	// an inter-block write-through cache provided to the context during deliverState
+	interBlockCache sdk.MultiStorePersistentCache
+
+	fauxMerkleMode bool // if true, IAVL MountStores uses MountStoresDB for simulation speed.
+}
+
+type moduleRouter struct {
+	router           sdk.Router        // handle any kind of message
+	queryRouter      sdk.QueryRouter   // router for redirecting query calls
+	grpcQueryRouter  *GRPCQueryRouter  // router for redirecting gRPC query calls
+	msgServiceRouter *MsgServiceRouter // router for redirecting Msg service messages
+}
+
+type abciData struct {
+	initChainer  sdk.InitChainer  // initialize state with validators and state blob
+	beginBlocker sdk.BeginBlocker // logic to run before any txs
+	endBlocker   sdk.EndBlocker   // logic to run after all txs, and to determine valset changes
+
+	// absent validators from begin block
+	voteInfos []abci.VoteInfo
+}
+
+type baseappVersions struct {
+	// application's version string
+	version string
+
+	// application's protocol version that increments on every upgrade
+	// if BaseApp is passed to the upgrade keeper's NewKeeper method.
+	appVersion uint64
+}
+
+// should really get handled in some db struct
+// which then has a sub-item, persistence fields
+type snapshotData struct {
+	// manages snapshots, i.e. dumps of app state at certain intervals
+	snapshotManager *snapshots.Manager
+}
+
 // NewBaseApp returns a reference to an initialized BaseApp. It accepts a
 // variadic number of option functions, which act on the BaseApp to set
 // configuration choices.
@@ -146,17 +173,21 @@ func NewBaseApp(
 	name string, logger log.Logger, db dbm.DB, txDecoder sdk.TxDecoder, options ...func(*BaseApp),
 ) *BaseApp {
 	app := &BaseApp{
-		logger:           logger,
-		name:             name,
-		db:               db,
-		cms:              store.NewCommitMultiStore(db),
-		storeLoader:      DefaultStoreLoader,
-		router:           NewRouter(),
-		queryRouter:      NewQueryRouter(),
-		grpcQueryRouter:  NewGRPCQueryRouter(),
-		msgServiceRouter: NewMsgServiceRouter(),
-		txDecoder:        txDecoder,
-		fauxMerkleMode:   false,
+		logger: logger,
+		name:   name,
+		appStore: appStore{
+			db:             db,
+			cms:            store.NewCommitMultiStore(db),
+			storeLoader:    DefaultStoreLoader,
+			fauxMerkleMode: false,
+		},
+		moduleRouter: moduleRouter{
+			router:           NewRouter(),
+			queryRouter:      NewQueryRouter(),
+			grpcQueryRouter:  NewGRPCQueryRouter(),
+			msgServiceRouter: NewMsgServiceRouter(),
+		},
+		txDecoder: txDecoder,
 	}
 
 	for _, option := range options {
@@ -199,6 +230,11 @@ func (app *BaseApp) Trace() bool {
 
 // MsgServiceRouter returns the MsgServiceRouter of a BaseApp.
 func (app *BaseApp) MsgServiceRouter() *MsgServiceRouter { return app.msgServiceRouter }
+
+// SetMsgServiceRouter sets the MsgServiceRouter of a BaseApp.
+func (app *BaseApp) SetMsgServiceRouter(msgServiceRouter *MsgServiceRouter) {
+	app.msgServiceRouter = msgServiceRouter
+}
 
 // MountStores mounts all IAVL or DB stores to the provided keys in the BaseApp
 // multistore.
@@ -277,11 +313,8 @@ func DefaultStoreLoader(ms sdk.CommitMultiStore) error {
 
 // CommitMultiStore returns the root multi-store.
 // App constructor can use this to access the `cms`.
-// UNSAFE: only safe to use during app initialization.
+// UNSAFE: must not be used during the abci life cycle.
 func (app *BaseApp) CommitMultiStore() sdk.CommitMultiStore {
-	if app.sealed {
-		panic("cannot call CommitMultiStore() after baseapp is sealed")
-	}
 	return app.cms
 }
 
@@ -294,6 +327,7 @@ func (app *BaseApp) SnapshotManager() *snapshots.Manager {
 // LoadVersion loads the BaseApp application version. It will panic if called
 // more than once on a running baseapp.
 func (app *BaseApp) LoadVersion(version int64) error {
+	app.logger.Info("NOTICE: this could take a long time to migrate IAVL store to fastnode if you enable Fast Node.\n")
 	err := app.cms.LoadVersion(version)
 	if err != nil {
 		return fmt.Errorf("failed to load version %d: %w", version, err)
@@ -695,9 +729,14 @@ func (app *BaseApp) runTx(mode runTxMode, txBytes []byte) (gInfo sdk.GasInfo, re
 		//
 		// Note: If the postHandler fails, we also revert the runMsgs state.
 		if app.postHandler != nil {
-			newCtx, err := app.postHandler(runMsgCtx, tx, mode == runTxModeSimulate)
+			// The runMsgCtx context currently contains events emitted by the ante handler.
+			// We clear this to correctly order events without duplicates.
+			// Note that the state is still preserved.
+			postCtx := runMsgCtx.WithEventManager(sdk.NewEventManager())
+
+			newCtx, err := app.postHandler(postCtx, tx, mode == runTxModeSimulate)
 			if err != nil {
-				return gInfo, nil, nil, priority, err
+				return gInfo, nil, anteEvents, priority, err
 			}
 
 			result.Events = append(result.Events, newCtx.EventManager().ABCIEvents()...)

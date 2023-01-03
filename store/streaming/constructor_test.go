@@ -20,7 +20,13 @@ import (
 
 type fakeOptions struct{}
 
-func (f *fakeOptions) Get(string) interface{} { return nil }
+func (f *fakeOptions) Get(key string) interface{} {
+	if key == "streamers.file.write_dir" {
+		return "data/file_streamer"
+
+	}
+	return nil
+}
 
 var (
 	mockOptions       = new(fakeOptions)
@@ -81,7 +87,6 @@ func TestLoadStreamingServices(t *testing.T) {
 			require.Equal(t, tc.activeStreamersLen, len(activeStreamers))
 		})
 	}
-
 }
 
 type streamingAppOptions struct {
@@ -94,6 +99,8 @@ func (ao streamingAppOptions) Get(o string) interface{} {
 		return []string{"file"}
 	case "streamers.file.keys":
 		return ao.keys
+	case "streamers.file.write_dir":
+		return "data/file_streamer"
 	default:
 		return nil
 	}

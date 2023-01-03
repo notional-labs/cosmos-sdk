@@ -3,7 +3,6 @@ package config
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"text/template"
 
@@ -74,6 +73,10 @@ index-events = [{{ range .BaseConfig.IndexEvents }}{{ printf "%q, " . }}{{end}}]
 # IavlCacheSize set the size of the iavl tree cache. 
 # Default cache size is 50mb.
 iavl-cache-size = {{ .BaseConfig.IAVLCacheSize }}
+
+# IavlDisableFastNode enables or disables the fast node feature of IAVL. 
+# Default is false.
+iavl-disable-fastnode = {{ .BaseConfig.IAVLDisableFastNode }}
 
 # AppDBBackend defines the database backend type to use for the application and snapshots DBs.
 # An empty string indicates that a fallback will be used.
@@ -232,6 +235,29 @@ snapshot-interval = {{ .StateSync.SnapshotInterval }}
 
 # snapshot-keep-recent specifies the number of recent snapshots to keep and serve (0 to keep all).
 snapshot-keep-recent = {{ .StateSync.SnapshotKeepRecent }}
+
+###############################################################################
+###                         Store / State Streaming                         ###
+###############################################################################
+
+[store]
+streamers = [{{ range .Store.Streamers }}{{ printf "%q, " . }}{{end}}]
+
+[streamers]
+[streamers.file]
+keys = [{{ range .Streamers.File.Keys }}{{ printf "%q, " . }}{{end}}]
+write_dir = "{{ .Streamers.File.WriteDir }}"
+prefix = "{{ .Streamers.File.Prefix }}"
+
+# output-metadata specifies if output the metadata file which includes the abci request/responses 
+# during processing the block.
+output-metadata = "{{ .Streamers.File.OutputMetadata }}"
+
+# stop-node-on-error specifies if propagate the file streamer errors to consensus state machine.
+stop-node-on-error = "{{ .Streamers.File.StopNodeOnError }}"
+
+# fsync specifies if call fsync after writing the files.
+fsync = "{{ .Streamers.File.Fsync }}"
 `
 
 var configTemplate *template.Template
@@ -280,7 +306,7 @@ func WriteConfigFile(configFilePath string, config interface{}) {
 }
 
 func mustWriteFile(filePath string, contents []byte, mode os.FileMode) {
-	if err := ioutil.WriteFile(filePath, contents, mode); err != nil {
+	if err := os.WriteFile(filePath, contents, mode); err != nil {
 		fmt.Printf(fmt.Sprintf("failed to write file: %v", err) + "\n")
 		os.Exit(1)
 	}

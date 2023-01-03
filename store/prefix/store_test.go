@@ -90,7 +90,7 @@ func testPrefixStore(t *testing.T, baseStore types.KVStore, prefix []byte) {
 
 func TestIAVLStorePrefix(t *testing.T) {
 	db := dbm.NewMemDB()
-	tree, err := tiavl.NewMutableTree(db, cacheSize)
+	tree, err := tiavl.NewMutableTree(db, cacheSize, false)
 	require.NoError(t, err)
 	iavlStore := iavl.UnsafeNewStore(tree)
 
@@ -438,7 +438,4 @@ func TestCacheWraps(t *testing.T) {
 
 	cacheWrappedWithTrace := store.CacheWrapWithTrace(nil, nil)
 	require.IsType(t, &cachekv.Store{}, cacheWrappedWithTrace)
-
-	cacheWrappedWithListeners := store.CacheWrapWithListeners(nil, nil)
-	require.IsType(t, &cachekv.Store{}, cacheWrappedWithListeners)
 }

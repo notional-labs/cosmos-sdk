@@ -2,6 +2,7 @@ package baseapp
 
 import (
 	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -130,24 +131,6 @@ func (app *BaseApp) Info(req abci.RequestInfo) abci.ResponseInfo {
 	}
 }
 
-// FilterPeerByAddrPort filters peers by address/port.
-func (app *BaseApp) FilterPeerByAddrPort(info string) abci.ResponseQuery {
-	if app.addrPeerFilter != nil {
-		return app.addrPeerFilter(info)
-	}
-
-	return abci.ResponseQuery{}
-}
-
-// FilterPeerByID filters peers by node ID.
-func (app *BaseApp) FilterPeerByID(info string) abci.ResponseQuery {
-	if app.idPeerFilter != nil {
-		return app.idPeerFilter(info)
-	}
-
-	return abci.ResponseQuery{}
-}
-
 // BeginBlock implements the ABCI application interface.
 func (app *BaseApp) BeginBlock(req abci.RequestBeginBlock) (res abci.ResponseBeginBlock) {
 	if app.cms.TracingEnabled() {
@@ -206,7 +189,7 @@ func (app *BaseApp) BeginBlock(req abci.RequestBeginBlock) (res abci.ResponseBeg
 	// call the hooks with the BeginBlock messages
 	for _, streamingListener := range app.abciListeners {
 		if err := streamingListener.ListenBeginBlock(app.deliverState.ctx, req, res); err != nil {
-			app.logger.Error("BeginBlock listening hook failed", "height", req.Header.Height, "err", err)
+			panic(fmt.Errorf("BeginBlock listening hook failed, height: %d, err: %w", req.Header.Height, err))
 		}
 	}
 
@@ -231,7 +214,7 @@ func (app *BaseApp) EndBlock(req abci.RequestEndBlock) (res abci.ResponseEndBloc
 	// call the streaming service hooks with the EndBlock messages
 	for _, streamingListener := range app.abciListeners {
 		if err := streamingListener.ListenEndBlock(app.deliverState.ctx, req, res); err != nil {
-			app.logger.Error("EndBlock listening hook failed", "height", req.Height, "err", err)
+			panic(fmt.Errorf("EndBlock listening hook failed, height: %d, err: %w", req.Height, err))
 		}
 	}
 
@@ -278,9 +261,17 @@ func (app *BaseApp) CheckTx(req abci.RequestCheckTx) abci.ResponseCheckTx {
 // Otherwise, the ResponseDeliverTx will contain releveant error information.
 // Regardless of tx execution outcome, the ResponseDeliverTx will contain relevant
 // gas execution context.
-func (app *BaseApp) DeliverTx(req abci.RequestDeliverTx) abci.ResponseDeliverTx {
+func (app *BaseApp) DeliverTx(req abci.RequestDeliverTx) (res abci.ResponseDeliverTx) {
 	gInfo := sdk.GasInfo{}
 	resultStr := "successful"
+
+	defer func() {
+		for _, streamingListener := range app.abciListeners {
+			if err := streamingListener.ListenDeliverTx(app.deliverState.ctx, req, res); err != nil {
+				panic(fmt.Errorf("DeliverTx listening hook failed: %w", err))
+			}
+		}
+	}()
 
 	defer func() {
 		telemetry.IncrCounter(1, "tx", "count")
@@ -311,7 +302,7 @@ func (app *BaseApp) DeliverTx(req abci.RequestDeliverTx) abci.ResponseDeliverTx 
 // defined in config, Commit will execute a deferred function call to check
 // against that height and gracefully halt if it matches the latest committed
 // height.
-func (app *BaseApp) Commit() (res abci.ResponseCommit) {
+func (app *BaseApp) Commit() abci.ResponseCommit {
 	header := app.deliverState.ctx.BlockHeader()
 	retainHeight := app.GetBlockRetentionHeight(header.Height)
 
@@ -320,6 +311,19 @@ func (app *BaseApp) Commit() (res abci.ResponseCommit) {
 	// MultiStore (app.cms) so when Commit() is called is persists those values.
 	app.deliverState.ms.Write()
 	commitID := app.cms.Commit()
+
+	res := abci.ResponseCommit{
+		Data:         commitID.Hash,
+		RetainHeight: retainHeight,
+	}
+
+	// call the hooks with the Commit message
+	for _, streamingListener := range app.abciListeners {
+		if err := streamingListener.ListenCommit(app.deliverState.ctx, res); err != nil {
+			panic(fmt.Errorf("Commit listening hook failed, height: %d, err: %w", header.Height, err))
+		}
+	}
+
 	app.logger.Info("commit synced", "commit", fmt.Sprintf("%X", commitID))
 
 	// Reset the Check state to the latest committed.
@@ -355,10 +359,7 @@ func (app *BaseApp) Commit() (res abci.ResponseCommit) {
 
 	go app.snapshotManager.SnapshotIfApplicable(header.Height)
 
-	return abci.ResponseCommit{
-		Data:         commitID.Hash,
-		RetainHeight: retainHeight,
-	}
+	return res
 }
 
 // halt attempts to gracefully shutdown the node via SIGINT and SIGTERM falling
@@ -411,7 +412,7 @@ func (app *BaseApp) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 
 	path := SplitABCIQueryPath(req.Path)
 	if len(path) == 0 {
-		sdkerrors.QueryResult(sdkerrors.Wrap(sdkerrors.ErrUnknownRequest, "no query path provided"), app.trace)
+		return sdkerrors.QueryResult(sdkerrors.Wrap(sdkerrors.ErrUnknownRequest, "no query path provided"), app.trace)
 	}
 
 	switch path[0] {
@@ -610,7 +611,13 @@ func (app *BaseApp) createQueryContext(height int64, prove bool) (sdk.Context, e
 		return sdk.Context{}, err
 	}
 
-	lastBlockHeight := app.LastBlockHeight()
+	// use custom query multistore if provided
+	qms := app.qms
+	if qms == nil {
+		qms = sdk.MultiStore(app.cms)
+	}
+
+	lastBlockHeight := qms.LatestVersion()
 	if height > lastBlockHeight {
 		return sdk.Context{},
 			sdkerrors.Wrap(
@@ -632,7 +639,7 @@ func (app *BaseApp) createQueryContext(height int64, prove bool) (sdk.Context, e
 			)
 	}
 
-	cacheMS, err := app.cms.CacheMultiStoreWithVersion(height)
+	cacheMS, err := qms.CacheMultiStoreWithVersion(height)
 	if err != nil {
 		return sdk.Context{},
 			sdkerrors.Wrapf(
@@ -756,6 +763,22 @@ func handleQueryApp(app *BaseApp, path []string, req abci.RequestQuery) abci.Res
 				Value:     []byte(app.version),
 			}
 
+		case "snapshots":
+			var responseValue []byte
+
+			response := app.ListSnapshots(abci.RequestListSnapshots{})
+
+			responseValue, err := json.Marshal(response)
+			if err != nil {
+				return sdkerrors.QueryResult(sdkerrors.Wrap(err, fmt.Sprintf("failed to marshal list snapshots response %v", response)), app.trace)
+			}
+
+			return abci.ResponseQuery{
+				Codespace: sdkerrors.RootCodespace,
+				Height:    req.Height,
+				Value:     responseValue,
+			}
+
 		default:
 			return sdkerrors.QueryResult(sdkerrors.Wrapf(sdkerrors.ErrUnknownRequest, "unknown query: %s", path), app.trace)
 		}
@@ -787,35 +810,6 @@ func handleQueryStore(app *BaseApp, path []string, req abci.RequestQuery) abci.R
 
 	resp := queryable.Query(req)
 	resp.Height = req.Height
-
-	return resp
-}
-
-func handleQueryP2P(app *BaseApp, path []string) abci.ResponseQuery {
-	// "/p2p" prefix for p2p queries
-	if len(path) < 4 {
-		return sdkerrors.QueryResult(
-			sdkerrors.Wrap(
-				sdkerrors.ErrUnknownRequest, "path should be p2p filter <addr|id> <parameter>",
-			), app.trace)
-	}
-
-	var resp abci.ResponseQuery
-
-	cmd, typ, arg := path[1], path[2], path[3]
-	switch cmd {
-	case "filter":
-		switch typ {
-		case "addr":
-			resp = app.FilterPeerByAddrPort(arg)
-
-		case "id":
-			resp = app.FilterPeerByID(arg)
-		}
-
-	default:
-		resp = sdkerrors.QueryResult(sdkerrors.Wrap(sdkerrors.ErrUnknownRequest, "expected second parameter to be 'filter'"), app.trace)
-	}
 
 	return resp
 }
