@@ -279,3 +279,16 @@ func (store *Store) isDeleted(key string) bool {
 	_, ok := store.deleted[key]
 	return ok
 }
+
+// strToByte is meant to make a zero allocation conversion
+// from string -> []byte to speed up operations, it is not meant
+// to be used generally, but for a specific pattern to check for available
+// keys within a domain.
+func strToByte(s string) []byte {
+	var b []byte
+	hdr := (*reflect.SliceHeader)(unsafe.Pointer(&b))
+	hdr.Cap = len(s)
+	hdr.Len = len(s)
+	hdr.Data = (*reflect.StringHeader)(unsafe.Pointer(&s)).Data
+	return b
+}
