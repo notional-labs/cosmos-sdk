@@ -61,7 +61,7 @@ type BaseApp struct { // nolint: maligned
 
 	appStore
 	baseappVersions
-	peerFilters
+	peerFilters //nolint:unused
 	snapshotData
 	abciData
 	moduleRouter
@@ -140,9 +140,9 @@ type moduleRouter struct {
 }
 
 type abciData struct {
-	initChainer  sdk.InitChainer  // initialize state with validators and state blob
-	beginBlocker sdk.BeginBlocker // logic to run before any txs
-	endBlocker   sdk.EndBlocker   // logic to run after all txs, and to determine valset changes
+	initChainer  sdk.InitChainer  //nolint:unused // initialize state with validators and state blob
+	beginBlocker sdk.BeginBlocker //nolint:unused // logic to run before any txs
+	endBlocker   sdk.EndBlocker   //nolint:unused // logic to run after all txs, and to determine valset changes
 
 	// absent validators from begin block
 	voteInfos []abci.VoteInfo
