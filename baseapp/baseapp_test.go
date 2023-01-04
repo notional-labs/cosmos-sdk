@@ -897,7 +897,7 @@ func setIntOnStore(store sdk.KVStore, key []byte, i int64) {
 
 // check counter matches what's in store.
 // increment and store
-func incrementingCounter(t *testing.T, store sdk.KVStore, counterKey []byte, counter int64) (*sdk.Result, error) {
+func incrementingCounter(t *testing.T, store sdk.KVStore, counterKey []byte, counter int64) (*sdk.Result, error) { //nolint:unparam
 	storedCounter := getIntFromStore(store, counterKey)
 	require.Equal(t, storedCounter, counter)
 	setIntOnStore(store, counterKey, counter+1)

@@ -25,7 +25,6 @@ func TestPrepareConfigForTxCreateValidator(t *testing.T) {
 		{
 			name: "all defaults",
 			fsModify: func(fs *pflag.FlagSet) {
-				return
 			},
 			expectedCfg: TxCreateValidatorConfig{
 				IP:                      ip,

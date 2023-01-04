@@ -49,11 +49,11 @@ func TestParseSubmitProposalFlags(t *testing.T) {
 	}
 
 	// no --proposal, only flags
-	fs.Set(FlagProposal, "")
-	fs.Set(FlagTitle, proposal1.Title)
-	fs.Set(FlagDescription, proposal1.Description)
-	fs.Set(FlagProposalType, proposal1.Type)
-	fs.Set(FlagDeposit, proposal1.Deposit)
+	fs.Set(FlagProposal, "")                       //nolint:errcheck
+	fs.Set(FlagTitle, proposal1.Title)             //nolint:errcheck
+	fs.Set(FlagDescription, proposal1.Description) //nolint:errcheck
+	fs.Set(FlagProposalType, proposal1.Type)       //nolint:errcheck
+	fs.Set(FlagDeposit, proposal1.Deposit)         //nolint:errcheck
 	proposal2, err := parseSubmitProposalFlags(fs)
 
 	require.Nil(t, err, "unexpected error")

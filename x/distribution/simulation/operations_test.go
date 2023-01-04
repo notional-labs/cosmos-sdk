@@ -218,7 +218,7 @@ func (suite *SimTestSuite) SetupTest() {
 	suite.ctx = app.BaseApp.NewContext(checkTx, tmproto.Header{})
 }
 
-func (suite *SimTestSuite) getTestingAccounts(r *rand.Rand, n int) []simtypes.Account {
+func (suite *SimTestSuite) getTestingAccounts(r *rand.Rand, n int) []simtypes.Account { //nolint:unparam
 	accounts := simtypes.RandomAccounts(r, n)
 
 	initAmt := sdk.TokensFromConsensusPower(200)

@@ -42,14 +42,14 @@ func (suite *KeeperTestSuite) TestCreateClient() {
 
 func (suite *KeeperTestSuite) TestUpdateClientTendermint() {
 	// Must create header creation functions since suite.header gets recreated on each test case
-	createFutureUpdateFn := func(s *KeeperTestSuite) *ibctmtypes.Header {
+	createFutureUpdateFn := func(s *KeeperTestSuite) *ibctmtypes.Header { //nolint:unparam
 		heightPlus3 := types.NewHeight(suite.header.GetHeight().GetRevisionNumber(), suite.header.GetHeight().GetRevisionHeight()+3)
 		height := suite.header.GetHeight().(types.Height)
 
 		return suite.chainA.CreateTMClientHeader(testChainID, int64(heightPlus3.RevisionHeight), height, suite.header.Header.Time.Add(time.Hour),
 			suite.valSet, suite.valSet, []tmtypes.PrivValidator{suite.privVal})
 	}
-	createPastUpdateFn := func(s *KeeperTestSuite) *ibctmtypes.Header {
+	createPastUpdateFn := func(s *KeeperTestSuite) *ibctmtypes.Header { //nolint:unparam
 		heightMinus2 := types.NewHeight(suite.header.GetHeight().GetRevisionNumber(), suite.header.GetHeight().GetRevisionHeight()-2)
 		heightMinus4 := types.NewHeight(suite.header.GetHeight().GetRevisionNumber(), suite.header.GetHeight().GetRevisionHeight()-4)
 
