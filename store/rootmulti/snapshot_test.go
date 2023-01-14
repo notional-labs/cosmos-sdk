@@ -179,9 +179,15 @@ func TestMultistoreSnapshot_Errors(t *testing.T) {
 }
 
 func TestMultistoreSnapshotRestore(t *testing.T) {
-	source := newMultiStoreWithMixedMountsAndBasicData(dbm.NewMemDB())
+	db := dbm.NewMemDB()
+	source := newMultiStoreWithMixedMountsAndBasicData(db)
 	target := newMultiStoreWithMixedMounts(dbm.NewMemDB())
 	version := uint64(source.LastCommitID().Version)
+	ci, err2 := rootmulti.GetCommitInfo(db, 3)
+	require.NoError(t, err2)
+	fmt.Println(ci.StoreInfos)
+	err1 := source.LoadVersion(3)
+	require.NoError(t, err1)
 	require.EqualValues(t, 3, version)
 	dummyExtensionItem := snapshottypes.SnapshotItem{
 		Item: &snapshottypes.SnapshotItem_Extension{
@@ -206,6 +212,7 @@ func TestMultistoreSnapshotRestore(t *testing.T) {
 
 	streamReader, err := snapshots.NewStreamReader(chunks)
 	require.NoError(t, err)
+	fmt.Println("restore version", version)
 	nextItem, err := target.Restore(version, snapshottypes.CurrentFormat, streamReader)
 	require.NoError(t, err)
 	require.Equal(t, *dummyExtensionItem.GetExtension(), *nextItem.GetExtension())
