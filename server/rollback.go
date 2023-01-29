@@ -3,8 +3,8 @@ package server
 import (
 	"fmt"
 
-	"github.com/cosmos/cosmos-sdk/client/flags"
-	"github.com/cosmos/cosmos-sdk/server/types"
+	"github.com/cheqd/cosmos-sdk/client/flags"
+	"github.com/cheqd/cosmos-sdk/server/types"
 	"github.com/spf13/cobra"
 	tmcmd "github.com/tendermint/tendermint/cmd/tendermint/commands"
 )

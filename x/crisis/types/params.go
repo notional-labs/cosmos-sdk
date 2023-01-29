@@ -3,8 +3,8 @@ package types
 import (
 	"fmt"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
+	sdk "github.com/cheqd/cosmos-sdk/types"
+	paramtypes "github.com/cheqd/cosmos-sdk/x/params/types"
 )
 
 // ParamStoreKeyConstantFee sets the key for constant fee parameter

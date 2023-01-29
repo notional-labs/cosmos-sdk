@@ -8,17 +8,17 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 
-	"github.com/cosmos/cosmos-sdk/client"
-	"github.com/cosmos/cosmos-sdk/client/tx"
-	"github.com/cosmos/cosmos-sdk/crypto/hd"
-	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
-	"github.com/cosmos/cosmos-sdk/simapp"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
-	signingtypes "github.com/cosmos/cosmos-sdk/types/tx/signing"
-	"github.com/cosmos/cosmos-sdk/x/auth/signing"
-	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/cheqd/cosmos-sdk/client"
+	"github.com/cheqd/cosmos-sdk/client/tx"
+	"github.com/cheqd/cosmos-sdk/crypto/hd"
+	"github.com/cheqd/cosmos-sdk/crypto/keyring"
+	cryptotypes "github.com/cheqd/cosmos-sdk/crypto/types"
+	"github.com/cheqd/cosmos-sdk/simapp"
+	sdk "github.com/cheqd/cosmos-sdk/types"
+	txtypes "github.com/cheqd/cosmos-sdk/types/tx"
+	signingtypes "github.com/cheqd/cosmos-sdk/types/tx/signing"
+	"github.com/cheqd/cosmos-sdk/x/auth/signing"
+	banktypes "github.com/cheqd/cosmos-sdk/x/bank/types"
 )
 
 func NewTestTxConfig() client.TxConfig {

@@ -12,14 +12,14 @@ import (
 	"github.com/tendermint/tendermint/crypto/armor"
 	"github.com/tendermint/tendermint/crypto/xsalsa20symmetric"
 
-	"github.com/cosmos/cosmos-sdk/codec/legacy"
-	"github.com/cosmos/cosmos-sdk/crypto"
-	"github.com/cosmos/cosmos-sdk/crypto/hd"
-	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	"github.com/cosmos/cosmos-sdk/crypto/keys/bcrypt"
-	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
-	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
-	"github.com/cosmos/cosmos-sdk/types"
+	"github.com/cheqd/cosmos-sdk/codec/legacy"
+	"github.com/cheqd/cosmos-sdk/crypto"
+	"github.com/cheqd/cosmos-sdk/crypto/hd"
+	"github.com/cheqd/cosmos-sdk/crypto/keyring"
+	"github.com/cheqd/cosmos-sdk/crypto/keys/bcrypt"
+	"github.com/cheqd/cosmos-sdk/crypto/keys/secp256k1"
+	cryptotypes "github.com/cheqd/cosmos-sdk/crypto/types"
+	"github.com/cheqd/cosmos-sdk/types"
 )
 
 func TestArmorUnarmorPrivKey(t *testing.T) {

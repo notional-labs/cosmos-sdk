@@ -7,15 +7,15 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/cosmos/cosmos-sdk/testutil"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	grpctypes "github.com/cosmos/cosmos-sdk/types/grpc"
+	"github.com/cheqd/cosmos-sdk/testutil"
+	sdk "github.com/cheqd/cosmos-sdk/types"
+	grpctypes "github.com/cheqd/cosmos-sdk/types/grpc"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/cosmos/cosmos-sdk/testutil/network"
-	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
+	"github.com/cheqd/cosmos-sdk/testutil/network"
+	minttypes "github.com/cheqd/cosmos-sdk/x/mint/types"
 )
 
 type IntegrationTestSuite struct {

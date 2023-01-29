@@ -10,17 +10,17 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmtime "github.com/tendermint/tendermint/types/time"
 
-	"github.com/cosmos/cosmos-sdk/baseapp"
-	"github.com/cosmos/cosmos-sdk/simapp"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/types/query"
-	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	"github.com/cosmos/cosmos-sdk/x/auth/vesting/exported"
-	vesting "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
-	"github.com/cosmos/cosmos-sdk/x/bank/keeper"
-	"github.com/cosmos/cosmos-sdk/x/bank/types"
-	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
+	"github.com/cheqd/cosmos-sdk/baseapp"
+	"github.com/cheqd/cosmos-sdk/simapp"
+	sdk "github.com/cheqd/cosmos-sdk/types"
+	"github.com/cheqd/cosmos-sdk/types/query"
+	authkeeper "github.com/cheqd/cosmos-sdk/x/auth/keeper"
+	authtypes "github.com/cheqd/cosmos-sdk/x/auth/types"
+	"github.com/cheqd/cosmos-sdk/x/auth/vesting/exported"
+	vesting "github.com/cheqd/cosmos-sdk/x/auth/vesting/types"
+	"github.com/cheqd/cosmos-sdk/x/bank/keeper"
+	"github.com/cheqd/cosmos-sdk/x/bank/types"
+	minttypes "github.com/cheqd/cosmos-sdk/x/mint/types"
 )
 
 const (

@@ -8,10 +8,10 @@ import (
 	"github.com/stretchr/testify/require"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
-	"github.com/cosmos/cosmos-sdk/x/params/simulation"
-	"github.com/cosmos/cosmos-sdk/x/params/types/proposal"
+	sdk "github.com/cheqd/cosmos-sdk/types"
+	simtypes "github.com/cheqd/cosmos-sdk/types/simulation"
+	"github.com/cheqd/cosmos-sdk/x/params/simulation"
+	"github.com/cheqd/cosmos-sdk/x/params/types/proposal"
 )
 
 type MockParamChange struct {

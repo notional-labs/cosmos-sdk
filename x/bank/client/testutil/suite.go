@@ -7,14 +7,14 @@ import (
 	"github.com/stretchr/testify/suite"
 	tmcli "github.com/tendermint/tendermint/libs/cli"
 
-	"github.com/cosmos/cosmos-sdk/client/flags"
-	clitestutil "github.com/cosmos/cosmos-sdk/testutil/cli"
-	"github.com/cosmos/cosmos-sdk/testutil/network"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-	"github.com/cosmos/cosmos-sdk/types/query"
-	"github.com/cosmos/cosmos-sdk/x/bank/client/cli"
-	"github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/cheqd/cosmos-sdk/client/flags"
+	clitestutil "github.com/cheqd/cosmos-sdk/testutil/cli"
+	"github.com/cheqd/cosmos-sdk/testutil/network"
+	sdk "github.com/cheqd/cosmos-sdk/types"
+	sdkerrors "github.com/cheqd/cosmos-sdk/types/errors"
+	"github.com/cheqd/cosmos-sdk/types/query"
+	"github.com/cheqd/cosmos-sdk/x/bank/client/cli"
+	"github.com/cheqd/cosmos-sdk/x/bank/types"
 )
 
 type IntegrationTestSuite struct {

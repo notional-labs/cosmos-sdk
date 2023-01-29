@@ -9,13 +9,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protowire"
 
-	"github.com/cosmos/cosmos-sdk/codec"
-	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
-	"github.com/cosmos/cosmos-sdk/testutil/testdata"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-	"github.com/cosmos/cosmos-sdk/types/tx"
-	signingtypes "github.com/cosmos/cosmos-sdk/types/tx/signing"
-	"github.com/cosmos/cosmos-sdk/x/auth/signing"
+	"github.com/cheqd/cosmos-sdk/codec"
+	codectypes "github.com/cheqd/cosmos-sdk/codec/types"
+	"github.com/cheqd/cosmos-sdk/testutil/testdata"
+	sdkerrors "github.com/cheqd/cosmos-sdk/types/errors"
+	"github.com/cheqd/cosmos-sdk/types/tx"
+	signingtypes "github.com/cheqd/cosmos-sdk/types/tx/signing"
+	"github.com/cheqd/cosmos-sdk/x/auth/signing"
 )
 
 func TestDefaultTxDecoderError(t *testing.T) {

@@ -20,16 +20,16 @@ import (
 	"github.com/tendermint/tendermint/rpc/client/local"
 	"google.golang.org/grpc"
 
-	"github.com/cosmos/cosmos-sdk/client"
-	"github.com/cosmos/cosmos-sdk/client/flags"
-	"github.com/cosmos/cosmos-sdk/codec"
-	"github.com/cosmos/cosmos-sdk/server/api"
-	"github.com/cosmos/cosmos-sdk/server/config"
-	servergrpc "github.com/cosmos/cosmos-sdk/server/grpc"
-	"github.com/cosmos/cosmos-sdk/server/rosetta"
-	crgserver "github.com/cosmos/cosmos-sdk/server/rosetta/lib/server"
-	"github.com/cosmos/cosmos-sdk/server/types"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
+	"github.com/cheqd/cosmos-sdk/client"
+	"github.com/cheqd/cosmos-sdk/client/flags"
+	"github.com/cheqd/cosmos-sdk/codec"
+	"github.com/cheqd/cosmos-sdk/server/api"
+	"github.com/cheqd/cosmos-sdk/server/config"
+	servergrpc "github.com/cheqd/cosmos-sdk/server/grpc"
+	"github.com/cheqd/cosmos-sdk/server/rosetta"
+	crgserver "github.com/cheqd/cosmos-sdk/server/rosetta/lib/server"
+	"github.com/cheqd/cosmos-sdk/server/types"
+	storetypes "github.com/cheqd/cosmos-sdk/store/types"
 )
 
 const (

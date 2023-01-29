@@ -7,16 +7,16 @@ import (
 	"github.com/stretchr/testify/require"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
-	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
-	"github.com/cosmos/cosmos-sdk/simapp"
-	"github.com/cosmos/cosmos-sdk/testutil/testdata"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	"github.com/cosmos/cosmos-sdk/x/bank"
-	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
-	"github.com/cosmos/cosmos-sdk/x/bank/types"
-	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	"github.com/cheqd/cosmos-sdk/crypto/keys/secp256k1"
+	"github.com/cheqd/cosmos-sdk/simapp"
+	"github.com/cheqd/cosmos-sdk/testutil/testdata"
+	sdk "github.com/cheqd/cosmos-sdk/types"
+	sdkerrors "github.com/cheqd/cosmos-sdk/types/errors"
+	authtypes "github.com/cheqd/cosmos-sdk/x/auth/types"
+	"github.com/cheqd/cosmos-sdk/x/bank"
+	bankkeeper "github.com/cheqd/cosmos-sdk/x/bank/keeper"
+	"github.com/cheqd/cosmos-sdk/x/bank/types"
+	stakingtypes "github.com/cheqd/cosmos-sdk/x/staking/types"
 )
 
 func TestInvalidMsg(t *testing.T) {

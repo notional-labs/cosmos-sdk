@@ -6,9 +6,9 @@ import (
 	"github.com/stretchr/testify/require"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
-	"github.com/cosmos/cosmos-sdk/simapp"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	"github.com/cheqd/cosmos-sdk/simapp"
+	sdk "github.com/cheqd/cosmos-sdk/types"
+	stakingtypes "github.com/cheqd/cosmos-sdk/x/staking/types"
 )
 
 var (

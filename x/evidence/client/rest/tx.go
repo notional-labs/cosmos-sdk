@@ -1,7 +1,7 @@
 package rest
 
 import (
-	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/cheqd/cosmos-sdk/client"
 
 	"github.com/gorilla/mux"
 )

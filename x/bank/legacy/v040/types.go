@@ -3,14 +3,14 @@ package v040
 import (
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
 
-	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
-	"github.com/cosmos/cosmos-sdk/x/bank/types"
+	codectypes "github.com/cheqd/cosmos-sdk/codec/types"
+	"github.com/cheqd/cosmos-sdk/x/bank/types"
 )
 
 // SupplyI defines an inflationary supply interface for modules that handle
 // token supply.
 // It is copy-pasted from:
-// https://github.com/cosmos/cosmos-sdk/blob/v042.3/x/bank/exported/exported.go
+// https://github.com/cheqd/cosmos-sdk/blob/v042.3/x/bank/exported/exported.go
 // where we stripped off the unnecessary methods.
 //
 // It is used in the migration script, because we save this interface as an Any

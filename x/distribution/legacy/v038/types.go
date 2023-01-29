@@ -4,9 +4,9 @@
 package v038
 
 import (
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	v034distr "github.com/cosmos/cosmos-sdk/x/distribution/legacy/v034"
-	v036distr "github.com/cosmos/cosmos-sdk/x/distribution/legacy/v036"
+	sdk "github.com/cheqd/cosmos-sdk/types"
+	v034distr "github.com/cheqd/cosmos-sdk/x/distribution/legacy/v034"
+	v036distr "github.com/cheqd/cosmos-sdk/x/distribution/legacy/v036"
 )
 
 // DONTCOVER

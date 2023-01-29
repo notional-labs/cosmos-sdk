@@ -1,4 +1,4 @@
-module github.com/cosmos/cosmos-sdk
+module github.com/cheqd/cosmos-sdk
 
 go 1.18
 

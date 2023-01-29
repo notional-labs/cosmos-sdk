@@ -3,7 +3,7 @@ package iavl
 import (
 	"fmt"
 
-	"github.com/cosmos/cosmos-sdk/store/types"
+	"github.com/cheqd/cosmos-sdk/store/types"
 	"github.com/cosmos/iavl"
 )
 

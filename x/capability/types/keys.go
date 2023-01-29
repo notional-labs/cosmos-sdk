@@ -3,7 +3,7 @@ package types
 import (
 	"fmt"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdk "github.com/cheqd/cosmos-sdk/types"
 )
 
 const (
@@ -40,7 +40,7 @@ func RevCapabilityKey(module, name string) []byte {
 // reference.
 func FwdCapabilityKey(module string, cap *Capability) []byte {
 	// encode the key to a fixed length to avoid breaking consensus state machine
-	// it's a hacky backport of https://github.com/cosmos/cosmos-sdk/pull/11737
+	// it's a hacky backport of https://github.com/cheqd/cosmos-sdk/pull/11737
 	// the length 10 is picked so it's backward compatible on common architectures.
 	key := fmt.Sprintf("%#010p", cap)
 	if len(key) > 10 {

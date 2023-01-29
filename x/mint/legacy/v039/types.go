@@ -1,6 +1,6 @@
 package v039
 
-import sdk "github.com/cosmos/cosmos-sdk/types"
+import sdk "github.com/cheqd/cosmos-sdk/types"
 
 const (
 	ModuleName = "mint"

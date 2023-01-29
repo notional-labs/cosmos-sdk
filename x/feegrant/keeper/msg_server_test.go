@@ -1,9 +1,9 @@
 package keeper_test
 
 import (
-	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
+	codectypes "github.com/cheqd/cosmos-sdk/codec/types"
 
-	"github.com/cosmos/cosmos-sdk/x/feegrant"
+	"github.com/cheqd/cosmos-sdk/x/feegrant"
 )
 
 func (suite *KeeperTestSuite) TestGrantAllowance() {

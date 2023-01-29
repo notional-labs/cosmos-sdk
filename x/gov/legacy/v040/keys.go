@@ -1,14 +1,14 @@
 // Package v040 is copy-pasted from:
-// https://github.com/cosmos/cosmos-sdk/blob/v0.41.0/x/gov/types/keys.go
+// https://github.com/cheqd/cosmos-sdk/blob/v0.41.0/x/gov/types/keys.go
 package v040
 
 import (
 	"encoding/binary"
 	"time"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/types/kv"
-	v040auth "github.com/cosmos/cosmos-sdk/x/auth/legacy/v040"
+	sdk "github.com/cheqd/cosmos-sdk/types"
+	"github.com/cheqd/cosmos-sdk/types/kv"
+	v040auth "github.com/cheqd/cosmos-sdk/x/auth/legacy/v040"
 )
 
 const (

@@ -8,10 +8,10 @@ import (
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/pkg/errors"
 
-	"github.com/cosmos/cosmos-sdk/crypto/hd"
-	"github.com/cosmos/cosmos-sdk/crypto/keys"
-	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
-	"github.com/cosmos/cosmos-sdk/crypto/types"
+	"github.com/cheqd/cosmos-sdk/crypto/hd"
+	"github.com/cheqd/cosmos-sdk/crypto/keys"
+	"github.com/cheqd/cosmos-sdk/crypto/keys/secp256k1"
+	"github.com/cheqd/cosmos-sdk/crypto/types"
 )
 
 // discoverLedger defines a function to be invoked at runtime for discovering

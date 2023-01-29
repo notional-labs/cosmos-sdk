@@ -1,9 +1,9 @@
 package client
 
 import (
-	govclient "github.com/cosmos/cosmos-sdk/x/gov/client"
-	"github.com/cosmos/cosmos-sdk/x/upgrade/client/cli"
-	"github.com/cosmos/cosmos-sdk/x/upgrade/client/rest"
+	govclient "github.com/cheqd/cosmos-sdk/x/gov/client"
+	"github.com/cheqd/cosmos-sdk/x/upgrade/client/cli"
+	"github.com/cheqd/cosmos-sdk/x/upgrade/client/rest"
 )
 
 var (

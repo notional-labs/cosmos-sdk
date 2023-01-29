@@ -5,8 +5,8 @@ import (
 
 	dbm "github.com/tendermint/tm-db"
 
-	"github.com/cosmos/cosmos-sdk/store/cachekv"
-	"github.com/cosmos/cosmos-sdk/store/dbadapter"
+	"github.com/cheqd/cosmos-sdk/store/cachekv"
+	"github.com/cheqd/cosmos-sdk/store/dbadapter"
 )
 
 var sink interface{}

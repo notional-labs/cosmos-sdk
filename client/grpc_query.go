@@ -13,10 +13,10 @@ import (
 	"google.golang.org/grpc/encoding/proto"
 	"google.golang.org/grpc/metadata"
 
-	"github.com/cosmos/cosmos-sdk/codec/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-	grpctypes "github.com/cosmos/cosmos-sdk/types/grpc"
-	"github.com/cosmos/cosmos-sdk/types/tx"
+	"github.com/cheqd/cosmos-sdk/codec/types"
+	sdkerrors "github.com/cheqd/cosmos-sdk/types/errors"
+	grpctypes "github.com/cheqd/cosmos-sdk/types/grpc"
+	"github.com/cheqd/cosmos-sdk/types/tx"
 )
 
 var _ gogogrpc.ClientConn = Context{}

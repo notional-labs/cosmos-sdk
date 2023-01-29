@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	// banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	// banktypes "github.com/cheqd/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
 )
 

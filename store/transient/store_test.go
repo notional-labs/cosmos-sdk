@@ -6,8 +6,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/cosmos/cosmos-sdk/store/transient"
-	"github.com/cosmos/cosmos-sdk/store/types"
+	"github.com/cheqd/cosmos-sdk/store/transient"
+	"github.com/cheqd/cosmos-sdk/store/types"
 )
 
 var k, v = []byte("hello"), []byte("world")

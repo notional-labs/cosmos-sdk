@@ -18,16 +18,16 @@ import (
 	"github.com/tendermint/tendermint/proto/tendermint/crypto"
 	dbm "github.com/tendermint/tm-db"
 
-	snapshottypes "github.com/cosmos/cosmos-sdk/snapshots/types"
-	"github.com/cosmos/cosmos-sdk/store/cachemulti"
-	"github.com/cosmos/cosmos-sdk/store/dbadapter"
-	"github.com/cosmos/cosmos-sdk/store/iavl"
-	"github.com/cosmos/cosmos-sdk/store/listenkv"
-	"github.com/cosmos/cosmos-sdk/store/mem"
-	"github.com/cosmos/cosmos-sdk/store/tracekv"
-	"github.com/cosmos/cosmos-sdk/store/transient"
-	"github.com/cosmos/cosmos-sdk/store/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	snapshottypes "github.com/cheqd/cosmos-sdk/snapshots/types"
+	"github.com/cheqd/cosmos-sdk/store/cachemulti"
+	"github.com/cheqd/cosmos-sdk/store/dbadapter"
+	"github.com/cheqd/cosmos-sdk/store/iavl"
+	"github.com/cheqd/cosmos-sdk/store/listenkv"
+	"github.com/cheqd/cosmos-sdk/store/mem"
+	"github.com/cheqd/cosmos-sdk/store/tracekv"
+	"github.com/cheqd/cosmos-sdk/store/transient"
+	"github.com/cheqd/cosmos-sdk/store/types"
+	sdkerrors "github.com/cheqd/cosmos-sdk/types/errors"
 )
 
 const (

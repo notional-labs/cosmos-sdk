@@ -8,10 +8,10 @@ import (
 	"github.com/tendermint/tendermint/crypto/armor"
 	"github.com/tendermint/tendermint/crypto/xsalsa20symmetric"
 
-	"github.com/cosmos/cosmos-sdk/codec/legacy"
-	"github.com/cosmos/cosmos-sdk/crypto/keys/bcrypt"
-	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	"github.com/cheqd/cosmos-sdk/codec/legacy"
+	"github.com/cheqd/cosmos-sdk/crypto/keys/bcrypt"
+	cryptotypes "github.com/cheqd/cosmos-sdk/crypto/types"
+	sdkerrors "github.com/cheqd/cosmos-sdk/types/errors"
 )
 
 const (
