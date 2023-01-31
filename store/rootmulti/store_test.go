@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"math"
+	"math/rand"
 	"testing"
 	"time"
 
@@ -105,7 +106,7 @@ func MakeNode(buf []byte) (*Node, error) {
 }
 
 // we simulate move by a copy and delete
-func moveIavlStoreToDBStore(iavl iavl.Store, db dbadapter.Store) {
+func moveIavlStoreToDBStore(iavl *iavl.Store, db *dbadapter.Store) {
 	// we read from one and write to another
 	itr := iavl.Iterator(nil, nil)
 	for itr.Valid() {
@@ -122,6 +123,12 @@ func moveIavlStoreToDBStore(iavl iavl.Store, db dbadapter.Store) {
 	itr.Close()
 }
 
+func RandByte() []byte {
+	b := make([]byte, 16)
+	rand.Read(b) //nolint:gosec
+	return b
+}
+
 func TestMoveData(t *testing.T) {
 	var db dbm.DB = dbm.NewMemDB()
 	store := newMultiStoreWithMounts(db, types.PruneNothing)
@@ -131,11 +138,43 @@ func TestMoveData(t *testing.T) {
 
 	// Make sure we can get stores by name.
 	s1 := store.GetStoreByName("store1").(types.KVStore)
-	for i := 0; i < 1000; i++ {
-		s1.Set()
-	}
 	require.NotNil(t, s1)
 
+	s1Entries := map[string]string{}
+	for i := 0; i < 1000; i++ {
+		key := RandByte()
+		val := RandByte()
+		s1Entries[string(key)] = string(val)
+		s1.Set(key, val)
+	}
+
+	store.Commit()
+
+	s2 := store.GetStoreByName("db").(types.KVStore)
+	require.NotNil(t, s2)
+
+	moveIavlStoreToDBStore(s1.(*iavl.Store), s2.(*dbadapter.Store))
+
+	store.Commit()
+
+	// we read from one and write to another
+	itr := s2.Iterator(nil, nil)
+	numOfS2Entries := 0
+	for itr.Valid() {
+		numOfS2Entries++
+		s1Value := s1Entries[string(itr.Key())]
+
+		if string(itr.Value()) != s1Value {
+			panic("move sai")
+		}
+
+		itr.Next()
+	}
+	itr.Close()
+
+	if numOfS2Entries != len(s1Entries) {
+		panic("move thieu")
+	}
 }
 
 func TestStoreType(t *testing.T) {
