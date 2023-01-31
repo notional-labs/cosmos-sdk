@@ -3,9 +3,11 @@ package rootmulti
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"testing"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
@@ -14,12 +16,127 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	codecTypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/store/cachemulti"
+	"github.com/cosmos/cosmos-sdk/store/dbadapter"
 	"github.com/cosmos/cosmos-sdk/store/iavl"
 	sdkmaps "github.com/cosmos/cosmos-sdk/store/internal/maps"
 	"github.com/cosmos/cosmos-sdk/store/listenkv"
 	"github.com/cosmos/cosmos-sdk/store/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
+
+type Node struct {
+	key       []byte
+	value     []byte
+	hash      []byte
+	leftHash  []byte
+	rightHash []byte
+	version   int64
+	size      int64
+	leftNode  *Node
+	rightNode *Node
+	height    int8
+	persisted bool
+}
+
+func (node *Node) isLeaf() bool {
+	return node.height == 0
+}
+
+func MakeNode(buf []byte) (*Node, error) {
+
+	// Read node header (height, size, version, key).
+	height, n, cause := DecodeVarint(buf)
+	if cause != nil {
+		return nil, errors.Wrap(cause, "decoding node.height")
+	}
+	buf = buf[n:]
+	if height < int64(math.MinInt8) || height > int64(math.MaxInt8) {
+		return nil, errors.New("invalid height, must be int8")
+	}
+
+	size, n, cause := DecodeVarint(buf)
+	if cause != nil {
+		return nil, errors.Wrap(cause, "decoding node.size")
+	}
+	buf = buf[n:]
+
+	ver, n, cause := DecodeVarint(buf)
+	if cause != nil {
+		return nil, errors.Wrap(cause, "decoding node.version")
+	}
+	buf = buf[n:]
+
+	key, n, cause := DecodeBytes(buf)
+	if cause != nil {
+		return nil, errors.Wrap(cause, "decoding node.key")
+	}
+	buf = buf[n:]
+
+	node := &Node{
+		height:  int8(height),
+		size:    size,
+		version: ver,
+		key:     key,
+	}
+
+	// Read node body.
+
+	if node.isLeaf() {
+		val, _, cause := DecodeBytes(buf)
+		if cause != nil {
+			return nil, errors.Wrap(cause, "decoding node.value")
+		}
+		node.value = val
+	} else { // Read children.
+		leftHash, n, cause := DecodeBytes(buf)
+		if cause != nil {
+			return nil, errors.Wrap(cause, "deocding node.leftHash")
+		}
+		buf = buf[n:]
+
+		rightHash, _, cause := DecodeBytes(buf)
+		if cause != nil {
+			return nil, errors.Wrap(cause, "decoding node.rightHash")
+		}
+		node.leftHash = leftHash
+		node.rightHash = rightHash
+	}
+	return node, nil
+}
+
+// we simulate move by a copy and delete
+func moveIavlStoreToDBStore(iavl iavl.Store, db dbadapter.Store) {
+	// we read from one and write to another
+	itr := iavl.Iterator(nil, nil)
+	for itr.Valid() {
+		marshaledNode := itr.Value()
+		node, err := MakeNode(marshaledNode)
+		if err != nil {
+			panic(err)
+		}
+		if node.isLeaf() {
+			db.Set(node.key, node.value)
+		}
+		itr.Next()
+	}
+	itr.Close()
+}
+
+func TestMoveData(t *testing.T) {
+	var db dbm.DB = dbm.NewMemDB()
+	store := newMultiStoreWithMounts(db, types.PruneNothing)
+	store.MountStoreWithDB(types.NewKVStoreKey("db"), types.StoreTypeDB, nil)
+	err := store.LoadLatestVersion()
+	require.Nil(t, err)
+
+	// Make sure we can get stores by name.
+	s1 := store.GetStoreByName("store1").(types.KVStore)
+	for i := 0; i < 1000; i++ {
+		s1.Set()
+	}
+	require.NotNil(t, s1)
+
+}
 
 func TestStoreType(t *testing.T) {
 	db := dbm.NewMemDB()
