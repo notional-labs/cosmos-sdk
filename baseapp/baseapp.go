@@ -48,7 +48,7 @@ type BaseApp struct { //nolint: maligned
 	logger            log.Logger
 	name              string // application name from abci.Info
 	interfaceRegistry types.InterfaceRegistry
-	txDecoder         sdk.TxDecoder // unmarshal []byte into sdk.Tx
+	TxDecoder         sdk.TxDecoder // unmarshal []byte into sdk.Tx
 
 	anteHandler sdk.AnteHandler // ante handler for fee and auth
 
@@ -134,6 +134,7 @@ type moduleRouter struct {
 type abciData struct {
 	initChainer  sdk.InitChainer  // initialize state with validators and state blob
 	beginBlocker sdk.BeginBlocker // logic to run before any txs
+	midBlocker   sdk.MidBlocker   // logic to run before any txs after begin block
 	endBlocker   sdk.EndBlocker   // logic to run after all txs, and to determine valset changes
 
 	// absent validators from begin block
@@ -181,7 +182,7 @@ func NewBaseApp(
 			grpcQueryRouter:  NewGRPCQueryRouter(),
 			msgServiceRouter: NewMsgServiceRouter(),
 		},
-		txDecoder: txDecoder,
+		TxDecoder: txDecoder,
 	}
 
 	for _, option := range options {
@@ -656,7 +657,7 @@ func (app *BaseApp) runTx(mode runTxMode, txBytes []byte) (gInfo sdk.GasInfo, re
 		defer consumeBlockGas()
 	}
 
-	tx, err := app.txDecoder(txBytes)
+	tx, err := app.TxDecoder(txBytes)
 	if err != nil {
 		return sdk.GasInfo{}, nil, nil, err
 	}

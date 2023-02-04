@@ -395,6 +395,7 @@ func NewSimApp(
 	// initialize BaseApp
 	app.SetInitChainer(app.InitChainer)
 	app.SetBeginBlocker(app.BeginBlocker)
+	app.SetMidBlocker(app.MidBlocker)
 
 	anteHandler, err := ante.NewAnteHandler(
 		ante.HandlerOptions{
@@ -427,6 +428,12 @@ func (app *SimApp) Name() string { return app.BaseApp.Name() }
 // BeginBlocker application updates every begin block
 func (app *SimApp) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.ResponseBeginBlock {
 	return app.mm.BeginBlock(ctx, req)
+}
+
+func (app *SimApp) MidBlocker(ctx sdk.Context, req abci.RequestMidBlock) abci.ResponseMidBlock {
+	return abci.ResponseMidBlock{}
+	// TODO: Add result events, TBD, MidBlocker logic could be divided into each modules
+	//return app.mm.MidBlock(ctx, req)
 }
 
 // EndBlocker application updates every end block

@@ -1501,7 +1501,7 @@ func TestTxDecoder(t *testing.T) {
 	tx := newTxCounter(1, 0)
 	txBytes := codec.MustMarshal(tx)
 
-	dTx, err := app.txDecoder(txBytes)
+	dTx, err := app.TxDecoder(txBytes)
 	require.NoError(t, err)
 
 	cTx := dTx.(txTest)

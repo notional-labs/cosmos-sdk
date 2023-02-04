@@ -138,6 +138,8 @@ replace (
 
 	github.com/jhump/protoreflect => github.com/jhump/protoreflect v1.9.0
 
+	github.com/tendermint/tendermint => github.com/crescent-network/tendermint v0.34.22-mid-block
+
 	// latest grpc doesn't work with with our modified proto compiler, so we need to enforce
 	// the following version across all dependencies.
 	google.golang.org/grpc => google.golang.org/grpc v1.33.2

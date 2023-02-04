@@ -22,6 +22,8 @@ type App interface {
 	// Application updates every begin block.
 	BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.ResponseBeginBlock
 
+	MidBlocker(ctx sdk.Context, req abci.RequestMidBlock) abci.ResponseMidBlock
+
 	// Application updates every end block.
 	EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock
 
