@@ -39,6 +39,8 @@ message SnapshotItem {
 // Since: cosmos-sdk 0.46
 message SnapshotStoreItem {
   string name = 1;
+  // version is ideally block height, but not guaranteed
+  uint64 version = 2;
 }
 
 // SnapshotIAVLItem is an exported IAVL node.

@@ -1,6 +1,7 @@
 package rootmulti
 
 import (
+	"encoding/hex"
 	"fmt"
 	"io"
 	"math"
@@ -193,6 +194,7 @@ func (rs *Store) LoadVersion(ver int64) error {
 func (rs *Store) loadVersion(ver int64, upgrades *types.StoreUpgrades) error {
 	infos := make(map[string]types.StoreInfo)
 
+	rs.logger.Debug("loadVersion", "ver", ver)
 	cInfo := &types.CommitInfo{}
 
 	// load old data if we are not version 0
@@ -229,6 +231,7 @@ func (rs *Store) loadVersion(ver int64, upgrades *types.StoreUpgrades) error {
 	for _, key := range storesKeys {
 		storeParams := rs.storesParams[key]
 		commitID := rs.getCommitID(infos, key.Name())
+		rs.logger.Debug("loadVersion", "key", key, "commitID.Version", commitID.Version, "commitId.Hash", hex.EncodeToString(commitID.Hash))
 
 		// If it has been added, set the initial version
 		if upgrades.IsAdded(key.Name()) {
@@ -452,7 +455,6 @@ func (rs *Store) Commit() types.CommitID {
 	}
 }
 
-// CacheWrap implements CacheWrapper/Store/CommitStore.
 func (rs *Store) CacheWrap() types.CacheWrap {
 	return rs.CacheMultiStore().(types.CacheWrap)
 }
@@ -601,6 +603,7 @@ func (rs *Store) PruneStores(clearPruningManager bool, pruningHeights []int64) (
 			continue
 		}
 
+		// CV todo: && errCause != iavl.ErrVersionUnpruneable
 		if errCause := errors.Cause(err); errCause != nil && errCause != iavltree.ErrVersionDoesNotExist {
 			return err
 		}
@@ -747,12 +750,41 @@ func (rs *Store) Snapshot(height uint64, protoWriter protoio.Writer) error {
 		return strings.Compare(stores[i].name, stores[j].name) == -1
 	})
 
+	// CV Load the commit to get actual version ids for each store
+	infos := make(map[string]types.StoreInfo)
+	cInfo := &types.CommitInfo{}
+
+	var err error
+	cInfo, err = getCommitInfo(rs.db, int64(height))
+	if err != nil {
+		return err
+	}
+
+	// convert StoreInfos slice to map
+	for _, storeInfo := range cInfo.StoreInfos {
+		infos[storeInfo.Name] = storeInfo
+	}
+
+	storesKeys := make([]types.StoreKey, 0, len(rs.storesParams))
+	for key := range rs.storesParams {
+		storesKeys = append(storesKeys, key)
+	}
 	// Export each IAVL store. Stores are serialized as a stream of SnapshotItem Protobuf
 	// messages. The first item contains a SnapshotStore with store metadata (i.e. name),
 	// and the following messages contain a SnapshotNode (i.e. an ExportNode). Store changes
 	// are demarcated by new SnapshotStore items.
 	for _, store := range stores {
-		exporter, err := store.Export(int64(height))
+		commitID := rs.getCommitID(infos, store.name)
+		storeVersion := commitID.Version
+		rs.logger.Debug("Snapshot Begin", "store", store.name, "version", storeVersion, "hash", hex.EncodeToString(commitID.Hash))
+
+		exporter, err := store.Export(int64(storeVersion))
+		if exporter == nil {
+			rs.logger.Error("Snapshot Failed - exporter nil", "store", store.name)
+			// CV Skip stores that fail to get an exporter
+			//    For example, when iavl/immutable_tree.ndb (nodedb) is nil
+			continue
+		}
 		if err != nil {
 			return err
 		}
@@ -760,7 +792,8 @@ func (rs *Store) Snapshot(height uint64, protoWriter protoio.Writer) error {
 		err = protoWriter.WriteMsg(&snapshottypes.SnapshotItem{
 			Item: &snapshottypes.SnapshotItem_Store{
 				Store: &snapshottypes.SnapshotStoreItem{
-					Name: store.name,
+					Name:    store.name,
+					Version: uint64(storeVersion),
 				},
 			},
 		})
@@ -768,9 +801,12 @@ func (rs *Store) Snapshot(height uint64, protoWriter protoio.Writer) error {
 			return err
 		}
 
+		nodeCount := 0
 		for {
 			node, err := exporter.Next()
 			if err == iavltree.ExportDone {
+				rs.logger.Debug("Snapshot Done", "store", store.name, "nodeCount", nodeCount)
+				nodeCount = 0
 				break
 			} else if err != nil {
 				return err
@@ -785,9 +821,11 @@ func (rs *Store) Snapshot(height uint64, protoWriter protoio.Writer) error {
 					},
 				},
 			})
+
 			if err != nil {
 				return err
 			}
+			nodeCount++
 		}
 		exporter.Close()
 	}
@@ -828,14 +866,21 @@ loop:
 			if !ok || store == nil {
 				return snapshottypes.SnapshotItem{}, sdkerrors.Wrapf(sdkerrors.ErrLogic, "cannot import into non-IAVL store %q", item.Store.Name)
 			}
-			importer, err = store.Import(int64(height))
+			// Importer height must reflect the node height (which usually matches the block height, but not always)
+			rs.logger.Debug("Restore", "store", item.Store.Name, "version", item.Store.Version)
+			if item.Store.Version == 0 {
+				fmt.Printf("!!!!!!!!!!!!!!!!!  Restore Error, Snapshot Missing Version, Use Another Peer !!!!!!!!!!!!!!!!")
+				rs.logger.Error("Restore Error, Snapshot Missing Version, Use Another Peer", "store", item.Store.Name, "version", item.Store.Version)
+				return snapshottypes.SnapshotItem{}, sdkerrors.Wrap(sdkerrors.ErrLogic, "Snapshot Without Store Version Not Supported, Use Another Peer")
+			}
+			importer, err = store.Import(int64(item.Store.Version))
 			if err != nil {
 				return snapshottypes.SnapshotItem{}, sdkerrors.Wrap(err, "import failed")
 			}
 			defer importer.Close()
-
 		case *snapshottypes.SnapshotItem_IAVL:
 			if importer == nil {
+				rs.logger.Error("Restore Error, Unexepected IAVL Node")
 				return snapshottypes.SnapshotItem{}, sdkerrors.Wrap(sdkerrors.ErrLogic, "received IAVL node item before store item")
 			}
 			if item.IAVL.Height > math.MaxInt8 {
