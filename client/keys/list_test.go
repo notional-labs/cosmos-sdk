@@ -30,8 +30,7 @@ func Test_runListCmd(t *testing.T) {
 	clientCtx := client.Context{}.WithKeyring(kb)
 	ctx := context.WithValue(context.Background(), client.ClientContextKey, &clientCtx)
 
-
-	_, err = kb.NewAccount("something", testutil.TestMnemonic, "", path, hd.Secp256k1)
+	_, err = kb.NewAccount("something", testutil.TestMnemonic, "", "", hd.Secp256k1)
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
