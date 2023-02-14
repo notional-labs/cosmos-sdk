@@ -277,5 +277,4 @@ func parseFraction(fraction string) (types.Fraction, error) {
 		Numerator:   numerator,
 		Denominator: denominator,
 	}, nil
-
 }

@@ -279,7 +279,7 @@ func Test_getBechKeyOut(t *testing.T) {
 
 			// TODO: Still not possible to compare functions
 			// Maybe in next release: https://github.com/stretchr/testify/issues/182
-			//if &got != &tt.want {
+			// if &got != &tt.want {
 			//	t.Errorf("getBechKeyOut() = %v, want %v", got, tt.want)
 			//}
 		})

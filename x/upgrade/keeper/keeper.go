@@ -251,7 +251,7 @@ func (k Keeper) DumpUpgradeInfoToDisk(height int64, name string) error {
 		return err
 	}
 
-	return ioutil.WriteFile(upgradeInfoFilePath, info, 0600)
+	return ioutil.WriteFile(upgradeInfoFilePath, info, 0o600)
 }
 
 // GetUpgradeInfoPath returns the upgrade info file path

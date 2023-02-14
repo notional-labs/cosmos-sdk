@@ -1,44 +1,39 @@
 run:
-  tests: false
-#   # timeout for analysis, e.g. 30s, 5m, default is 1m
-#   timeout: 5m
+  tests: true
+  timeout: 5m
+  concurrency: 10
 
 linters:
   disable-all: true
   enable:
     - bodyclose
-    - deadcode
     - depguard
     - dogsled
-    # - errcheck
+    - errcheck
+    - exportloopref
     - goconst
     - gocritic
-    - gofmt
-    - goimports
-    - golint
+    - gofumpt
     - gosec
     - gosimple
     - govet
     - ineffassign
-    - interfacer
-    - maligned
     - misspell
     - nakedret
-    - prealloc
-    - scopelint
     - staticcheck
-    - structcheck
     - stylecheck
     - typecheck
     - unconvert
     - unused
     - unparam
     - misspell
-    # - wsl
     - nolintlint
 
 issues:
   exclude-rules:
+    - text: "leading space"
+      linters:
+        - nolintlint
     - text: "Use of weak random number generator"
       linters:
         - gosec

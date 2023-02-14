@@ -1050,16 +1050,17 @@ func (suite *IntegrationTestSuite) TestIterateAllDenomMetaData() {
 }
 
 func (suite *IntegrationTestSuite) getTestMetadata() []types.Metadata {
-	return []types.Metadata{{
-		Description: "The native staking token of the Cosmos Hub.",
-		DenomUnits: []*types.DenomUnit{
-			{"uatom", uint32(0), []string{"microatom"}},
-			{"matom", uint32(3), []string{"milliatom"}},
-			{"atom", uint32(6), nil},
+	return []types.Metadata{
+		{
+			Description: "The native staking token of the Cosmos Hub.",
+			DenomUnits: []*types.DenomUnit{
+				{"uatom", uint32(0), []string{"microatom"}},
+				{"matom", uint32(3), []string{"milliatom"}},
+				{"atom", uint32(6), nil},
+			},
+			Base:    "uatom",
+			Display: "atom",
 		},
-		Base:    "uatom",
-		Display: "atom",
-	},
 		{
 			Description: "The native staking token of the Token Hub.",
 			DenomUnits: []*types.DenomUnit{
