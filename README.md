@@ -52,7 +52,7 @@ breaking changes.
 This forked Cosmos SDK has the following changes and it contains state breaking changes.
 
 - [`x/staking`](https://github.com/cosmosquad-labs/cosmos-sdk/pull/10) fix: allow delegate only spendable coins
-- [`x/gov`](https://github.com/cosmosquad-labs/cosmos-sdk/pull/8) feat: add additional voting powers hook on tally
+- [`x/gov`](https://github.com/cosmosquad-labs/cosmos-sdk/pull/8) feat: add additional voting powers hook on tally, add initial deposit ratio requirement of 0.5 for proposal submission
 - [`x/vesting`](https://github.com/cosmosquad-labs/cosmos-sdk/pull/11) feat: periodic vesting msg
 
 ## Quick Start

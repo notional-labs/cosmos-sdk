@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v2"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
@@ -21,6 +21,7 @@ var (
 	DefaultQuorum           = sdk.NewDecWithPrec(334, 3)
 	DefaultThreshold        = sdk.NewDecWithPrec(5, 1)
 	DefaultVetoThreshold    = sdk.NewDecWithPrec(334, 3)
+	MinInitialDepositRatio  = sdk.NewDecWithPrec(5, 1)
 )
 
 // Parameter store key

@@ -32,7 +32,7 @@ func TestTickExpiredDepositPeriod(t *testing.T) {
 
 	newProposalMsg, err := types.NewMsgSubmitProposal(
 		types.ContentFromProposalType("test", "test", types.ProposalTypeText),
-		sdk.Coins{sdk.NewInt64Coin(sdk.DefaultBondDenom, 5)},
+		sdk.Coins{sdk.NewInt64Coin(sdk.DefaultBondDenom, 5000000)},
 		addrs[0],
 	)
 	require.NoError(t, err)
@@ -84,7 +84,7 @@ func TestTickMultipleExpiredDepositPeriod(t *testing.T) {
 
 	newProposalMsg, err := types.NewMsgSubmitProposal(
 		types.ContentFromProposalType("test", "test", types.ProposalTypeText),
-		sdk.Coins{sdk.NewInt64Coin(sdk.DefaultBondDenom, 5)},
+		sdk.Coins{sdk.NewInt64Coin(sdk.DefaultBondDenom, 5000000)},
 		addrs[0],
 	)
 	require.NoError(t, err)
@@ -107,7 +107,7 @@ func TestTickMultipleExpiredDepositPeriod(t *testing.T) {
 
 	newProposalMsg2, err := types.NewMsgSubmitProposal(
 		types.ContentFromProposalType("test2", "test2", types.ProposalTypeText),
-		sdk.Coins{sdk.NewInt64Coin(sdk.DefaultBondDenom, 5)},
+		sdk.Coins{sdk.NewInt64Coin(sdk.DefaultBondDenom, 5000000)},
 		addrs[0],
 	)
 	require.NoError(t, err)
@@ -164,7 +164,7 @@ func TestTickPassedDepositPeriod(t *testing.T) {
 
 	newProposalMsg, err := types.NewMsgSubmitProposal(
 		types.ContentFromProposalType("test2", "test2", types.ProposalTypeText),
-		sdk.Coins{sdk.NewInt64Coin(sdk.DefaultBondDenom, 5)},
+		sdk.Coins{sdk.NewInt64Coin(sdk.DefaultBondDenom, 5000000)},
 		addrs[0],
 	)
 	require.NoError(t, err)

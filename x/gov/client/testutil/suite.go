@@ -52,9 +52,10 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	_, err = MsgVote(val.ClientCtx, val.Address.String(), "1", "yes")
 	s.Require().NoError(err)
 
-	// create a proposal without deposit
+	// create a proposal with min initial deposit
 	_, err = MsgSubmitProposal(val.ClientCtx, val.Address.String(),
-		"Text Proposal 2", "Where is the title!?", types.ProposalTypeText)
+		"Text Proposal 2", "Where is the title!?", types.ProposalTypeText,
+		fmt.Sprintf("--%s=%s", cli.FlagDeposit, sdk.NewCoin(s.cfg.BondDenom, types.DefaultMinDepositTokens.ToDec().Mul(types.MinInitialDepositRatio).RoundInt()).String()))
 	s.Require().NoError(err)
 	_, err = s.network.WaitForHeight(1)
 	s.Require().NoError(err)
@@ -287,7 +288,7 @@ func (s *IntegrationTestSuite) TestNewCmdSubmitProposal() {
 	"description": "Hello, World!",
 	"type": "Text",
   "deposit": "%s"
-}`, sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(5431)))
+}`, sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(5000000)))
 	validPropFile := testutil.WriteToNewTempFile(s.T(), validProp)
 	testCases := []struct {
 		name         string
@@ -335,7 +336,7 @@ func (s *IntegrationTestSuite) TestNewCmdSubmitProposal() {
 				fmt.Sprintf("--%s='Text Proposal'", cli.FlagTitle),
 				fmt.Sprintf("--%s='Where is the title!?'", cli.FlagDescription),
 				fmt.Sprintf("--%s=%s", cli.FlagProposalType, types.ProposalTypeText),
-				fmt.Sprintf("--%s=%s", cli.FlagDeposit, sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(5431)).String()),
+				fmt.Sprintf("--%s=%s", cli.FlagDeposit, sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(5000000)).String()),
 				fmt.Sprintf("--%s=%s", flags.FlagFrom, val.Address.String()),
 				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),

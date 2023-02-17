@@ -332,6 +332,8 @@ func TestMigrateVestingAccounts(t *testing.T) {
 
 				delayedAccount := types.NewPeriodicVestingAccount(baseAccount, vestedCoins, startTime, periods)
 
+				ctx = ctx.WithBlockTime(time.Unix(1601042400, 0))
+
 				app.AccountKeeper.SetAccount(ctx, delayedAccount)
 
 				// delegation of the original vesting, failed because of no spendable balances
