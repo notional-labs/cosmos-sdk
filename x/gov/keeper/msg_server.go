@@ -9,6 +9,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/gov/types"
 )
 
@@ -26,6 +27,17 @@ var _ types.MsgServer = msgServer{}
 
 func (k msgServer) SubmitProposal(goCtx context.Context, msg *types.MsgSubmitProposal) (*types.MsgSubmitProposalResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
+
+	// checking minimum initial deposit requirement for submitting proposals, ref. https://github.com/cosmos/cosmos-sdk/pull/12771
+	initialDeposit := msg.GetInitialDeposit()
+	initialDepositRequired := k.GetDepositParams(ctx).MinDeposit
+	for i := range initialDepositRequired {
+		initialDepositRequired[i].Amount = initialDepositRequired[i].Amount.ToDec().Mul(types.MinInitialDepositRatio).RoundInt()
+	}
+	if !initialDeposit.IsAllGTE(initialDepositRequired) {
+		return nil, sdkerrors.Wrapf(types.ErrMinDepositTooSmall, "was (%s), need (%s)", initialDeposit, initialDepositRequired)
+	}
+
 	proposal, err := k.Keeper.SubmitProposal(ctx, msg.GetContent())
 	if err != nil {
 		return nil, err
@@ -33,7 +45,7 @@ func (k msgServer) SubmitProposal(goCtx context.Context, msg *types.MsgSubmitPro
 
 	defer telemetry.IncrCounter(1, types.ModuleName, "proposal")
 
-	votingStarted, err := k.Keeper.AddDeposit(ctx, proposal.ProposalId, msg.GetProposer(), msg.GetInitialDeposit())
+	votingStarted, err := k.Keeper.AddDeposit(ctx, proposal.ProposalId, msg.GetProposer(), initialDeposit)
 	if err != nil {
 		return nil, err
 	}
