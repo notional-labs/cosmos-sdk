@@ -54,6 +54,14 @@ func TestSubmitProposal_InitialDeposit(t *testing.T) {
 
 			expectError: true,
 		},
+		"does not meet initial deposit with zero initial deposit - error": {
+			minDeposit:             sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(baseDepositTestAmount))),
+			minInitialDepositRatio: types.MinInitialDepositRatio,
+			initialDeposit:         sdk.NewCoins(),
+			accountBalance:         sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(meetsDepositValue))),
+
+			expectError: true,
+		},
 	}
 
 	for name, tc := range testcases {

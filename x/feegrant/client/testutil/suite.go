@@ -18,8 +18,10 @@ import (
 	clitestutil "github.com/cosmos/cosmos-sdk/testutil/cli"
 	"github.com/cosmos/cosmos-sdk/testutil/network"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	banktestutil "github.com/cosmos/cosmos-sdk/x/bank/client/testutil"
 	"github.com/cosmos/cosmos-sdk/x/feegrant"
 	"github.com/cosmos/cosmos-sdk/x/feegrant/client/cli"
+	govcli "github.com/cosmos/cosmos-sdk/x/gov/client/cli"
 	govtestutil "github.com/cosmos/cosmos-sdk/x/gov/client/testutil"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 )
@@ -51,6 +53,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 		s.T().Skip("skipping test in unit-tests mode.")
 	}
 
+	s.cfg.StakingTokens = s.cfg.StakingTokens.Add(govtypes.DefaultMinDepositTokens)
 	s.network = network.New(s.T(), s.cfg)
 
 	_, err := s.network.WaitForHeight(1)
@@ -745,10 +748,22 @@ func (s *IntegrationTestSuite) TestTxWithFeeGrant() {
 	_, err = s.network.WaitForHeight(1)
 	s.Require().NoError(err)
 
+	// Send some funds to the new account for initial deposit
+	_, err = banktestutil.MsgSendExec(
+		val.ClientCtx,
+		val.Address,
+		grantee,
+		sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, govtypes.DefaultMinDepositTokens)), fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
+		fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
+		fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(10))).String()),
+	)
+	s.Require().NoError(err)
+
 	// granted fee allowance for an account which is not in state and creating
 	// any tx with it by using --fee-account shouldn't fail
 	out, err := govtestutil.MsgSubmitProposal(val.ClientCtx, grantee.String(),
 		"Text Proposal", "No desc", govtypes.ProposalTypeText,
+		fmt.Sprintf("--%s=%s", govcli.FlagDeposit, sdk.NewCoin(s.cfg.BondDenom, govtypes.DefaultMinDepositTokens).String()),
 		fmt.Sprintf("--%s=%s", flags.FlagFeeAccount, granter.String()),
 	)
 
@@ -875,6 +890,17 @@ func (s *IntegrationTestSuite) TestFilteredFeeAllowance() {
 		spendLimit.String(),
 	)
 
+	// Send some funds to the new account for initial deposit
+	_, err = banktestutil.MsgSendExec(
+		val.ClientCtx,
+		val.Address,
+		grantee,
+		sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, govtypes.DefaultMinDepositTokens)), fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
+		fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
+		fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(10))).String()),
+	)
+	s.Require().NoError(err)
+
 	// exec filtered fee allowance
 	cases := []struct {
 		name         string
@@ -887,6 +913,7 @@ func (s *IntegrationTestSuite) TestFilteredFeeAllowance() {
 			func() (testutil.BufferWriter, error) {
 				return govtestutil.MsgSubmitProposal(val.ClientCtx, grantee.String(),
 					"Text Proposal", "No desc", govtypes.ProposalTypeText,
+					fmt.Sprintf("--%s=%s", govcli.FlagDeposit, sdk.NewCoin(s.cfg.BondDenom, govtypes.DefaultMinDepositTokens).String()),
 					fmt.Sprintf("--%s=%s", flags.FlagFeeAccount, granter.String()),
 				)
 			},

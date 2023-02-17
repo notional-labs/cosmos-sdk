@@ -52,9 +52,10 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	_, err = govtestutil.MsgVote(val.ClientCtx, val.Address.String(), "1", "yes")
 	s.Require().NoError(err)
 
-	// create a proposal without deposit
+	// create a proposal with min initial deposit
 	_, err = govtestutil.MsgSubmitProposal(val.ClientCtx, val.Address.String(),
-		"Text Proposal 2", "Where is the title!?", types.ProposalTypeText)
+		"Text Proposal 2", "Where is the title!?", types.ProposalTypeText,
+		fmt.Sprintf("--%s=%s", cli.FlagDeposit, sdk.NewCoin(s.cfg.BondDenom, types.DefaultMinDepositTokens.ToDec().Mul(types.MinInitialDepositRatio).RoundInt()).String()))
 	s.Require().NoError(err)
 	_, err = s.network.WaitForHeight(1)
 	s.Require().NoError(err)

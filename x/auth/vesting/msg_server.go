@@ -156,5 +156,4 @@ func (s msgServer) CreatePeriodicVestingAccount(goCtx context.Context, msg *type
 		),
 	)
 	return &types.MsgCreatePeriodicVestingAccountResponse{}, nil
-
 }
