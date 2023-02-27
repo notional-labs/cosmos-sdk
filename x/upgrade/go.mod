@@ -3,7 +3,7 @@ module cosmossdk.io/x/upgrade
 go 1.19
 
 require (
-	cosmossdk.io/api v0.3.0
+	cosmossdk.io/api v0.3.1
 	cosmossdk.io/core v0.5.1
 	cosmossdk.io/depinject v1.0.0-alpha.3
 	cosmossdk.io/store v0.0.0-20230206092147-e03195e4b8a7
