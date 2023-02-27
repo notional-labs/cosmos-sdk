@@ -6,7 +6,7 @@ require (
 	cosmossdk.io/log v0.0.0
 	cosmossdk.io/math v1.0.0-beta.6
 	github.com/coinbase/rosetta-sdk-go/types v1.0.0
-	github.com/cometbft/cometbft v0.0.0-20230203130311-387422ac220d
+	github.com/cometbft/cometbft v0.37.0-alpha.3
 	github.com/cosmos/cosmos-sdk v0.46.0-beta2.0.20230205135133-41a3dfeced29
 	github.com/cosmos/rosetta-sdk-go v0.10.0
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.1.0
@@ -119,7 +119,7 @@ require (
 	github.com/zondax/ledger-go v0.14.1 // indirect
 	golang.org/x/crypto v0.6.0 // indirect
 	golang.org/x/exp v0.0.0-20230203172020-98cc5a0785f9 // indirect
-	golang.org/x/net v0.6.0 // indirect
+	golang.org/x/net v0.7.0 // indirect
 	golang.org/x/sys v0.5.0 // indirect
 	golang.org/x/term v0.5.0 // indirect
 	golang.org/x/text v0.7.0 // indirect
