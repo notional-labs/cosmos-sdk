@@ -9,7 +9,7 @@ require (
 	cosmossdk.io/log v0.0.0-20230207163452-bd8e9f2d1206
 	cosmossdk.io/math v1.0.0-beta.6
 	cosmossdk.io/store v0.0.0-20230206092147-e03195e4b8a7
-	github.com/cometbft/cometbft v0.0.0-20230203130311-387422ac220d
+	github.com/cometbft/cometbft v0.37.0-alpha.3
 	github.com/cosmos/cosmos-proto v1.0.0-beta.1
 	github.com/cosmos/cosmos-sdk v0.46.0-beta2.0.20230205135133-41a3dfeced29
 	github.com/cosmos/gogoproto v1.4.4
@@ -137,7 +137,7 @@ require (
 	go.etcd.io/bbolt v1.3.6 // indirect
 	golang.org/x/crypto v0.6.0 // indirect
 	golang.org/x/exp v0.0.0-20230203172020-98cc5a0785f9 // indirect
-	golang.org/x/net v0.6.0 // indirect
+	golang.org/x/net v0.7.0 // indirect
 	golang.org/x/sys v0.5.0 // indirect
 	golang.org/x/term v0.5.0 // indirect
 	golang.org/x/text v0.7.0 // indirect
