@@ -3,7 +3,8 @@ package cosmos.rekeying.v1beta1;
 
 import "gogoproto/gogo.proto";
 import "cosmos_proto/cosmos.proto";
-import "google/protobuf/any.proto";
+import "amino/amino.proto";
+import "cosmos/msg/v1/msg.proto";
 
 option go_package = "github.com/cosmos/cosmos-sdk/x/auth/rekeying/types";
 
@@ -16,9 +17,12 @@ service Msg {
 // MsgChangePubKey defines a message that enables changing a pubkey
 // of an account.
 message MsgChangePubKey {
-  string              address = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
-  google.protobuf.Any pub_key = 2
-      [(gogoproto.jsontag) = "public_key,omitempty", (gogoproto.moretags) = "yaml:\"public_key\""];
+  option (gogoproto.goproto_getters) = false;
+  option (cosmos.msg.v1.signer)      = "from_address";
+  option (amino.name)                = "cosmos-sdk/MsgChangePubKey";
+
+  string address = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  bytes  pub_key = 2 [(gogoproto.jsontag) = "public_key,omitempty", (gogoproto.moretags) = "yaml:\"public_key\""];
 }
 
 // MsgChangePubKeyResponse defines the Msg/ChangePubKey response type.
