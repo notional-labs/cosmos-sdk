@@ -5,7 +5,7 @@ go 1.19
 require (
 	cosmossdk.io/errors v1.0.0-beta.7
 	cosmossdk.io/log v0.0.0-00010101000000-000000000000
-	cosmossdk.io/math v1.0.0-beta.6
+	cosmossdk.io/math v1.0.0-rc.0
 	github.com/armon/go-metrics v0.4.1
 	github.com/cometbft/cometbft v0.0.0-20230203130311-387422ac220d
 	github.com/confio/ics23/go v0.9.0
@@ -16,7 +16,7 @@ require (
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d
 	github.com/spf13/cast v1.5.0
-	github.com/stretchr/testify v1.8.1
+	github.com/stretchr/testify v1.8.2
 	github.com/tidwall/btree v1.6.0
 	golang.org/x/exp v0.0.0-20230203172020-98cc5a0785f9
 	google.golang.org/genproto v0.0.0-20230202175211-008b39050e57 // indirect
