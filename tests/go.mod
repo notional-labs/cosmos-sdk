@@ -6,7 +6,7 @@ require (
 	cosmossdk.io/api v0.3.0
 	cosmossdk.io/depinject v1.0.0-alpha.3
 	cosmossdk.io/log v0.0.0
-	cosmossdk.io/math v1.0.0-beta.6
+	cosmossdk.io/math v1.0.0
 	cosmossdk.io/simapp v0.0.0-00010101000000-000000000000
 	cosmossdk.io/store v0.0.0-20230206092147-e03195e4b8a7
 	cosmossdk.io/x/evidence v0.1.0
@@ -21,7 +21,7 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/google/uuid v1.3.0
 	github.com/spf13/cobra v1.6.1
-	github.com/stretchr/testify v1.8.1
+	github.com/stretchr/testify v1.8.2
 	google.golang.org/protobuf v1.28.2-0.20230208135220-49eaa78c6c9c
 	gotest.tools/v3 v3.4.0
 	pgregory.net/rapid v0.5.5
