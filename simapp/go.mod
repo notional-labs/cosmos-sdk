@@ -8,7 +8,7 @@ require (
 	cosmossdk.io/core v0.5.1
 	cosmossdk.io/depinject v1.0.0-alpha.3
 	cosmossdk.io/log v0.0.0
-	cosmossdk.io/math v1.0.0-beta.6
+	cosmossdk.io/math v1.0.0
 	cosmossdk.io/store v0.0.0-20230206092147-e03195e4b8a7
 	cosmossdk.io/tools/confix v0.0.0-20230120150717-4f6f6c00021f
 	cosmossdk.io/tools/rosetta v0.2.0
@@ -25,7 +25,7 @@ require (
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.15.0
-	github.com/stretchr/testify v1.8.1
+	github.com/stretchr/testify v1.8.2
 	google.golang.org/protobuf v1.28.2-0.20230208135220-49eaa78c6c9c
 )
 
