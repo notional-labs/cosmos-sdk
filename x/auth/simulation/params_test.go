@@ -22,11 +22,12 @@ func TestParamChanges(t *testing.T) {
 		{"auth/MaxMemoCharacters", "MaxMemoCharacters", "\"181\"", "auth"},
 		{"auth/TxSigLimit", "TxSigLimit", "\"7\"", "auth"},
 		{"auth/TxSizeCostPerByte", "TxSizeCostPerByte", "\"12\"", "auth"},
+		{"auth/TxFeeBurnPercent", "TxFeeBurnPercent", "\"8\"", "auth"},
 	}
 
 	paramChanges := simulation.ParamChanges(r)
 
-	require.Len(t, paramChanges, 3)
+	require.Len(t, paramChanges, 4)
 
 	for i, p := range paramChanges {
 		require.Equal(t, expected[i].composedKey, p.ComposedKey())
