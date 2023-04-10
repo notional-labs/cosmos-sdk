@@ -7,7 +7,7 @@ require (
 	cosmossdk.io/core v0.5.1
 	cosmossdk.io/depinject v1.0.0-alpha.3
 	cosmossdk.io/log v0.0.0-00010101000000-000000000000
-	cosmossdk.io/math v1.0.0-beta.6
+	cosmossdk.io/math v1.0.0
 	cosmossdk.io/store v0.0.0-20230206092147-e03195e4b8a7
 	github.com/cometbft/cometbft v0.0.0-20230203130311-387422ac220d
 	github.com/cosmos/cosmos-proto v1.0.0-beta.1
@@ -17,7 +17,7 @@ require (
 	github.com/golang/protobuf v1.5.2
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/spf13/cobra v1.6.1
-	github.com/stretchr/testify v1.8.1
+	github.com/stretchr/testify v1.8.2
 	google.golang.org/genproto v0.0.0-20230202175211-008b39050e57
 	google.golang.org/grpc v1.53.0
 	google.golang.org/protobuf v1.28.2-0.20230208135220-49eaa78c6c9c
