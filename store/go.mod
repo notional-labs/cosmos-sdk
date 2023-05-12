@@ -9,7 +9,7 @@ require (
 	github.com/armon/go-metrics v0.4.1
 	github.com/cometbft/cometbft v0.37.1
 	github.com/cosmos/cosmos-db v1.0.0-rc.1
-	github.com/cosmos/gogoproto v1.4.9
+	github.com/cosmos/gogoproto v1.4.10
 	github.com/cosmos/iavl v0.21.0
 	github.com/cosmos/ics23/go v0.10.0
 	github.com/golang/mock v1.6.0
@@ -22,7 +22,7 @@ require (
 	github.com/tidwall/btree v1.6.0
 	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
 	google.golang.org/genproto v0.0.0-20230320184635-7606e756e683 // indirect
-	google.golang.org/grpc v1.54.0
+	google.golang.org/grpc v1.55.0
 	google.golang.org/protobuf v1.30.0
 	gotest.tools/v3 v3.4.0
 )
