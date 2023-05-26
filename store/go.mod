@@ -8,7 +8,7 @@ require (
 	cosmossdk.io/math v1.0.0
 	github.com/armon/go-metrics v0.4.1
 	github.com/cometbft/cometbft v0.37.1
-	github.com/cosmos/cosmos-db v1.0.0-rc.1
+	github.com/cosmos/cosmos-db v1.0.0
 	github.com/cosmos/gogoproto v1.4.9
 	github.com/cosmos/iavl v0.21.0
 	github.com/cosmos/ics23/go v0.10.0
@@ -17,8 +17,8 @@ require (
 	github.com/hashicorp/go-hclog v1.5.0
 	github.com/hashicorp/go-plugin v1.4.9
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d
-	github.com/spf13/cast v1.5.0 // indirect
-	github.com/stretchr/testify v1.8.2
+	github.com/spf13/cast v1.5.1 // indirect
+	github.com/stretchr/testify v1.8.3
 	github.com/tidwall/btree v1.6.0
 	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
 	google.golang.org/genproto v0.0.0-20230320184635-7606e756e683 // indirect
