@@ -167,6 +167,8 @@ func (registry *interfaceRegistry) registerImpl(iface interface{}, typeURL strin
 	// a new concrete type under the same typeURL, then we throw an error (here,
 	// we panic).
 	foundImplType, found := imap[typeURL]
+	fmt.Println("foundImplType", foundImplType)
+	fmt.Println("found", found)
 	if found && foundImplType != implType {
 		panic(
 			fmt.Errorf(
