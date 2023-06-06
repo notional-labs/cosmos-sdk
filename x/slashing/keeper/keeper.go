@@ -81,14 +81,13 @@ func (k Keeper) Slash(ctx sdk.Context, consAddr sdk.ConsAddress, fraction sdk.De
 // Jail attempts to jail a validator. The slash is delegated to the staking module
 // to make the necessary validator changes.
 func (k Keeper) Jail(ctx sdk.Context, consAddr sdk.ConsAddress) {
+	k.sk.Jail(ctx, consAddr)
 	ctx.EventManager().EmitEvent(
 		sdk.NewEvent(
 			types.EventTypeSlash,
 			sdk.NewAttribute(types.AttributeKeyJailed, consAddr.String()),
 		),
 	)
-
-	k.sk.Jail(ctx, consAddr)
 }
 
 func (k Keeper) deleteAddrPubkeyRelation(ctx sdk.Context, addr cryptotypes.Address) {

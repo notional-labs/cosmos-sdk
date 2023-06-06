@@ -11,16 +11,14 @@ import (
 
 // HandleValidatorSignature handles a validator signature, must be called once per validator per block.
 func (k Keeper) HandleValidatorSignature(ctx sdk.Context, addr cryptotypes.Address, power int64, signed bool) {
-	// fetch the validator public key
-	consAddr := sdk.ConsAddress(addr)
-
-	// don't update missed blocks when validator's jailed
-	if k.sk.IsValidatorJailed(ctx, consAddr) {
-		return
-	}
-
 	logger := k.Logger(ctx)
 	height := ctx.BlockHeight()
+
+	// fetch the validator public key
+	consAddr := sdk.ConsAddress(addr)
+	if _, err := k.GetPubkey(ctx, addr); err != nil {
+		panic(fmt.Sprintf("Validator consensus-address %s not found", consAddr))
+	}
 
 	// fetch signing info
 	signInfo, found := k.GetValidatorSigningInfo(ctx, consAddr)
@@ -79,7 +77,7 @@ func (k Keeper) HandleValidatorSignature(ctx sdk.Context, addr cryptotypes.Addre
 	// if we are past the minimum height and the validator has missed too many blocks, punish them
 	if height > minHeight && signInfo.MissedBlocksCounter > maxMissed {
 		validator := k.sk.ValidatorByConsAddr(ctx, consAddr)
-		if validator != nil {
+		if validator != nil && !validator.IsJailed() {
 			// Downtime confirmed: slash and jail the validator
 			// We need to retrieve the stake distribution which signed the block, so we subtract ValidatorUpdateDelay from the evidence height,
 			// and subtract an additional 1 since this is the LastCommit.
