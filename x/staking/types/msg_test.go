@@ -37,7 +37,7 @@ func TestMsgDecode(t *testing.T) {
 	// now let's try to serialize the whole message
 
 	commission1 := types.NewCommissionRates(sdk.ZeroDec(), sdk.ZeroDec(), sdk.ZeroDec())
-	msg, err := types.NewMsgCreateValidator(valAddr1, pk1, coinPos, types.Description{}, commission1, sdk.OneInt())
+	msg, err := types.NewMsgCreateValidator(valAddr1, pk1, coinPos, types.Description{}, commission1)
 	require.NoError(t, err)
 	msgSerialized, err := cdc.MarshalInterface(msg)
 	require.NoError(t, err)
@@ -72,14 +72,11 @@ func TestMsgCreateValidator(t *testing.T) {
 		{"empty pubkey", "a", "b", "c", "d", "e", commission1, sdk.OneInt(), valAddr1, emptyPubkey, coinPos, false},
 		{"empty bond", "a", "b", "c", "d", "e", commission2, sdk.OneInt(), valAddr1, pk1, coinZero, false},
 		{"nil bond", "a", "b", "c", "d", "e", commission2, sdk.OneInt(), valAddr1, pk1, sdk.Coin{}, false},
-		{"zero min self delegation", "a", "b", "c", "d", "e", commission1, sdk.ZeroInt(), valAddr1, pk1, coinPos, false},
-		{"negative min self delegation", "a", "b", "c", "d", "e", commission1, sdk.NewInt(-1), valAddr1, pk1, coinPos, false},
-		{"delegation less than min self delegation", "a", "b", "c", "d", "e", commission1, coinPos.Amount.Add(sdk.OneInt()), valAddr1, pk1, coinPos, false},
 	}
 
 	for _, tc := range tests {
 		description := types.NewDescription(tc.moniker, tc.identity, tc.website, tc.securityContact, tc.details)
-		msg, err := types.NewMsgCreateValidator(tc.validatorAddr, tc.pubkey, tc.bond, description, tc.CommissionRates, tc.minSelfDelegation)
+		msg, err := types.NewMsgCreateValidator(tc.validatorAddr, tc.pubkey, tc.bond, description, tc.CommissionRates)
 		require.NoError(t, err)
 		if tc.expectPass {
 			require.Nil(t, msg.ValidateBasic(), "test: %v", tc.name)

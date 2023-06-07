@@ -9,10 +9,11 @@ import (
 var _ types.StakingHooks = Keeper{}
 
 // AfterValidatorCreated - call hook if registered
-func (k Keeper) AfterValidatorCreated(ctx sdk.Context, valAddr sdk.ValAddress) {
+func (k Keeper) AfterValidatorCreated(ctx sdk.Context, valAddr sdk.ValAddress) error {
 	if k.hooks != nil {
-		k.hooks.AfterValidatorCreated(ctx, valAddr)
+		return k.hooks.AfterValidatorCreated(ctx, valAddr)
 	}
+	return nil
 }
 
 // BeforeValidatorModified - call hook if registered

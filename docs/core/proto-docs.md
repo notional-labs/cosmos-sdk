@@ -6656,6 +6656,7 @@ validator.
 | `delegator_address` | [string](#string) |  | delegator_address is the bech32-encoded address of the delegator. |
 | `validator_address` | [string](#string) |  | validator_address is the bech32-encoded address of the validator. |
 | `shares` | [string](#string) |  | shares define the delegation shares received. |
+| `validator_bond` | [bool](#bool) |  | has this delegation been marked as a validator self bond. |
 
 
 

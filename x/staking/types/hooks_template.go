@@ -8,7 +8,8 @@ type StakingHooksTemplate struct{}
 
 var _ StakingHooks = StakingHooksTemplate{}
 
-func (h StakingHooksTemplate) AfterValidatorCreated(ctx sdk.Context, valAddr sdk.ValAddress) {
+func (h StakingHooksTemplate) AfterValidatorCreated(ctx sdk.Context, valAddr sdk.ValAddress) error {
+	return nil
 }
 func (h StakingHooksTemplate) BeforeValidatorModified(ctx sdk.Context, valAddr sdk.ValAddress) {
 }

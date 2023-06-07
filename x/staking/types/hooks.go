@@ -11,10 +11,13 @@ func NewMultiStakingHooks(hooks ...StakingHooks) MultiStakingHooks {
 	return hooks
 }
 
-func (h MultiStakingHooks) AfterValidatorCreated(ctx sdk.Context, valAddr sdk.ValAddress) {
+func (h MultiStakingHooks) AfterValidatorCreated(ctx sdk.Context, valAddr sdk.ValAddress) error {
 	for i := range h {
-		h[i].AfterValidatorCreated(ctx, valAddr)
+		if err := h[i].AfterValidatorCreated(ctx, valAddr); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 func (h MultiStakingHooks) BeforeValidatorModified(ctx sdk.Context, valAddr sdk.ValAddress) {

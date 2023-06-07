@@ -32,7 +32,7 @@ var (
 // Delegator address and validator address are the same.
 func NewMsgCreateValidator(
 	valAddr sdk.ValAddress, pubKey cryptotypes.PubKey, //nolint:interfacer
-	selfDelegation sdk.Coin, description Description, commission CommissionRates, minSelfDelegation sdk.Int,
+	selfDelegation sdk.Coin, description Description, commission CommissionRates,
 ) (*MsgCreateValidator, error) {
 	var pkAny *codectypes.Any
 	if pubKey != nil {
@@ -42,13 +42,12 @@ func NewMsgCreateValidator(
 		}
 	}
 	return &MsgCreateValidator{
-		Description:       description,
-		DelegatorAddress:  sdk.AccAddress(valAddr).String(),
-		ValidatorAddress:  valAddr.String(),
-		Pubkey:            pkAny,
-		Value:             selfDelegation,
-		Commission:        commission,
-		MinSelfDelegation: minSelfDelegation,
+		Description:      description,
+		DelegatorAddress: sdk.AccAddress(valAddr).String(),
+		ValidatorAddress: valAddr.String(),
+		Pubkey:           pkAny,
+		Value:            selfDelegation,
+		Commission:       commission,
 	}, nil
 }
 
@@ -127,17 +126,6 @@ func (msg MsgCreateValidator) ValidateBasic() error {
 
 	if err := msg.Commission.Validate(); err != nil {
 		return err
-	}
-
-	if !msg.MinSelfDelegation.IsPositive() {
-		return sdkerrors.Wrap(
-			sdkerrors.ErrInvalidRequest,
-			"minimum self delegation must be a positive integer",
-		)
-	}
-
-	if msg.Value.Amount.LT(msg.MinSelfDelegation) {
-		return ErrSelfDelegationBelowMinimum
 	}
 
 	return nil

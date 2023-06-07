@@ -318,16 +318,8 @@ func newBuildCreateValidatorMsg(clientCtx client.Context, txf tx.Factory, fs *fl
 		return txf, nil, err
 	}
 
-	// get the initial validator min self delegation
-	msbStr, _ := fs.GetString(FlagMinSelfDelegation)
-
-	minSelfDelegation, ok := sdk.NewIntFromString(msbStr)
-	if !ok {
-		return txf, nil, sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "minimum self delegation must be a positive integer")
-	}
-
 	msg, err := types.NewMsgCreateValidator(
-		sdk.ValAddress(valAddr), pk, amount, description, commissionRates, minSelfDelegation,
+		sdk.ValAddress(valAddr), pk, amount, description, commissionRates,
 	)
 	if err != nil {
 		return txf, nil, err
@@ -519,16 +511,8 @@ func BuildCreateValidatorMsg(clientCtx client.Context, config TxCreateValidatorC
 		return txBldr, nil, err
 	}
 
-	// get the initial validator min self delegation
-	msbStr := config.MinSelfDelegation
-	minSelfDelegation, ok := sdk.NewIntFromString(msbStr)
-
-	if !ok {
-		return txBldr, nil, sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "minimum self delegation must be a positive integer")
-	}
-
 	msg, err := types.NewMsgCreateValidator(
-		sdk.ValAddress(valAddr), config.PubKey, amount, description, commissionRates, minSelfDelegation,
+		sdk.ValAddress(valAddr), config.PubKey, amount, description, commissionRates,
 	)
 	if err != nil {
 		return txBldr, msg, err

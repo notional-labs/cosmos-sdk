@@ -198,6 +198,8 @@ message Delegation {
   string validator_address = 2 [(gogoproto.moretags) = "yaml:\"validator_address\""];
   // shares define the delegation shares received.
   string shares = 3 [(gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec", (gogoproto.nullable) = false];
+  // has this delegation been marked as a validator self bond.
+  bool validator_bond = 4;
 }
 
 // UnbondingDelegation stores all of a single delegator's unbonding bonds

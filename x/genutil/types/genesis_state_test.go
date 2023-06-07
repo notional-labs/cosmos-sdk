@@ -38,11 +38,11 @@ func TestValidateGenesisMultipleMessages(t *testing.T) {
 	comm := stakingtypes.CommissionRates{}
 
 	msg1, err := stakingtypes.NewMsgCreateValidator(sdk.ValAddress(pk1.Address()), pk1,
-		sdk.NewInt64Coin(sdk.DefaultBondDenom, 50), desc, comm, sdk.OneInt())
+		sdk.NewInt64Coin(sdk.DefaultBondDenom, 50), desc, comm)
 	require.NoError(t, err)
 
 	msg2, err := stakingtypes.NewMsgCreateValidator(sdk.ValAddress(pk2.Address()), pk2,
-		sdk.NewInt64Coin(sdk.DefaultBondDenom, 50), desc, comm, sdk.OneInt())
+		sdk.NewInt64Coin(sdk.DefaultBondDenom, 50), desc, comm)
 	require.NoError(t, err)
 
 	txGen := simapp.MakeTestEncodingConfig().TxConfig

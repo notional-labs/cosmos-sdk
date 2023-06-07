@@ -2,6 +2,7 @@ package slashing_test
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -111,6 +112,7 @@ func TestJailedValidatorDelegations(t *testing.T) {
 
 	// verify validator still exists and is jailed
 	validator, found := app.StakingKeeper.GetValidator(ctx, valAddr)
+	fmt.Println(validator)
 	require.True(t, found)
 	require.True(t, validator.IsJailed())
 
