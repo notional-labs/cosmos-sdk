@@ -7,6 +7,24 @@ Note, always read the **SimApp** section for more information on application wir
 
 ## [v0.50.x](https://github.com/cosmos/cosmos-sdk/releases/tag/v0.50.0-alpha.0)
 
+
+Note: this is hooked up to hackmd, and available here:
+https://hackmd.io/e2ENN23qTkWFTm_f3NunGw -- very much WIP. 
+
+## Find and replace:
+
+
+
+* remove github.com/cosmos/cosmos-sdk/client/docs/statik blank import from app.go
+* use cosmossdk.io modules for upgrade, 
+* tmservice -> ctmservice
+* remove upgrade/client & calls to the upgrade client's legacy proposal handlers
+* KVStorePrefixIterator, sdk.StoreDecoderRegistry, sdk.NewKVStoreKeys, sdk.NewTransientStoreKeys, sdk.NewMemoryStoreKeys have moved to store types
+* StoreDecoderRegistry has moved to types/simulation
+* DiffKVStores has moved to testutil/sims
+
+
+
 ### Migration to CometBFT (Part 2)
 
 The Cosmos SDK has migrated in its previous versions, to CometBFT.
