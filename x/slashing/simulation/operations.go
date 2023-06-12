@@ -18,7 +18,7 @@ import (
 
 // Simulation operation weights constants
 const (
-	OpWeightMsgUnjail = "op_weight_msg_unjail" //nolint:gosec
+	OpWeightMsgUnjail = "op_weight_msg_unjail" //nolint:gosec // this is just the weight for MsgUnjail, not a hard coded credential
 )
 
 // WeightedOperations returns all the operations from the module with their respective weights
@@ -86,10 +86,10 @@ func SimulateMsgUnjail(ak types.AccountKeeper, bk types.BankKeeper, k keeper.Kee
 
 		msg := types.NewMsgUnjail(validator.GetOperator())
 
-		txGen := simappparams.MakeTestEncodingConfig().TxConfig
+		txCfg := simappparams.MakeTestEncodingConfig().TxConfig
 		tx, err := helpers.GenSignedMockTx(
 			r,
-			txGen,
+			txCfg,
 			[]sdk.Msg{msg},
 			fees,
 			helpers.DefaultGenTxGas,
@@ -102,24 +102,20 @@ func SimulateMsgUnjail(ak types.AccountKeeper, bk types.BankKeeper, k keeper.Kee
 			return simtypes.NoOpMsg(types.ModuleName, msg.Type(), "unable to generate mock tx"), nil, err
 		}
 
-		_, res, err := app.Deliver(txGen.TxEncoder(), tx)
+		_, res, err := app.Deliver(txCfg.TxEncoder(), tx)
 
 		// result should fail if:
 		// - validator cannot be unjailed due to tombstone
 		// - validator is still in jailed period
 		// - self delegation too low
 		if info.Tombstoned ||
-			ctx.BlockHeader().Time.Before(info.JailedUntil) ||
-			validator.TokensFromShares(selfDel.GetShares()).TruncateInt().LT(validator.GetMinSelfDelegation()) {
+			ctx.BlockHeader().Time.Before(info.JailedUntil) {
 			if res != nil && err == nil {
 				if info.Tombstoned {
 					return simtypes.NewOperationMsg(msg, true, "", nil), nil, errors.New("validator should not have been unjailed if validator tombstoned")
 				}
 				if ctx.BlockHeader().Time.Before(info.JailedUntil) {
 					return simtypes.NewOperationMsg(msg, true, "", nil), nil, errors.New("validator unjailed while validator still in jail period")
-				}
-				if validator.TokensFromShares(selfDel.GetShares()).TruncateInt().LT(validator.GetMinSelfDelegation()) {
-					return simtypes.NewOperationMsg(msg, true, "", nil), nil, errors.New("validator unjailed even though self-delegation too low")
 				}
 			}
 			// msg failed as expected

@@ -64,7 +64,7 @@ func (suite *KeeperTestSuite) TestHandleDoubleSign() {
 	// require we be able to unbond now
 	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + 1)
 	del, _ := suite.app.StakingKeeper.GetDelegation(ctx, sdk.AccAddress(operatorAddr), operatorAddr)
-	validator, _ := suite.app.StakingKeeper.GetValidator(ctx, operatorAddr)
+	validator, _ := suite.app.StakingKeeper.GetLiquidValidator(ctx, operatorAddr)
 	totalBond := validator.TokensFromShares(del.GetShares()).TruncateInt()
 	tstaking.Ctx = ctx
 	tstaking.Denom = stakingParams.BondDenom

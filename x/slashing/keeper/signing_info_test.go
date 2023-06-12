@@ -7,17 +7,17 @@ import (
 	"github.com/stretchr/testify/require"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
-	"github.com/cosmos/cosmos-sdk/simapp"
+	simapp "github.com/cosmos/cosmos-sdk/simapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/slashing/types"
 )
 
 func TestGetSetValidatorSigningInfo(t *testing.T) {
-	app := simapp.Setup(false)
+	app := simapp.SetupLSM(t, false)
 	ctx := app.BaseApp.NewContext(false, tmproto.Header{})
 	addrDels := simapp.AddTestAddrsIncremental(app, ctx, 1, app.StakingKeeper.TokensFromConsensusPower(ctx, 200))
 
-	info, found := app.SlashingKeeper.GetValidatorSigningInfo(ctx, sdk.ConsAddress(addrDels[0]))
+	_, found := app.SlashingKeeper.GetValidatorSigningInfo(ctx, sdk.ConsAddress(addrDels[0]))
 	require.False(t, found)
 	newInfo := types.NewValidatorSigningInfo(
 		sdk.ConsAddress(addrDels[0]),
@@ -28,7 +28,7 @@ func TestGetSetValidatorSigningInfo(t *testing.T) {
 		int64(10),
 	)
 	app.SlashingKeeper.SetValidatorSigningInfo(ctx, sdk.ConsAddress(addrDels[0]), newInfo)
-	info, found = app.SlashingKeeper.GetValidatorSigningInfo(ctx, sdk.ConsAddress(addrDels[0]))
+	info, found := app.SlashingKeeper.GetValidatorSigningInfo(ctx, sdk.ConsAddress(addrDels[0]))
 	require.True(t, found)
 	require.Equal(t, info.StartHeight, int64(4))
 	require.Equal(t, info.IndexOffset, int64(3))
@@ -37,7 +37,7 @@ func TestGetSetValidatorSigningInfo(t *testing.T) {
 }
 
 func TestGetSetValidatorMissedBlockBitArray(t *testing.T) {
-	app := simapp.Setup(false)
+	app := simapp.SetupLSM(t, false)
 	ctx := app.BaseApp.NewContext(false, tmproto.Header{})
 	addrDels := simapp.AddTestAddrsIncremental(app, ctx, 1, app.StakingKeeper.TokensFromConsensusPower(ctx, 200))
 
@@ -49,7 +49,7 @@ func TestGetSetValidatorMissedBlockBitArray(t *testing.T) {
 }
 
 func TestTombstoned(t *testing.T) {
-	app := simapp.Setup(false)
+	app := simapp.SetupLSM(t, false)
 	ctx := app.BaseApp.NewContext(false, tmproto.Header{})
 	addrDels := simapp.AddTestAddrsIncremental(app, ctx, 1, app.StakingKeeper.TokensFromConsensusPower(ctx, 200))
 
@@ -73,7 +73,7 @@ func TestTombstoned(t *testing.T) {
 }
 
 func TestJailUntil(t *testing.T) {
-	app := simapp.Setup(false)
+	app := simapp.SetupLSM(t, false)
 	ctx := app.BaseApp.NewContext(false, tmproto.Header{})
 	addrDels := simapp.AddTestAddrsIncremental(app, ctx, 1, app.StakingKeeper.TokensFromConsensusPower(ctx, 200))
 

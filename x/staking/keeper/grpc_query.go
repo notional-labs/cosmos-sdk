@@ -76,7 +76,7 @@ func (k Querier) Validator(c context.Context, req *types.QueryValidatorRequest) 
 	}
 
 	ctx := sdk.UnwrapSDKContext(c)
-	validator, found := k.GetValidator(ctx, valAddr)
+	validator, found := k.GetLiquidValidator(ctx, valAddr)
 	if !found {
 		return nil, status.Errorf(codes.NotFound, "validator %s not found", req.ValidatorAddr)
 	}
@@ -431,7 +431,7 @@ func (k Querier) DelegatorValidators(c context.Context, req *types.QueryDelegato
 			return err
 		}
 
-		validator, found := k.GetValidator(ctx, delegation.GetValidatorAddr())
+		validator, found := k.GetLiquidValidator(ctx, delegation.GetValidatorAddr())
 		if !found {
 			return types.ErrNoValidatorFound
 		}

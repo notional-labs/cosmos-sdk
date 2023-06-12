@@ -1,22 +1,24 @@
-package slashing
+package keeper
 
 import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/x/slashing/keeper"
 	"github.com/cosmos/cosmos-sdk/x/slashing/types"
-	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	sdkstaking "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
 // InitGenesis initialize default parameters
 // and the keeper's address to pubkey map
-func InitGenesis(ctx sdk.Context, keeper keeper.Keeper, stakingKeeper types.StakingKeeper, data *types.GenesisState) {
+func (keeper Keeper) InitGenesis(ctx sdk.Context, stakingKeeper types.StakingKeeper, data *types.GenesisState) {
 	stakingKeeper.IterateValidators(ctx,
-		func(index int64, validator stakingtypes.ValidatorI) bool {
+		func(index int64, validator sdkstaking.ValidatorI) bool {
 			consPk, err := validator.ConsPubKey()
 			if err != nil {
 				panic(err)
 			}
-			keeper.AddPubkey(ctx, consPk)
+			err = keeper.AddPubkey(ctx, consPk)
+			if err != nil {
+				panic(err)
+			}
 			return false
 		},
 	)
@@ -45,7 +47,7 @@ func InitGenesis(ctx sdk.Context, keeper keeper.Keeper, stakingKeeper types.Stak
 // ExportGenesis writes the current store values
 // to a genesis file, which can be imported again
 // with InitGenesis
-func ExportGenesis(ctx sdk.Context, keeper keeper.Keeper) (data *types.GenesisState) {
+func (keeper Keeper) ExportGenesis(ctx sdk.Context) (data *types.GenesisState) {
 	params := keeper.GetParams(ctx)
 	signingInfos := make([]types.SigningInfo, 0)
 	missedBlocks := make([]types.ValidatorMissedBlocks, 0)

@@ -81,7 +81,7 @@ for vote in block.LastCommitInfo.Votes {
     // That's fine since this is just used to filter unbonding delegations & redelegations.
     distributionHeight := height - sdk.ValidatorUpdateDelay - 1
 
-    Slash(vote.Validator.Address, distributionHeight, vote.Validator.Power, SlashFractionDowntime(), stakingtypes.Downtime)
+    Slash(vote.Validator.Address, distributionHeight, vote.Validator.Power, SlashFractionDowntime())
     Jail(vote.Validator.Address)
 
     signInfo.JailedUntil = block.Time.Add(DowntimeJailDuration())

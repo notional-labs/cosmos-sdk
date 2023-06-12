@@ -63,7 +63,7 @@ func TestValidatorByPowerIndex(t *testing.T) {
 	require.Equal(t, initBond, gotBond)
 
 	// verify that the by power index exists
-	validator, found := app.StakingKeeper.GetValidator(ctx, validatorAddr)
+	validator, found := app.StakingKeeper.GetLiquidValidator(ctx, validatorAddr)
 	require.True(t, found)
 	power := types.GetValidatorsByPowerIndexKey(validator, app.StakingKeeper.PowerReduction(ctx))
 	require.True(t, keeper.ValidatorByPowerIndexExists(ctx, app.StakingKeeper, power))
@@ -82,7 +82,7 @@ func TestValidatorByPowerIndex(t *testing.T) {
 	app.StakingKeeper.Jail(ctx, consAddr0)
 	app.StakingKeeper.ApplyAndReturnValidatorSetUpdates(ctx)
 
-	validator, found = app.StakingKeeper.GetValidator(ctx, validatorAddr)
+	validator, found = app.StakingKeeper.GetLiquidValidator(ctx, validatorAddr)
 	require.True(t, found)
 	require.Equal(t, types.Unbonding, validator.Status)    // ensure is unbonding
 	require.Equal(t, initBond.QuoRaw(2), validator.Tokens) // ensure tokens slashed
@@ -92,7 +92,7 @@ func TestValidatorByPowerIndex(t *testing.T) {
 	require.False(t, keeper.ValidatorByPowerIndexExists(ctx, app.StakingKeeper, power))
 
 	// but the new power record should have been created
-	validator, found = app.StakingKeeper.GetValidator(ctx, validatorAddr)
+	validator, found = app.StakingKeeper.GetLiquidValidator(ctx, validatorAddr)
 	require.True(t, found)
 	power2 := types.GetValidatorsByPowerIndexKey(validator, app.StakingKeeper.PowerReduction(ctx))
 	require.True(t, keeper.ValidatorByPowerIndexExists(ctx, app.StakingKeeper, power2))
@@ -114,7 +114,7 @@ func TestValidatorByPowerIndex(t *testing.T) {
 	staking.EndBlocker(ctx, app.StakingKeeper)
 
 	// verify that by power key nolonger exists
-	_, found = app.StakingKeeper.GetValidator(ctx, validatorAddr)
+	_, found = app.StakingKeeper.GetLiquidValidator(ctx, validatorAddr)
 	require.False(t, found)
 	require.False(t, keeper.ValidatorByPowerIndexExists(ctx, app.StakingKeeper, power3))
 }
@@ -268,7 +268,7 @@ func TestLegacyValidatorDelegations(t *testing.T) {
 	tstaking.Delegate(sdk.AccAddress(valAddr), valAddr, bondAmount)
 
 	// verify validator bonded shares
-	validator, found = app.StakingKeeper.GetValidator(ctx, valAddr)
+	validator, found = app.StakingKeeper.GetLiquidValidator(ctx, valAddr)
 	require.True(t, found)
 	require.Equal(t, bondAmount.MulRaw(2), validator.DelegatorShares.RoundInt())
 	require.Equal(t, bondAmount.MulRaw(2), validator.Tokens)
@@ -280,7 +280,7 @@ func TestLegacyValidatorDelegations(t *testing.T) {
 	tstaking.Delegate(delAddr, valAddr, bondAmount)
 
 	// verify validator bonded shares
-	validator, found = app.StakingKeeper.GetValidator(ctx, valAddr)
+	validator, found = app.StakingKeeper.GetLiquidValidator(ctx, valAddr)
 	require.True(t, found)
 	require.Equal(t, bondAmount.MulRaw(3), validator.DelegatorShares.RoundInt())
 	require.Equal(t, bondAmount.MulRaw(3), validator.Tokens)
@@ -326,7 +326,7 @@ func TestIncrementsMsgDelegate(t *testing.T) {
 		tstaking.Delegate(delegatorAddr, validatorAddr, bondAmount)
 
 		// Check that the accounts and the bond account have the appropriate values
-		validator, found := app.StakingKeeper.GetValidator(ctx, validatorAddr)
+		validator, found := app.StakingKeeper.GetLiquidValidator(ctx, validatorAddr)
 		require.True(t, found)
 		bond, found := app.StakingKeeper.GetDelegation(ctx, delegatorAddr, validatorAddr)
 		require.True(t, found)
@@ -437,7 +437,7 @@ func TestIncrementsMsgUnbond(t *testing.T) {
 	// apply TM updates
 	app.StakingKeeper.ApplyAndReturnValidatorSetUpdates(ctx)
 
-	validator, found := app.StakingKeeper.GetValidator(ctx, validatorAddr)
+	validator, found := app.StakingKeeper.GetLiquidValidator(ctx, validatorAddr)
 	require.True(t, found)
 	require.Equal(t, initBond.MulRaw(2), validator.DelegatorShares.RoundInt())
 	require.Equal(t, initBond.MulRaw(2), validator.BondedTokens())
@@ -460,7 +460,7 @@ func TestIncrementsMsgUnbond(t *testing.T) {
 		staking.EndBlocker(ctx, app.StakingKeeper)
 
 		// check that the accounts and the bond account have the appropriate values
-		validator, found = app.StakingKeeper.GetValidator(ctx, validatorAddr)
+		validator, found = app.StakingKeeper.GetLiquidValidator(ctx, validatorAddr)
 		require.True(t, found)
 		bond, found := app.StakingKeeper.GetDelegation(ctx, delegatorAddr, validatorAddr)
 		require.True(t, found)
@@ -544,7 +544,7 @@ func TestMultipleMsgCreateValidator(t *testing.T) {
 
 	// unbond them all by removing delegation
 	for i, validatorAddr := range validatorAddrs {
-		_, found := app.StakingKeeper.GetValidator(ctx, validatorAddr)
+		_, found := app.StakingKeeper.GetLiquidValidator(ctx, validatorAddr)
 		require.True(t, found)
 
 		res := tstaking.Undelegate(delegatorAddrs[i], validatorAddr, amt, true)
@@ -564,7 +564,7 @@ func TestMultipleMsgCreateValidator(t *testing.T) {
 		require.Equal(t, len(validatorAddrs)-(i+1), len(validators),
 			"expected %d validators got %d", len(validatorAddrs)-(i+1), len(validators))
 
-		_, found = app.StakingKeeper.GetValidator(ctx, validatorAddr)
+		_, found = app.StakingKeeper.GetLiquidValidator(ctx, validatorAddr)
 		require.False(t, found)
 
 		gotBalance := app.BankKeeper.GetBalance(ctx, delegatorAddrs[i], params.BondDenom).Amount
@@ -673,21 +673,21 @@ func TestValidatorQueue(t *testing.T) {
 	ctx = tstaking.TurnBlock(finishTime)
 	origHeader := ctx.BlockHeader()
 
-	validator, found := app.StakingKeeper.GetValidator(ctx, validatorAddr)
+	validator, found := app.StakingKeeper.GetLiquidValidator(ctx, validatorAddr)
 	require.True(t, found)
 	require.True(t, validator.IsUnbonding(), "%v", validator)
 
 	// should still be unbonding at time 6 seconds later
 	ctx = tstaking.TurnBlock(origHeader.Time.Add(time.Second * 6))
 
-	validator, found = app.StakingKeeper.GetValidator(ctx, validatorAddr)
+	validator, found = app.StakingKeeper.GetLiquidValidator(ctx, validatorAddr)
 	require.True(t, found)
 	require.True(t, validator.IsUnbonding(), "%v", validator)
 
 	// should be in unbonded state at time 7 seconds later
 	ctx = tstaking.TurnBlock(origHeader.Time.Add(time.Second * 7))
 
-	validator, found = app.StakingKeeper.GetValidator(ctx, validatorAddr)
+	validator, found = app.StakingKeeper.GetLiquidValidator(ctx, validatorAddr)
 	require.True(t, found)
 	require.True(t, validator.IsUnbonded(), "%v", validator)
 }
@@ -1129,7 +1129,7 @@ func TestBondUnbondRedelegateSlashTwice(t *testing.T) {
 	require.Equal(t, sdk.NewDecFromInt(redAmt.Amount.QuoRaw(2)), delegation.Shares)
 
 	// validator power should have been reduced by half
-	validator, found := app.StakingKeeper.GetValidator(ctx, valA)
+	validator, found := app.StakingKeeper.GetLiquidValidator(ctx, valA)
 	require.True(t, found)
 	require.Equal(t, valTokens.QuoRaw(2), validator.GetBondedTokens())
 
@@ -1159,7 +1159,7 @@ func TestBondUnbondRedelegateSlashTwice(t *testing.T) {
 
 	// validator power should have been reduced to zero
 	// validator should be in unbonding state
-	validator, _ = app.StakingKeeper.GetValidator(ctx, valA)
+	validator, _ = app.StakingKeeper.GetLiquidValidator(ctx, valA)
 	require.Equal(t, validator.GetStatus(), types.Unbonding)
 }
 

@@ -548,7 +548,7 @@ func TestMigrateVestingAccounts(t *testing.T) {
 			delegatorAddr := addrs[0]
 
 			_, valAddr := createValidator(t, ctx, app, tc.tokenAmount*2)
-			validator, found := app.StakingKeeper.GetValidator(ctx, valAddr)
+			validator, found := app.StakingKeeper.GetLiquidValidator(ctx, valAddr)
 			require.True(t, found)
 
 			tc.prepareFunc(app, ctx, validator, delegatorAddr)

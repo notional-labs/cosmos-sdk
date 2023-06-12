@@ -1,6 +1,7 @@
 package keeper
 
 import (
+	errorsmod "cosmossdk.io/errors"
 	abci "github.com/tendermint/tendermint/abci/types"
 
 	"github.com/cosmos/cosmos-sdk/client"
@@ -24,7 +25,7 @@ func NewQuerier(k Keeper, legacyQuerierCdc *codec.LegacyAmino) sdk.Querier {
 			return querySigningInfos(ctx, req, k, legacyQuerierCdc)
 
 		default:
-			return nil, sdkerrors.Wrapf(sdkerrors.ErrUnknownRequest, "unknown %s query endpoint: %s", types.ModuleName, path[0])
+			return nil, errorsmod.Wrapf(sdkerrors.ErrUnknownRequest, "unknown %s query endpoint: %s", types.ModuleName, path[0])
 		}
 	}
 }
@@ -34,7 +35,7 @@ func queryParams(ctx sdk.Context, k Keeper, legacyQuerierCdc *codec.LegacyAmino)
 
 	res, err := codec.MarshalJSONIndent(legacyQuerierCdc, params)
 	if err != nil {
-		return nil, sdkerrors.Wrap(sdkerrors.ErrJSONMarshal, err.Error())
+		return nil, errorsmod.Wrap(sdkerrors.ErrJSONMarshal, err.Error())
 	}
 
 	return res, nil
@@ -45,17 +46,17 @@ func querySigningInfo(ctx sdk.Context, req abci.RequestQuery, k Keeper, legacyQu
 
 	err := legacyQuerierCdc.UnmarshalJSON(req.Data, &params)
 	if err != nil {
-		return nil, sdkerrors.Wrap(sdkerrors.ErrJSONUnmarshal, err.Error())
+		return nil, errorsmod.Wrap(sdkerrors.ErrJSONUnmarshal, err.Error())
 	}
 
 	signingInfo, found := k.GetValidatorSigningInfo(ctx, sdk.ConsAddress(params.ConsAddress))
 	if !found {
-		return nil, sdkerrors.Wrap(types.ErrNoSigningInfoFound, params.ConsAddress)
+		return nil, errorsmod.Wrap(types.ErrNoSigningInfoFound, params.ConsAddress)
 	}
 
 	res, err := codec.MarshalJSONIndent(legacyQuerierCdc, signingInfo)
 	if err != nil {
-		return nil, sdkerrors.Wrap(sdkerrors.ErrJSONMarshal, err.Error())
+		return nil, errorsmod.Wrap(sdkerrors.ErrJSONMarshal, err.Error())
 	}
 
 	return res, nil
@@ -66,7 +67,7 @@ func querySigningInfos(ctx sdk.Context, req abci.RequestQuery, k Keeper, legacyQ
 
 	err := legacyQuerierCdc.UnmarshalJSON(req.Data, &params)
 	if err != nil {
-		return nil, sdkerrors.Wrap(sdkerrors.ErrJSONUnmarshal, err.Error())
+		return nil, errorsmod.Wrap(sdkerrors.ErrJSONUnmarshal, err.Error())
 	}
 
 	var signingInfos []types.ValidatorSigningInfo
@@ -85,7 +86,7 @@ func querySigningInfos(ctx sdk.Context, req abci.RequestQuery, k Keeper, legacyQ
 
 	res, err := codec.MarshalJSONIndent(legacyQuerierCdc, signingInfos)
 	if err != nil {
-		return nil, sdkerrors.Wrap(sdkerrors.ErrJSONMarshal, err.Error())
+		return nil, errorsmod.Wrap(sdkerrors.ErrJSONMarshal, err.Error())
 	}
 
 	return res, nil

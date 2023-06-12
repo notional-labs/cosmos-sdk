@@ -62,7 +62,7 @@ func (k Keeper) IterateLastValidators(ctx sdk.Context, fn func(index int64, vali
 	for ; iterator.Valid(); iterator.Next() {
 		address := types.AddressFromLastValidatorPowerKey(iterator.Key())
 
-		validator, found := k.GetValidator(ctx, address)
+		validator, found := k.GetLiquidValidator(ctx, address)
 		if !found {
 			panic(fmt.Sprintf("validator record not found for address: %v\n", address))
 		}
@@ -77,7 +77,7 @@ func (k Keeper) IterateLastValidators(ctx sdk.Context, fn func(index int64, vali
 
 // Validator gets the Validator interface for a particular address
 func (k Keeper) Validator(ctx sdk.Context, address sdk.ValAddress) types.ValidatorI {
-	val, found := k.GetValidator(ctx, address)
+	val, found := k.GetLiquidValidator(ctx, address)
 	if !found {
 		return nil
 	}

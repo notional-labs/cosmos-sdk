@@ -23,7 +23,7 @@ func BenchmarkGetValidator(b *testing.B) {
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		for _, addr := range valAddrs {
-			_, _ = app.StakingKeeper.GetValidator(ctx, addr)
+			_, _ = app.StakingKeeper.GetLiquidValidator(ctx, addr)
 		}
 	}
 }

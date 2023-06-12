@@ -246,7 +246,7 @@ func TestTallyDelgatorOverride(t *testing.T) {
 	addrs, valAddrs := createValidators(t, ctx, app, []int64{5, 6, 7})
 
 	delTokens := app.StakingKeeper.TokensFromConsensusPower(ctx, 30)
-	val1, found := app.StakingKeeper.GetValidator(ctx, valAddrs[0])
+	val1, found := app.StakingKeeper.GetLiquidValidator(ctx, valAddrs[0])
 	require.True(t, found)
 
 	_, err := app.StakingKeeper.Delegate(ctx, addrs[4], delTokens, stakingtypes.Unbonded, val1, true)
@@ -282,7 +282,7 @@ func TestTallyDelgatorInherit(t *testing.T) {
 	addrs, vals := createValidators(t, ctx, app, []int64{5, 6, 7})
 
 	delTokens := app.StakingKeeper.TokensFromConsensusPower(ctx, 30)
-	val3, found := app.StakingKeeper.GetValidator(ctx, vals[2])
+	val3, found := app.StakingKeeper.GetLiquidValidator(ctx, vals[2])
 	require.True(t, found)
 
 	_, err := app.StakingKeeper.Delegate(ctx, addrs[3], delTokens, stakingtypes.Unbonded, val3, true)
@@ -317,9 +317,9 @@ func TestTallyDelgatorMultipleOverride(t *testing.T) {
 	addrs, vals := createValidators(t, ctx, app, []int64{5, 6, 7})
 
 	delTokens := app.StakingKeeper.TokensFromConsensusPower(ctx, 10)
-	val1, found := app.StakingKeeper.GetValidator(ctx, vals[0])
+	val1, found := app.StakingKeeper.GetLiquidValidator(ctx, vals[0])
 	require.True(t, found)
-	val2, found := app.StakingKeeper.GetValidator(ctx, vals[1])
+	val2, found := app.StakingKeeper.GetLiquidValidator(ctx, vals[1])
 	require.True(t, found)
 
 	_, err := app.StakingKeeper.Delegate(ctx, addrs[3], delTokens, stakingtypes.Unbonded, val1, true)
@@ -359,9 +359,9 @@ func TestTallyDelgatorMultipleInherit(t *testing.T) {
 	addrs, vals := createValidators(t, ctx, app, []int64{5, 6, 7})
 
 	delTokens := app.StakingKeeper.TokensFromConsensusPower(ctx, 10)
-	val2, found := app.StakingKeeper.GetValidator(ctx, vals[1])
+	val2, found := app.StakingKeeper.GetLiquidValidator(ctx, vals[1])
 	require.True(t, found)
-	val3, found := app.StakingKeeper.GetValidator(ctx, vals[2])
+	val3, found := app.StakingKeeper.GetLiquidValidator(ctx, vals[2])
 	require.True(t, found)
 
 	_, err := app.StakingKeeper.Delegate(ctx, addrs[3], delTokens, stakingtypes.Unbonded, val2, true)
@@ -398,9 +398,9 @@ func TestTallyJailedValidator(t *testing.T) {
 	addrs, valAddrs := createValidators(t, ctx, app, []int64{25, 6, 7})
 
 	delTokens := app.StakingKeeper.TokensFromConsensusPower(ctx, 10)
-	val2, found := app.StakingKeeper.GetValidator(ctx, valAddrs[1])
+	val2, found := app.StakingKeeper.GetLiquidValidator(ctx, valAddrs[1])
 	require.True(t, found)
-	val3, found := app.StakingKeeper.GetValidator(ctx, valAddrs[2])
+	val3, found := app.StakingKeeper.GetLiquidValidator(ctx, valAddrs[2])
 	require.True(t, found)
 
 	_, err := app.StakingKeeper.Delegate(ctx, addrs[3], delTokens, stakingtypes.Unbonded, val2, true)
@@ -441,7 +441,7 @@ func TestTallyValidatorMultipleDelegations(t *testing.T) {
 	addrs, valAddrs := createValidators(t, ctx, app, []int64{10, 10, 10})
 
 	delTokens := app.StakingKeeper.TokensFromConsensusPower(ctx, 10)
-	val2, found := app.StakingKeeper.GetValidator(ctx, valAddrs[1])
+	val2, found := app.StakingKeeper.GetLiquidValidator(ctx, valAddrs[1])
 	require.True(t, found)
 
 	_, err := app.StakingKeeper.Delegate(ctx, addrs[0], delTokens, stakingtypes.Unbonded, val2, true)

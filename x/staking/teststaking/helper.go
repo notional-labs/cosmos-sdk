@@ -97,7 +97,7 @@ func (sh *Helper) Handle(msg sdk.Msg, ok bool) *sdk.Result {
 // CheckValidator asserts that a validor exists and has a given status (if status!="")
 // and if has a right jailed flag.
 func (sh *Helper) CheckValidator(addr sdk.ValAddress, status stakingtypes.BondStatus, jailed bool) stakingtypes.Validator {
-	v, ok := sh.k.GetValidator(sh.Ctx, addr)
+	v, ok := sh.k.GetLiquidValidator(sh.Ctx, addr)
 	require.True(sh.t, ok)
 	require.Equal(sh.t, jailed, v.Jailed, "wrong Jalied status")
 	if status >= 0 {

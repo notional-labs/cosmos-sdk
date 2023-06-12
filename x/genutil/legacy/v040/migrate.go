@@ -22,8 +22,9 @@ import (
 	v039mint "github.com/cosmos/cosmos-sdk/x/mint/legacy/v039"
 	v040mint "github.com/cosmos/cosmos-sdk/x/mint/legacy/v040"
 	v036params "github.com/cosmos/cosmos-sdk/x/params/legacy/v036"
-	v039slashing "github.com/cosmos/cosmos-sdk/x/slashing/legacy/v039"
-	v040slashing "github.com/cosmos/cosmos-sdk/x/slashing/legacy/v040"
+
+	// v039slashing "github.com/cosmos/cosmos-sdk/x/slashing/legacy/v039"
+	// v040slashing "github.com/cosmos/cosmos-sdk/x/slashing/legacy/v040"
 	v038staking "github.com/cosmos/cosmos-sdk/x/staking/legacy/v038"
 	v040staking "github.com/cosmos/cosmos-sdk/x/staking/legacy/v040"
 	v038upgrade "github.com/cosmos/cosmos-sdk/x/upgrade/legacy/v038"
@@ -152,20 +153,6 @@ func Migrate(appState types.AppMap, clientCtx client.Context) types.AppMap {
 		// Migrate relative source genesis application state and marshal it into
 		// the respective key.
 		appState[v040mint.ModuleName] = v040Codec.MustMarshalJSON(v040mint.Migrate(mintGenState))
-	}
-
-	// Migrate x/slashing.
-	if appState[v039slashing.ModuleName] != nil {
-		// unmarshal relative source genesis application state
-		var slashingGenState v039slashing.GenesisState
-		v039Codec.MustUnmarshalJSON(appState[v039slashing.ModuleName], &slashingGenState)
-
-		// delete deprecated x/slashing genesis state
-		delete(appState, v039slashing.ModuleName)
-
-		// Migrate relative source genesis application state and marshal it into
-		// the respective key.
-		appState[v040slashing.ModuleName] = v040Codec.MustMarshalJSON(v040slashing.Migrate(slashingGenState))
 	}
 
 	// Migrate x/staking.

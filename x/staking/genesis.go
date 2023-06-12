@@ -132,7 +132,7 @@ func InitGenesis(
 				panic(err)
 			}
 			keeper.SetLastValidatorPower(ctx, valAddr, lv.Power)
-			validator, found := keeper.GetValidator(ctx, valAddr)
+			validator, found := keeper.GetLiquidValidator(ctx, valAddr)
 
 			if !found {
 				panic(fmt.Sprintf("validator %s not found", lv.Address))

@@ -7,6 +7,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
+	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -14,14 +15,14 @@ import (
 
 // Keeper of the slashing store
 type Keeper struct {
-	storeKey   sdk.StoreKey
+	storeKey   storetypes.StoreKey
 	cdc        codec.BinaryCodec
 	sk         types.StakingKeeper
 	paramspace types.ParamSubspace
 }
 
 // NewKeeper creates a slashing keeper
-func NewKeeper(cdc codec.BinaryCodec, key sdk.StoreKey, sk types.StakingKeeper, paramspace types.ParamSubspace) Keeper {
+func NewKeeper(cdc codec.BinaryCodec, key storetypes.StoreKey, sk types.StakingKeeper, paramspace types.ParamSubspace) Keeper {
 	// set KeyTable if it has not already been set
 	if !paramspace.HasKeyTable() {
 		paramspace = paramspace.WithKeyTable(types.ParamKeyTable())
@@ -81,14 +82,13 @@ func (k Keeper) Slash(ctx sdk.Context, consAddr sdk.ConsAddress, fraction sdk.De
 // Jail attempts to jail a validator. The slash is delegated to the staking module
 // to make the necessary validator changes.
 func (k Keeper) Jail(ctx sdk.Context, consAddr sdk.ConsAddress) {
+	k.sk.Jail(ctx, consAddr)
 	ctx.EventManager().EmitEvent(
 		sdk.NewEvent(
 			types.EventTypeSlash,
 			sdk.NewAttribute(types.AttributeKeyJailed, consAddr.String()),
 		),
 	)
-
-	k.sk.Jail(ctx, consAddr)
 }
 
 func (k Keeper) deleteAddrPubkeyRelation(ctx sdk.Context, addr cryptotypes.Address) {

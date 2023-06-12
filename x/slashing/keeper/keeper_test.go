@@ -7,80 +7,19 @@ import (
 	"github.com/stretchr/testify/require"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
-	"github.com/cosmos/cosmos-sdk/simapp"
+	simapp "github.com/cosmos/cosmos-sdk/simapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/slashing/testslashing"
 	"github.com/cosmos/cosmos-sdk/x/staking"
 	"github.com/cosmos/cosmos-sdk/x/staking/teststaking"
-	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	sdkstaking "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
-
-func TestUnJailNotBonded(t *testing.T) {
-	app := simapp.Setup(false)
-	ctx := app.BaseApp.NewContext(false, tmproto.Header{})
-
-	p := app.StakingKeeper.GetParams(ctx)
-	p.MaxValidators = 5
-	app.StakingKeeper.SetParams(ctx, p)
-
-	addrDels := simapp.AddTestAddrsIncremental(app, ctx, 6, app.StakingKeeper.TokensFromConsensusPower(ctx, 200))
-	valAddrs := simapp.ConvertAddrsToValAddrs(addrDels)
-	pks := simapp.CreateTestPubKeys(6)
-	tstaking := teststaking.NewHelper(t, ctx, app.StakingKeeper)
-
-	// create max (5) validators all with the same power
-	for i := uint32(0); i < p.MaxValidators; i++ {
-		addr, val := valAddrs[i], pks[i]
-		tstaking.CreateValidatorWithValPower(addr, val, 100, true)
-	}
-
-	staking.EndBlocker(ctx, app.StakingKeeper)
-	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + 1)
-
-	// create a 6th validator with less power than the cliff validator (won't be bonded)
-	addr, val := valAddrs[5], pks[5]
-	amt := app.StakingKeeper.TokensFromConsensusPower(ctx, 50)
-	msg := tstaking.CreateValidatorMsg(addr, val, amt)
-	msg.MinSelfDelegation = amt
-	tstaking.Handle(msg, true)
-
-	staking.EndBlocker(ctx, app.StakingKeeper)
-	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + 1)
-
-	tstaking.CheckValidator(addr, stakingtypes.Unbonded, false)
-
-	// unbond below minimum self-delegation
-	require.Equal(t, p.BondDenom, tstaking.Denom)
-	tstaking.Undelegate(sdk.AccAddress(addr), addr, app.StakingKeeper.TokensFromConsensusPower(ctx, 1), true)
-
-	staking.EndBlocker(ctx, app.StakingKeeper)
-	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + 1)
-
-	// verify that validator is jailed
-	tstaking.CheckValidator(addr, -1, true)
-
-	// verify we cannot unjail (yet)
-	require.Error(t, app.SlashingKeeper.Unjail(ctx, addr))
-
-	staking.EndBlocker(ctx, app.StakingKeeper)
-	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + 1)
-	// bond to meet minimum self-delegation
-	tstaking.DelegateWithPower(sdk.AccAddress(addr), addr, 1)
-
-	staking.EndBlocker(ctx, app.StakingKeeper)
-	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + 1)
-
-	// verify we can immediately unjail
-	require.NoError(t, app.SlashingKeeper.Unjail(ctx, addr))
-
-	tstaking.CheckValidator(addr, -1, false)
-}
 
 // Test a new validator entering the validator set
 // Ensure that SigningInfo.StartHeight is set correctly
 // and that they are not immediately jailed
 func TestHandleNewValidator(t *testing.T) {
-	app := simapp.Setup(false)
+	app := simapp.SetupLSM(t, false)
 	ctx := app.BaseApp.NewContext(false, tmproto.Header{})
 
 	addrDels := simapp.AddTestAddrsIncremental(app, ctx, 1, app.StakingKeeper.TokensFromConsensusPower(ctx, 200))
@@ -114,9 +53,11 @@ func TestHandleNewValidator(t *testing.T) {
 
 	// validator should be bonded still, should not have been jailed or slashed
 	validator, _ := app.StakingKeeper.GetValidatorByConsAddr(ctx, sdk.GetConsAddress(val))
-	require.Equal(t, stakingtypes.Bonded, validator.GetStatus())
+	require.Equal(t, sdkstaking.Bonded, validator.GetStatus())
 	bondPool := app.StakingKeeper.GetBondedPool(ctx)
 	expTokens := app.StakingKeeper.TokensFromConsensusPower(ctx, 100)
+	// adding genesis validator tokens
+	expTokens = expTokens.Add(app.StakingKeeper.TokensFromConsensusPower(ctx, 1))
 	require.True(t, expTokens.Equal(app.BankKeeper.GetBalance(ctx, bondPool.GetAddress(), app.StakingKeeper.BondDenom(ctx)).Amount))
 }
 
@@ -124,7 +65,7 @@ func TestHandleNewValidator(t *testing.T) {
 // Ensure that they're only slashed once
 func TestHandleAlreadyJailed(t *testing.T) {
 	// initial setup
-	app := simapp.Setup(false)
+	app := simapp.SetupLSM(t, false)
 	ctx := app.BaseApp.NewContext(false, tmproto.Header{})
 
 	addrDels := simapp.AddTestAddrsIncremental(app, ctx, 1, app.StakingKeeper.TokensFromConsensusPower(ctx, 200))
@@ -156,7 +97,7 @@ func TestHandleAlreadyJailed(t *testing.T) {
 
 	// validator should have been jailed and slashed
 	validator, _ := app.StakingKeeper.GetValidatorByConsAddr(ctx, sdk.GetConsAddress(val))
-	require.Equal(t, stakingtypes.Unbonding, validator.GetStatus())
+	require.Equal(t, sdkstaking.Unbonding, validator.GetStatus())
 
 	// validator should have been slashed
 	resultingTokens := amt.Sub(app.StakingKeeper.TokensFromConsensusPower(ctx, 1))
@@ -177,7 +118,7 @@ func TestHandleAlreadyJailed(t *testing.T) {
 func TestValidatorDippingInAndOut(t *testing.T) {
 	// initial setup
 	// TestParams set the SignedBlocksWindow to 1000 and MaxMissedBlocksPerWindow to 500
-	app := simapp.Setup(false)
+	app := simapp.SetupLSM(t, false)
 	ctx := app.BaseApp.NewContext(false, tmproto.Header{})
 	app.SlashingKeeper.SetParams(ctx, testslashing.TestParams())
 
@@ -195,7 +136,9 @@ func TestValidatorDippingInAndOut(t *testing.T) {
 	valAddr := sdk.ValAddress(addr)
 
 	tstaking.CreateValidatorWithValPower(valAddr, val, power, true)
-	staking.EndBlocker(ctx, app.StakingKeeper)
+	validatorUpdates := staking.EndBlocker(ctx, app.StakingKeeper)
+	require.Equal(t, 2, len(validatorUpdates))
+	tstaking.CheckValidator(valAddr, sdkstaking.Bonded, false)
 
 	// 100 first blocks OK
 	height := int64(0)
@@ -205,52 +148,48 @@ func TestValidatorDippingInAndOut(t *testing.T) {
 	}
 
 	// kick first validator out of validator set
-	tstaking.CreateValidatorWithValPower(sdk.ValAddress(pks[1].Address()), pks[1], 101, true)
-	validatorUpdates := staking.EndBlocker(ctx, app.StakingKeeper)
+	tstaking.CreateValidatorWithValPower(sdk.ValAddress(pks[1].Address()), pks[1], power+1, true)
+	validatorUpdates = staking.EndBlocker(ctx, app.StakingKeeper)
 	require.Equal(t, 2, len(validatorUpdates))
-	tstaking.CheckValidator(valAddr, stakingtypes.Unbonding, false)
+	tstaking.CheckValidator(sdk.ValAddress(pks[1].Address()), sdkstaking.Bonded, false)
+	tstaking.CheckValidator(valAddr, sdkstaking.Unbonding, false)
 
 	// 600 more blocks happened
-	height = 700
+	height += 600
 	ctx = ctx.WithBlockHeight(height)
 
 	// validator added back in
-	tstaking.DelegateWithPower(sdk.AccAddress(pks[2].Address()), sdk.ValAddress(pks[0].Address()), 50)
+	tstaking.DelegateWithPower(sdk.AccAddress(pks[2].Address()), valAddr, 50)
 
 	validatorUpdates = staking.EndBlocker(ctx, app.StakingKeeper)
 	require.Equal(t, 2, len(validatorUpdates))
-	tstaking.CheckValidator(valAddr, stakingtypes.Bonded, false)
-	newPower := int64(150)
+	tstaking.CheckValidator(valAddr, sdkstaking.Bonded, false)
+	newPower := power + 50
 
 	// validator misses a block
 	app.SlashingKeeper.HandleValidatorSignature(ctx, val.Address(), newPower, false)
 	height++
 
 	// shouldn't be jailed/kicked yet
-	tstaking.CheckValidator(valAddr, stakingtypes.Bonded, false)
+	tstaking.CheckValidator(valAddr, sdkstaking.Bonded, false)
 
-	// validator misses 500 more blocks, 501 total
-	latest := height
-	for ; height < latest+500; height++ {
+	// validator misses an additional 500 more blocks, after the cooling off period of SignedBlockWindow (here 1000 blocks).
+	latest := app.SlashingKeeper.SignedBlocksWindow(ctx) + height
+	for ; height < latest+app.SlashingKeeper.MinSignedPerWindow(ctx); height++ {
 		ctx = ctx.WithBlockHeight(height)
 		app.SlashingKeeper.HandleValidatorSignature(ctx, val.Address(), newPower, false)
 	}
 
 	// should now be jailed & kicked
 	staking.EndBlocker(ctx, app.StakingKeeper)
-	tstaking.CheckValidator(valAddr, stakingtypes.Unbonding, true)
+	tstaking.CheckValidator(valAddr, sdkstaking.Unbonding, true)
 
 	// check all the signing information
 	signInfo, found := app.SlashingKeeper.GetValidatorSigningInfo(ctx, consAddr)
 	require.True(t, found)
-	require.Equal(t, int64(0), signInfo.MissedBlocksCounter)
-	require.Equal(t, int64(0), signInfo.IndexOffset)
-
-	// array should be cleared
-	for offset := int64(0); offset < app.SlashingKeeper.SignedBlocksWindow(ctx); offset++ {
-		missed := app.SlashingKeeper.GetValidatorMissedBlockBitArray(ctx, consAddr, offset)
-		require.False(t, missed)
-	}
+	require.Equal(t, int64(700), signInfo.StartHeight)
+	require.Equal(t, int64(499), signInfo.MissedBlocksCounter)
+	require.Equal(t, int64(499), signInfo.IndexOffset)
 
 	// some blocks pass
 	height = int64(5000)
@@ -258,21 +197,26 @@ func TestValidatorDippingInAndOut(t *testing.T) {
 
 	// validator rejoins and starts signing again
 	app.StakingKeeper.Unjail(ctx, consAddr)
+
 	app.SlashingKeeper.HandleValidatorSignature(ctx, val.Address(), newPower, true)
-	height++
 
 	// validator should not be kicked since we reset counter/array when it was jailed
 	staking.EndBlocker(ctx, app.StakingKeeper)
-	tstaking.CheckValidator(valAddr, stakingtypes.Bonded, false)
+	tstaking.CheckValidator(valAddr, sdkstaking.Bonded, false)
 
-	// validator misses 501 blocks
-	latest = height
-	for ; height < latest+501; height++ {
+	// check start height is correctly set
+	signInfo, found = app.SlashingKeeper.GetValidatorSigningInfo(ctx, consAddr)
+	require.True(t, found)
+	require.Equal(t, height, signInfo.StartHeight)
+
+	// validator misses 501 blocks after SignedBlockWindow period (1000 blocks)
+	latest = app.SlashingKeeper.SignedBlocksWindow(ctx) + height
+	for ; height < latest+app.SlashingKeeper.MinSignedPerWindow(ctx); height++ {
 		ctx = ctx.WithBlockHeight(height)
 		app.SlashingKeeper.HandleValidatorSignature(ctx, val.Address(), newPower, false)
 	}
 
 	// validator should now be jailed & kicked
 	staking.EndBlocker(ctx, app.StakingKeeper)
-	tstaking.CheckValidator(valAddr, stakingtypes.Unbonding, true)
+	tstaking.CheckValidator(valAddr, sdkstaking.Unbonding, true)
 }

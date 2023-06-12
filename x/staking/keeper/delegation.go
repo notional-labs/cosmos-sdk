@@ -218,7 +218,7 @@ func (k Keeper) GetDelegatorBonded(ctx sdk.Context, delegator sdk.AccAddress) sd
 		if err != nil {
 			panic(err) // shouldn't happen
 		}
-		validator, found := k.GetValidator(ctx, validatorAddr)
+		validator, found := k.GetLiquidValidator(ctx, validatorAddr)
 		if found {
 			shares := delegation.Shares
 			tokens := validator.TokensFromSharesTruncated(shares)
@@ -657,7 +657,7 @@ func (k Keeper) Delegate(
 	// Get or create the delegation object
 	delegation, found := k.GetDelegation(ctx, delAddr, validator.GetOperator())
 	if !found {
-		delegation = types.NewDelegation(delAddr, validator.GetOperator(), sdk.ZeroDec())
+		delegation = types.NewDelegation(delAddr, validator.GetOperator(), sdk.ZeroDec(), false)
 	}
 
 	// call the appropriate hook if present
@@ -741,7 +741,7 @@ func (k Keeper) Unbond(
 	}
 
 	// get validator
-	validator, found := k.GetValidator(ctx, valAddr)
+	validator, found := k.GetLiquidValidator(ctx, valAddr)
 	if !found {
 		return amount, types.ErrNoValidatorFound
 	}
@@ -791,7 +791,7 @@ func (k Keeper) Unbond(
 func (k Keeper) getBeginInfo(
 	ctx sdk.Context, valSrcAddr sdk.ValAddress,
 ) (completionTime time.Time, height int64, completeNow bool) {
-	validator, found := k.GetValidator(ctx, valSrcAddr)
+	validator, found := k.GetLiquidValidator(ctx, valSrcAddr)
 
 	// TODO: When would the validator not be found?
 	switch {
@@ -821,7 +821,7 @@ func (k Keeper) getBeginInfo(
 func (k Keeper) Undelegate(
 	ctx sdk.Context, delAddr sdk.AccAddress, valAddr sdk.ValAddress, sharesAmount sdk.Dec,
 ) (time.Time, error) {
-	validator, found := k.GetValidator(ctx, valAddr)
+	validator, found := k.GetLiquidValidator(ctx, valAddr)
 	if !found {
 		return time.Time{}, types.ErrNoDelegatorForAddress
 	}
@@ -906,12 +906,12 @@ func (k Keeper) BeginRedelegation(
 		return time.Time{}, types.ErrSelfRedelegation
 	}
 
-	dstValidator, found := k.GetValidator(ctx, valDstAddr)
+	dstValidator, found := k.GetLiquidValidator(ctx, valDstAddr)
 	if !found {
 		return time.Time{}, types.ErrBadRedelegationDst
 	}
 
-	srcValidator, found := k.GetValidator(ctx, valSrcAddr)
+	srcValidator, found := k.GetLiquidValidator(ctx, valSrcAddr)
 	if !found {
 		return time.Time{}, types.ErrBadRedelegationDst
 	}
@@ -1000,7 +1000,7 @@ func (k Keeper) CompleteRedelegation(
 func (k Keeper) ValidateUnbondAmount(
 	ctx sdk.Context, delAddr sdk.AccAddress, valAddr sdk.ValAddress, amt sdk.Int,
 ) (shares sdk.Dec, err error) {
-	validator, found := k.GetValidator(ctx, valAddr)
+	validator, found := k.GetLiquidValidator(ctx, valAddr)
 	if !found {
 		return shares, types.ErrNoValidatorFound
 	}

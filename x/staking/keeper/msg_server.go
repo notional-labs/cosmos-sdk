@@ -36,7 +36,7 @@ func (k msgServer) CreateValidator(goCtx context.Context, msg *types.MsgCreateVa
 	}
 
 	// check to see if the pubkey or sender has been registered before
-	if _, found := k.GetValidator(ctx, valAddr); found {
+	if _, found := k.GetLiquidValidator(ctx, valAddr); found {
 		return nil, types.ErrValidatorOwnerExists
 	}
 
@@ -130,7 +130,7 @@ func (k msgServer) EditValidator(goCtx context.Context, msg *types.MsgEditValida
 		return nil, err
 	}
 	// validator must already be registered
-	validator, found := k.GetValidator(ctx, valAddr)
+	validator, found := k.GetLiquidValidator(ctx, valAddr)
 	if !found {
 		return nil, types.ErrNoValidatorFound
 	}
@@ -193,7 +193,7 @@ func (k msgServer) Delegate(goCtx context.Context, msg *types.MsgDelegate) (*typ
 		return nil, valErr
 	}
 
-	validator, found := k.GetValidator(ctx, valAddr)
+	validator, found := k.GetLiquidValidator(ctx, valAddr)
 	if !found {
 		return nil, types.ErrNoValidatorFound
 	}

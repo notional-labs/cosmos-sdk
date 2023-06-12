@@ -473,11 +473,13 @@
     - [Description](#cosmos.staking.v1beta1.Description)
     - [HistoricalInfo](#cosmos.staking.v1beta1.HistoricalInfo)
     - [Params](#cosmos.staking.v1beta1.Params)
+    - [PendingTokenizeShareAuthorizations](#cosmos.staking.v1beta1.PendingTokenizeShareAuthorizations)
     - [Pool](#cosmos.staking.v1beta1.Pool)
     - [Redelegation](#cosmos.staking.v1beta1.Redelegation)
     - [RedelegationEntry](#cosmos.staking.v1beta1.RedelegationEntry)
     - [RedelegationEntryResponse](#cosmos.staking.v1beta1.RedelegationEntryResponse)
     - [RedelegationResponse](#cosmos.staking.v1beta1.RedelegationResponse)
+    - [TokenizeShareRecord](#cosmos.staking.v1beta1.TokenizeShareRecord)
     - [UnbondingDelegation](#cosmos.staking.v1beta1.UnbondingDelegation)
     - [UnbondingDelegationEntry](#cosmos.staking.v1beta1.UnbondingDelegationEntry)
     - [ValAddresses](#cosmos.staking.v1beta1.ValAddresses)
@@ -6656,6 +6658,7 @@ validator.
 | `delegator_address` | [string](#string) |  | delegator_address is the bech32-encoded address of the delegator. |
 | `validator_address` | [string](#string) |  | validator_address is the bech32-encoded address of the validator. |
 | `shares` | [string](#string) |  | shares define the delegation shares received. |
+| `validator_bond` | [bool](#bool) |  | has this delegation been marked as a validator self bond. |
 
 
 
@@ -6730,6 +6733,22 @@ Params defines the parameters for the staking module.
 | `max_entries` | [uint32](#uint32) |  | max_entries is the max entries for either unbonding delegation or redelegation (per pair/trio). |
 | `historical_entries` | [uint32](#uint32) |  | historical_entries is the number of historical entries to persist. |
 | `bond_denom` | [string](#string) |  | bond_denom defines the bondable coin denomination. |
+
+
+
+
+
+
+<a name="cosmos.staking.v1beta1.PendingTokenizeShareAuthorizations"></a>
+
+### PendingTokenizeShareAuthorizations
+PendingTokenizeShareAuthorizations stores a list of addresses that have their 
+tokenize share enablement in progress
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| `addresses` | [string](#string) | repeated |  |
 
 
 
@@ -6824,6 +6843,24 @@ responses.
 | ----- | ---- | ----- | ----------- |
 | `redelegation` | [Redelegation](#cosmos.staking.v1beta1.Redelegation) |  |  |
 | `entries` | [RedelegationEntryResponse](#cosmos.staking.v1beta1.RedelegationEntryResponse) | repeated |  |
+
+
+
+
+
+
+<a name="cosmos.staking.v1beta1.TokenizeShareRecord"></a>
+
+### TokenizeShareRecord
+TokenizeShareRecord represents a tokenized delegation
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| `id` | [uint64](#uint64) |  |  |
+| `owner` | [string](#string) |  |  |
+| `module_account` | [string](#string) |  | module account take the role of delegator |
+| `validator` | [string](#string) |  | validator delegated to for tokenize share record creation |
 
 
 

@@ -74,7 +74,7 @@ func setup(t *testing.T, hookCalled *bool, ubdeID *uint64) (
 	require.True(t, validator1.IsBonded())
 
 	// Create a delegator
-	delegation := types.NewDelegation(addrDels[0], addrVals[0], issuedShares1)
+	delegation := types.NewDelegation(addrDels[0], addrVals[0], issuedShares1, false)
 	app.StakingKeeper.SetDelegation(ctx, delegation)
 
 	// Create a validator to redelegate to
@@ -140,7 +140,7 @@ func doRedelegation(
 func doValidatorUnbonding(
 	t *testing.T, app *simapp.SimApp, ctx sdk.Context, addrVal sdk.ValAddress, hookCalled *bool,
 ) (validator types.Validator) {
-	validator, found := app.StakingKeeper.GetValidator(ctx, addrVal)
+	validator, found := app.StakingKeeper.GetLiquidValidator(ctx, addrVal)
 	require.True(t, found)
 	// Check that status is bonded
 	require.Equal(t, types.BondStatus(3), validator.Status)
@@ -177,7 +177,7 @@ func TestValidatorUnbondingOnHold1(t *testing.T) {
 	app.StakingKeeper.UnbondAllMatureValidators(ctx)
 
 	// Check that validator unbonding is not complete (is not mature yet)
-	validator, found := app.StakingKeeper.GetValidator(ctx, addrVals[0])
+	validator, found := app.StakingKeeper.GetLiquidValidator(ctx, addrVals[0])
 	require.True(t, found)
 	require.Equal(t, types.Unbonding, validator.Status)
 	unbondingVals := app.StakingKeeper.GetUnbondingValidators(ctx, completionTime, completionHeight)
@@ -190,7 +190,7 @@ func TestValidatorUnbondingOnHold1(t *testing.T) {
 	app.StakingKeeper.UnbondAllMatureValidators(ctx)
 
 	// Check that validator unbonding is complete
-	validator, found = app.StakingKeeper.GetValidator(ctx, addrVals[0])
+	validator, found = app.StakingKeeper.GetLiquidValidator(ctx, addrVals[0])
 	require.True(t, found)
 	require.Equal(t, types.Unbonded, validator.Status)
 	unbondingVals = app.StakingKeeper.GetUnbondingValidators(ctx, completionTime, completionHeight)
@@ -229,10 +229,10 @@ func TestValidatorUnbondingOnHold2(t *testing.T) {
 	app.StakingKeeper.UnbondAllMatureValidators(ctx)
 
 	// Check that unbonding is not complete for both validators
-	validator1, found := app.StakingKeeper.GetValidator(ctx, addrVals[0])
+	validator1, found := app.StakingKeeper.GetLiquidValidator(ctx, addrVals[0])
 	require.True(t, found)
 	require.Equal(t, types.Unbonding, validator1.Status)
-	validator2, found = app.StakingKeeper.GetValidator(ctx, addrVals[1])
+	validator2, found = app.StakingKeeper.GetLiquidValidator(ctx, addrVals[1])
 	require.True(t, found)
 	require.Equal(t, types.Unbonding, validator2.Status)
 	unbondingVals := app.StakingKeeper.GetUnbondingValidators(ctx, completionTime, completionHeight)
@@ -248,10 +248,10 @@ func TestValidatorUnbondingOnHold2(t *testing.T) {
 	app.StakingKeeper.UnbondAllMatureValidators(ctx)
 
 	// Check that unbonding is complete for validator1, but not for validator2
-	validator1, found = app.StakingKeeper.GetValidator(ctx, addrVals[0])
+	validator1, found = app.StakingKeeper.GetLiquidValidator(ctx, addrVals[0])
 	require.True(t, found)
 	require.Equal(t, types.Unbonded, validator1.Status)
-	validator2, found = app.StakingKeeper.GetValidator(ctx, addrVals[1])
+	validator2, found = app.StakingKeeper.GetLiquidValidator(ctx, addrVals[1])
 	require.True(t, found)
 	require.Equal(t, types.Unbonding, validator2.Status)
 	unbondingVals = app.StakingKeeper.GetUnbondingValidators(ctx, completionTime, completionHeight)
@@ -266,7 +266,7 @@ func TestValidatorUnbondingOnHold2(t *testing.T) {
 	app.StakingKeeper.UnbondAllMatureValidators(ctx)
 
 	// Check that unbonding is complete for validator2
-	validator2, found = app.StakingKeeper.GetValidator(ctx, addrVals[1])
+	validator2, found = app.StakingKeeper.GetLiquidValidator(ctx, addrVals[1])
 	require.True(t, found)
 	require.Equal(t, types.Unbonded, validator2.Status)
 	unbondingVals = app.StakingKeeper.GetUnbondingValidators(ctx, completionTime, completionHeight)
