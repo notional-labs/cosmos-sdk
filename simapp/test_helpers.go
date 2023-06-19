@@ -86,7 +86,7 @@ func Setup(isCheckTx bool) *SimApp {
 	return app
 }
 
-// For LSM replaced module useage
+// For LSM replaced module usage
 func SetupLSM(t *testing.T, _ bool) *SimApp {
 	t.Helper()
 
@@ -228,7 +228,7 @@ func SetupWithGenesisAccounts(genAccs []authtypes.GenesisAccount, balances ...ba
 
 // SetupWithGenesisAccounts initializes a new SimApp with the provided genesis
 // accounts and possible balances.
-// For LSM replaced module useage
+// For LSM replaced module usage
 func SetupWithGenesisAccountsLSM(t *testing.T, genAccs []authtypes.GenesisAccount, balances ...banktypes.Balance) *SimApp {
 	t.Helper()
 	pk := ed25519.GenPrivKey().PubKey()
