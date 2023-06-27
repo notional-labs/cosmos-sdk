@@ -18,7 +18,7 @@ require (
 	cosmossdk.io/x/nft v0.0.0-20230113085233-fae3332d62fc
 	cosmossdk.io/x/tx v0.8.0
 	cosmossdk.io/x/upgrade v0.0.0-20230127052425-54c8e1568335
-	github.com/cometbft/cometbft v0.38.0-rc1
+	github.com/cometbft/cometbft v0.38.0-rc2
 	github.com/cosmos/cosmos-db v1.0.0
 	// this version is not used as it is always replaced by the latest Cosmos SDK version
 	github.com/cosmos/cosmos-sdk v0.50.0
