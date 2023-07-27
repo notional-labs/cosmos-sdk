@@ -11,7 +11,7 @@ import (
 
 // staking message types
 //
-//nolint:gosec // these are not hard coded credentials
+
 const (
 	TypeMsgUndelegate                  = "begin_unbonding"
 	TypeMsgUnbondValidator             = "unbond_validator"

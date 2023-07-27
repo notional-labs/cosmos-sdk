@@ -7,6 +7,10 @@ import (
 	"time"
 
 	metrics "github.com/armon/go-metrics"
+	tmstrings "github.com/tendermint/tendermint/libs/strings"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -14,9 +18,6 @@ import (
 	vesting "github.com/cosmos/cosmos-sdk/x/auth/vesting/exported"
 	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
 	"github.com/cosmos/cosmos-sdk/x/staking/types"
-	tmstrings "github.com/tendermint/tendermint/libs/strings"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 type msgServer struct {

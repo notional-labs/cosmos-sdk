@@ -32,7 +32,7 @@ type BankKeeper interface {
 
 	GetSupply(ctx sdk.Context, denom string) sdk.Coin
 
-	SendCoins(ctx sdk.Context, fromAddr sdk.AccAddress, toAddr sdk.AccAddress, amt sdk.Coins) error
+	SendCoins(ctx sdk.Context, fromAddr, toAddr sdk.AccAddress, amt sdk.Coins) error
 	SendCoinsFromModuleToModule(ctx sdk.Context, senderPool, recipientPool string, amt sdk.Coins) error
 	SendCoinsFromAccountToModule(ctx sdk.Context, senderAddr sdk.AccAddress, recipientModule string, amt sdk.Coins) error
 	SendCoinsFromModuleToAccount(ctx sdk.Context, senderModule string, recipientAddr sdk.AccAddress, amt sdk.Coins) error
@@ -62,7 +62,7 @@ type ValidatorSet interface {
 	TotalBondedTokens(sdk.Context) sdk.Int                       // total bonded tokens within the validator set
 	StakingTokenSupply(sdk.Context) sdk.Int                      // total staking token supply
 
-	// slash the validator and delegators of the validator, specifying offence height, offence power, and slash fraction
+	// slash the validator and delegators of the validator, specifying offense height, offense power, and slash fraction
 	Slash(sdk.Context, sdk.ConsAddress, int64, int64, sdk.Dec, InfractionType)
 	Jail(sdk.Context, sdk.ConsAddress)   // jail a validator
 	Unjail(sdk.Context, sdk.ConsAddress) // unjail a validator

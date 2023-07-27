@@ -15,24 +15,22 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
-const ()
-
 // Simulation operation weights constants
 //
-//nolint:gosec // these are not hard-coded credentials
+
 const (
-	OpWeightMsgCreateValidator             = "op_weight_msg_create_validator"               //nolint:gosec
-	OpWeightMsgEditValidator               = "op_weight_msg_edit_validator"                 //nolint:gosec
-	OpWeightMsgDelegate                    = "op_weight_msg_delegate"                       //nolint:gosec
-	OpWeightMsgUndelegate                  = "op_weight_msg_undelegate"                     //nolint:gosec
-	OpWeightMsgBeginRedelegate             = "op_weight_msg_begin_redelegate"               //nolint:gosec
-	OpWeightMsgCancelUnbondingDelegation   = "op_weight_msg_cancel_unbonding_delegation"    //nolint:gosec
-	OpWeightMsgValidatorBond               = "op_weight_msg_validator_bond"                 //nolint:gosec
-	OpWeightMsgTokenizeShares              = "op_weight_msg_tokenize_shares"                //nolint:gosec
-	OpWeightMsgRedeemTokensforShares       = "op_weight_msg_redeem_tokens_for_shares"       //nolint:gosec
-	OpWeightMsgTransferTokenizeShareRecord = "op_weight_msg_transfer_tokenize_share_record" //nolint:gosec
-	OpWeightMsgDisableTokenizeShares       = "op_weight_msg_disable_tokenize_shares"        //nolint:gosec
-	OpWeightMsgEnableTokenizeShares        = "op_weight_msg_enable_tokenize_shares"         //nolint:gosec
+	OpWeightMsgCreateValidator             = "op_weight_msg_create_validator"               
+	OpWeightMsgEditValidator               = "op_weight_msg_edit_validator"                 
+	OpWeightMsgDelegate                    = "op_weight_msg_delegate"                       
+	OpWeightMsgUndelegate                  = "op_weight_msg_undelegate"                     
+	OpWeightMsgBeginRedelegate             = "op_weight_msg_begin_redelegate"               
+	OpWeightMsgCancelUnbondingDelegation   = "op_weight_msg_cancel_unbonding_delegation"    
+	OpWeightMsgValidatorBond               = "op_weight_msg_validator_bond"                 
+	OpWeightMsgTokenizeShares              = "op_weight_msg_tokenize_shares"                
+	OpWeightMsgRedeemTokensforShares       = "op_weight_msg_redeem_tokens_for_shares"       
+	OpWeightMsgTransferTokenizeShareRecord = "op_weight_msg_transfer_tokenize_share_record" 
+	OpWeightMsgDisableTokenizeShares       = "op_weight_msg_disable_tokenize_shares"        
+	OpWeightMsgEnableTokenizeShares        = "op_weight_msg_enable_tokenize_shares"         
 )
 
 // WeightedOperations returns all the operations from the module with their respective weights
@@ -786,7 +784,7 @@ func SimulateMsgTokenizeShares(ak types.AccountKeeper, bk types.BankKeeper, k ke
 		params := k.GetParams(ctx)
 		totalStaked := k.TotalBondedTokens(ctx).ToDec()
 		if totalStaked.IsZero() {
-			return simtypes.NoOpMsg(types.ModuleName, types.TypeMsgTokenizeShares, "cannot happend - no validators bonded if stake is 0.0"), nil, nil // skip
+			return simtypes.NoOpMsg(types.ModuleName, types.TypeMsgTokenizeShares, "cannot happened - no validators bonded if stake is 0.0"), nil, nil // skip
 		}
 		totalLiquidStaked := k.GetTotalLiquidStakedTokens(ctx).Add(tokenizeShareAmt).ToDec()
 		liquidStakedPercent := totalLiquidStaked.Quo(totalStaked)

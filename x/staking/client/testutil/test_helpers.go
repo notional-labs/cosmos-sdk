@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/require"
+
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	clitestutil "github.com/cosmos/cosmos-sdk/testutil/cli"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingcli "github.com/cosmos/cosmos-sdk/x/staking/client/cli"
-	"github.com/spf13/cobra"
-	"github.com/stretchr/testify/require"
 )
 
 var commonArgs = []string{
@@ -50,7 +51,7 @@ func MsgRedelegateExec(
 // MsgUnbondExec creates a unbond message.
 func MsgUnbondExec(
 	t *testing.T, clientCtx client.Context,
-	from fmt.Stringer, valAddress, amount fmt.Stringer,
+	from, valAddress, amount fmt.Stringer,
 	extraArgs ...string,
 ) {
 	args := []string{
@@ -67,7 +68,7 @@ func MsgUnbondExec(
 // MsgTokenizeSharesExec creates a delegation message.
 func MsgTokenizeSharesExec(
 	t *testing.T, clientCtx client.Context,
-	from fmt.Stringer, valAddress, rewardOwner, amount fmt.Stringer,
+	from, valAddress, rewardOwner, amount fmt.Stringer,
 	extraArgs ...string,
 ) {
 	args := []string{
