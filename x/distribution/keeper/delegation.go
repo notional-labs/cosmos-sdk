@@ -146,6 +146,8 @@ func (k Keeper) withdrawDelegationRewards(ctx sdk.Context, val stakingtypes.Vali
 	endingPeriod := k.IncrementValidatorPeriod(ctx, val)
 	rewardsRaw := k.CalculateDelegationRewards(ctx, val, del, endingPeriod)
 	outstanding := k.GetValidatorOutstandingRewardsCoins(ctx, del.GetValidatorAddr())
+	fmt.Println("rewardsRaw: ", rewardsRaw)
+	fmt.Println("outstanding: ", outstanding)
 
 	// defensive edge case may happen on the very final digits
 	// of the decCoins due to operation order of the distribution mechanism.
@@ -163,7 +165,7 @@ func (k Keeper) withdrawDelegationRewards(ctx sdk.Context, val stakingtypes.Vali
 
 	// truncate reward dec coins, return remainder to community pool
 	finalRewards, remainder := rewards.TruncateDecimal()
-	fmt.Println("finalRewards", finalRewards)
+	fmt.Println("finalRewards: ", finalRewards)
 	// add coins to user account
 	if !finalRewards.IsZero() {
 		withdrawAddr := k.GetDelegatorWithdrawAddr(ctx, del.GetDelegatorAddr())
