@@ -1,6 +1,8 @@
 package keeper
 
 import (
+	"fmt"
+
 	gogotypes "github.com/gogo/protobuf/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -285,6 +287,7 @@ func (k Keeper) GetValidatorOutstandingRewards(ctx sdk.Context, val sdk.ValAddre
 
 // set validator outstanding rewards
 func (k Keeper) SetValidatorOutstandingRewards(ctx sdk.Context, val sdk.ValAddress, rewards types.ValidatorOutstandingRewards) {
+	fmt.Println("Set here:", rewards)
 	store := ctx.KVStore(k.storeKey)
 	b := k.cdc.MustMarshal(&rewards)
 	store.Set(types.GetValidatorOutstandingRewardsKey(val), b)
