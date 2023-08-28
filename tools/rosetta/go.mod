@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	cosmossdk.io/log v1.1.0
-	cosmossdk.io/math v1.0.1
+	cosmossdk.io/math v1.1.2
 	cosmossdk.io/x/tx v0.8.0
 	github.com/coinbase/rosetta-sdk-go/types v1.0.0
 	github.com/cometbft/cometbft v0.38.0-rc1
