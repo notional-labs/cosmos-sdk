@@ -59,7 +59,7 @@ require (
 	golang.org/x/sync v0.2.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20230525234020-1aefcd67740a
 	google.golang.org/grpc v1.55.0
-	google.golang.org/protobuf v1.30.0
+	google.golang.org/protobuf v1.31.0
 	gotest.tools/v3 v3.4.0
 	pgregory.net/rapid v0.6.2
 	sigs.k8s.io/yaml v1.3.0
