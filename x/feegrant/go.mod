@@ -16,7 +16,7 @@ require (
 	cosmossdk.io/x/mint v0.0.0-00010101000000-000000000000
 	cosmossdk.io/x/staking v0.0.0-00010101000000-000000000000
 	github.com/cometbft/cometbft v0.38.0
-	github.com/cosmos/cosmos-proto v1.0.0-beta.3
+	github.com/cosmos/cosmos-proto v1.0.0-beta.4
 	github.com/cosmos/cosmos-sdk v0.51.0
 	github.com/cosmos/gogoproto v1.4.11
 	github.com/golang/mock v1.6.0
@@ -26,7 +26,7 @@ require (
 	github.com/stretchr/testify v1.8.4
 	google.golang.org/genproto/googleapis/api v0.0.0-20231012201019-e917dd12ba7a
 	google.golang.org/grpc v1.59.0
-	google.golang.org/protobuf v1.31.0
+	google.golang.org/protobuf v1.32.0
 	gotest.tools/v3 v3.5.1
 )
 
