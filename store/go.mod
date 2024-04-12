@@ -13,9 +13,9 @@ require (
 	github.com/cosmos/gogoproto v1.4.11
 	github.com/cosmos/iavl v1.0.0
 	github.com/cosmos/ics23/go v0.10.0
-	github.com/linxGnu/grocksdb v1.8.5
+	github.com/linxGnu/grocksdb v1.8.14
 	github.com/mattn/go-sqlite3 v1.14.17
-	github.com/stretchr/testify v1.8.4
+	github.com/stretchr/testify v1.9.0
 	github.com/tidwall/btree v1.7.0
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d
 )
