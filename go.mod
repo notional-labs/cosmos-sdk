@@ -19,7 +19,7 @@ require (
 	github.com/99designs/keyring v1.2.2
 	github.com/bgentry/speakeasy v0.1.1-0.20220910012023-760eaf8b6816
 	github.com/cockroachdb/errors v1.11.1
-	github.com/cometbft/cometbft v0.38.7-0.20240412124004-1f67e396cf45
+	github.com/cometbft/cometbft v1.0.0-alpha.2
 	github.com/cosmos/btcutil v1.0.5
 	github.com/cosmos/cosmos-db v1.0.2
 	github.com/cosmos/cosmos-proto v1.0.0-beta.5
@@ -84,6 +84,7 @@ require (
 	github.com/cockroachdb/redact v1.1.5 // indirect
 	github.com/cockroachdb/tokenbucket v0.0.0-20230807174530-cc333fc44b06 // indirect
 	github.com/cometbft/cometbft-db v0.11.0 // indirect
+	github.com/cometbft/cometbft/api v1.0.0-alpha.2 // indirect
 	github.com/cosmos/iavl v1.0.1 // indirect
 	github.com/cosmos/ics23/go v0.10.0 // indirect
 	github.com/danieljoos/wincred v1.2.1 // indirect
@@ -102,6 +103,7 @@ require (
 	github.com/go-kit/log v0.2.1 // indirect
 	github.com/go-logfmt/logfmt v0.6.0 // indirect
 	github.com/godbus/dbus v0.0.0-20190726142602-4481cbc300e2 // indirect
+	github.com/gofrs/uuid v4.4.0+incompatible // indirect
 	github.com/gogo/googleapis v1.4.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/glog v1.2.0 // indirect
@@ -121,7 +123,7 @@ require (
 	github.com/klauspost/compress v1.17.7 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
-	github.com/lib/pq v1.10.7 // indirect
+	github.com/lib/pq v1.10.9 // indirect
 	github.com/libp2p/go-buffer-pool v0.1.0 // indirect
 	github.com/linxGnu/grocksdb v1.8.14 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
