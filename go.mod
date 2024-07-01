@@ -18,7 +18,7 @@ require (
 	cosmossdk.io/x/staking v0.0.0-00010101000000-000000000000
 	cosmossdk.io/x/tx v0.13.3
 	github.com/99designs/keyring v1.2.2
-	github.com/bgentry/speakeasy v0.1.1-0.20220910012023-760eaf8b6816
+	github.com/bgentry/speakeasy v0.2.0
 	github.com/cockroachdb/errors v1.11.1
 	github.com/cometbft/cometbft v1.0.0-alpha.2.0.20240429102542-490e9bc3de65
 	github.com/cometbft/cometbft/api v1.0.0-alpha.2.0.20240429102542-490e9bc3de65
