@@ -2,6 +2,8 @@ module github.com/cosmos/cosmos-sdk/tests
 
 go 1.22.2
 
+toolchain go1.24.1
+
 require (
 	cosmossdk.io/api v0.7.4
 	cosmossdk.io/collections v0.4.0
@@ -29,7 +31,7 @@ require (
 	github.com/stretchr/testify v1.9.0
 	google.golang.org/grpc v1.63.2
 	google.golang.org/protobuf v1.34.1
-	gotest.tools/v3 v3.5.1
+	gotest.tools/v3 v3.5.2
 	pgregory.net/rapid v1.1.0
 )
 
