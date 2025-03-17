@@ -2,6 +2,8 @@ module cosmossdk.io/x/upgrade
 
 go 1.22.2
 
+toolchain go1.24.1
+
 require (
 	cosmossdk.io/api v0.7.4
 	cosmossdk.io/core v0.12.1-0.20231114100755-569e3ff6a0d7
@@ -24,8 +26,8 @@ require (
 	github.com/hashicorp/go-getter v1.7.4
 	github.com/hashicorp/go-metrics v0.5.3
 	github.com/spf13/cast v1.6.0
-	github.com/spf13/cobra v1.8.0
-	github.com/spf13/pflag v1.0.5
+	github.com/spf13/cobra v1.9.1
+	github.com/spf13/pflag v1.0.6
 	github.com/stretchr/testify v1.9.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20240415180920-8c6c420018be
 	google.golang.org/grpc v1.63.2
