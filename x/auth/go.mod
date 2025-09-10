@@ -1,6 +1,6 @@
 module cosmossdk.io/x/auth
 
-go 1.22.2
+go 1.23
 
 require (
 	cosmossdk.io/api v0.7.4
@@ -28,7 +28,7 @@ require (
 	golang.org/x/exp v0.0.0-20240416160154-fe59bbe5cc7f
 	google.golang.org/genproto/googleapis/api v0.0.0-20240227224415-6ceb2ff114de
 	google.golang.org/grpc v1.63.2
-	google.golang.org/protobuf v1.34.1
+	google.golang.org/protobuf v1.36.9
 	gotest.tools/v3 v3.5.1
 	pgregory.net/rapid v1.1.0
 	sigs.k8s.io/yaml v1.4.0
