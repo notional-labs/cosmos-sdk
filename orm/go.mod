@@ -1,6 +1,6 @@
 module cosmossdk.io/orm
 
-go 1.21
+go 1.23
 
 require (
 	cosmossdk.io/api v0.7.4
@@ -18,7 +18,7 @@ require (
 	google.golang.org/grpc v1.63.2
 	google.golang.org/protobuf v1.34.1
 	gotest.tools/v3 v3.5.1
-	pgregory.net/rapid v1.1.0
+	pgregory.net/rapid v1.3.0
 )
 
 require (
