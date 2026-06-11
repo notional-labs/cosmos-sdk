@@ -1,6 +1,6 @@
 module cosmossdk.io/simapp
 
-go 1.22.2
+go 1.23
 
 require (
 	cosmossdk.io/api v0.7.4
@@ -45,7 +45,7 @@ require (
 	google.golang.org/protobuf v1.34.1
 )
 
-require github.com/cometbft/cometbft/api v1.0.0-alpha.2.0.20240429102542-490e9bc3de65
+require github.com/cometbft/cometbft/api v1.1.0-rc1
 
 require cosmossdk.io/x/consensus v0.0.0-00010101000000-000000000000
 
