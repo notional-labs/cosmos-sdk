@@ -1,6 +1,6 @@
 module cosmossdk.io/x/protocolpool
 
-go 1.22.2
+go 1.23
 
 require (
 	cosmossdk.io/api v0.7.4
@@ -21,7 +21,7 @@ require (
 	github.com/stretchr/testify v1.9.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20240227224415-6ceb2ff114de
 	google.golang.org/grpc v1.63.2
-	google.golang.org/protobuf v1.34.1
+	google.golang.org/protobuf v1.36.12
 	gotest.tools/v3 v3.5.1
 )
 
@@ -83,7 +83,7 @@ require (
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/btree v1.1.2 // indirect
 	github.com/google/flatbuffers v2.0.8+incompatible // indirect
-	github.com/google/go-cmp v0.6.0 // indirect
+	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/orderedcode v0.0.1 // indirect
 	github.com/gorilla/handlers v1.5.2 // indirect
 	github.com/gorilla/mux v1.8.1 // indirect
